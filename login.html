@@ -3,8 +3,8 @@
 <html>
 <head>
     <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
         body {
             background: url('/static/Bg.jpg') no-repeat center center fixed;
             background-size: cover;
@@ -68,6 +68,7 @@
     </script>
 </head>
 <body>
+    <div class="page-container">
     <div class="form-box">
         <h2>Login</h2>
         {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
@@ -91,9 +92,12 @@
             <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label><br>
             <button type="submit" class="btn-login">Opret bruger</button>
         </form>
-    </div>
+</div>
 <footer>
 © Hornsberg Group  
 </footer>
+
+    </div>
+
 </body>
 </html>

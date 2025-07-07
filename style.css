@@ -25,15 +25,16 @@ input {
     border: 1px solid #ccc;
 }
 
-footer {
-     position: fixed;
-    bottom: 0;
-    left: 0;
+.page-container {
+    position: relative;
     width: 100%;
-    text-align: left;
-    padding: 10px;
-    font-size: 14px;
+    height: 100vh;
+}
+
+footer {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
     color: white;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9999;
+    font-size: 14px;
 }
