@@ -1,0 +1,35 @@
+
+body {
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+}
+
+button {
+    background-color: rgba(33, 150, 243, 0.5);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: rgba(33, 150, 243, 0.8);
+}
+
+input {
+    margin: 5px 10px 5px 0;
+    padding: 6px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+footer {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    color: white;
+    font-size: 14px;
+    z-index: 1000;
+}

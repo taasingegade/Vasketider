@@ -1,0 +1,8 @@
+# v97: Render commit marker
+
+
+Flask
+psycopg2-binary
+# v57: ændret for Render commit
+
+# v76

@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vasketider</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+        }
+        .sidebar {
+            width: 180px;
+            background-color: rgba(0,0,0,0.7);
+            padding: 20px;
+        }
+        .main {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+        }
+        .calendar div {
+            padding: 5px;
+            text-align: center;
+        }
+        .slot-btn {
+            padding: 10px;
+            font-size: 1vw;
+            min-width: 50px;
+            min-height: 20px;
+            background-color: rgba(33,150,243,0.5);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+        }
+        .slot-btn[disabled] {
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h3>Menu</h3>
+        
+<form method="get" action="/index" style="display: flex; align-items: center; gap: 10px; flex-direction: row;">
+    <button type="submit" name="uge" value="{{ valgt_uge - 1 }}" style="font-size: 1.3em;">◀</button>
+    <span style="font-weight: bold; font-size: 1.1em;">Uge {{ valgt_uge }}</span>
+    <button type="submit" name="uge" value="{{ valgt_uge + 1 }}" style="font-size: 1.3em;">▶</button>
+</form>
+
+        <br>
+        <form method="get" action="/logout"><button class="slot-btn">Log ud</button></form>
+        <form method="get" action="/kommentar"><button class="slot-btn">Kommentar</button></form>
+    </div>
+
+    <div class="main">
+        <h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
+        <div class="calendar">
+    <div></div>
+    {% for i in range(7) %}
+        <div><strong>{{ ugedage_dk[i] }}<br>{{ ugedage_dato[i] }}</strong></div>
+    {% endfor %}
+            {% for tid in tider %}
+                <div><strong>{{ tid }}</strong></div>
+                {% for i in range(7) %}
+                    {% set dato = ugedage_dato[i] %}
+                    {% set booked_by = bookinger.get((dato, tid)) %}
+                    <div>
+                        {% if booked_by %}
+                            <form method="post" action="/slet">
+                                <input type="hidden" name="dato" value="{{ dato }}">
+                                <input type="hidden" name="tid" value="{{ tid }}">
+                                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+			        {% if booked_by == 'service' %}
+            <button class="slot-btn" style="background-color: yellow; color: black;" disabled>Service</button>
+        {% elif booked_by == bruger %}
+            <button class="slot-btn" style="background-color: red;">{{ booked_by }}</button>
+        {% else %}
+            <button class="slot-btn" style="background-color: red;" disabled>{{ booked_by }}</button>
+        {% endif %}
+                            </form>
+                        {% else %}
+                            <form method="post" action="/book">
+                                <input type="hidden" name="dato" value="{{ dato }}">
+                                <input type="hidden" name="tid" value="{{ tid }}">
+                                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                                <button class="slot-btn">Ledig</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <hr>
+        <h3>Alle bookede tider (næste 14 dage):</h3>
+<ul id="bookinger_14_ul">
+    {% for (dato, tid), navn in bookinger_14.items() %}
+        <li><strong>{{ dato }}</strong> – <strong>{{ tid }}</strong> → {{ navn }}</li>
+    {% endfor %}
+</ul>        </div>
+    </div>
+<script>
+function hentBookinger() {
+    fetch('/bookinger_json')
+      .then(res => res.json())
+      .then(data => {
+        let ul = document.getElementById('bookinger_14_ul');
+        if (!ul) return;
+        ul.innerHTML = "";
+        if(data.length === 0) {
+            ul.innerHTML = "<li>Ingen bookede tider de næste 14 dage.</li>";
+        } else {
+            data.forEach(function(item) {
+                ul.innerHTML += `<li><strong>${item.dato}</strong> – <strong>${item.tid}</strong> → ${item.navn}</li>`;
+            });
+        }
+      });
+}
+setInterval(hentBookinger, 10000); // Hver 10. sekund
+window.onload = hentBookinger;
+</script>
+</body>
+</html>
