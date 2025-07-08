@@ -41,9 +41,12 @@ def bookinger_json():
     ])
 
 def get_db_connection():
+    db_url = os.environ.get("DATABASE_URL") or "postgresql://vasketid_db_user:rGVcD7xXGPrltSmj4AtKqoNcfwEe71bm@dpg-d1i3i09r0fns73bs6j4g-a.frankfurt-postgres.render.com/vasketid_db"
+    return psycopg2.connect(db_url, sslmode='require')
+
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
-    adgangskode = "uzqhchvfvphumxvi"
+    adgangskode =  os.environ.get("uzqhchvfvphumxvi")
 
     msg = MIMEText(besked)
     msg["Subject"] = emne
@@ -59,8 +62,8 @@ def send_email(modtager, emne, besked):
         print("Fejl ved afsendelse af e-mail:", e)
 
 def send_sms_twilio(modtager, besked):
-    account_sid = "AC8c6f56f5bef9c190482b5555c29425c8"
-    auth_token = "d7ee46ae9bf6bbe4945ed78e24840639"
+    account_sid = os.environ.get("AC8c6f56f5bef9c190482b5555c29425c8")
+    auth_token = os.environ.get("d7ee46ae9bf6bbe4945ed78e24840639")
     afsender_nummer = "+13515298337"
 
     client = Client(account_sid, auth_token)
@@ -74,9 +77,6 @@ def send_sms_twilio(modtager, besked):
         print("Twilio SMS sendt:", message.sid)
     except Exception as e:
         print("Twilio fejl:", e)
-
-    db_url = os.environ.get("DATABASE_URL") or "postgresql://vasketid_db_user:rGVcD7xXGPrltSmj4AtKqoNcfwEe71bm@dpg-d1i3i09r0fns73bs6j4g-a.frankfurt-postgres.render.com/vasketid_db"
-    return psycopg2.connect(db_url, sslmode='require')
 
 @app.route('/')
 def home():
@@ -193,7 +193,6 @@ def skiftkode_get():
     fejl = request.args.get("fejl", "")
     return render_template("skiftkode.html", fejl=fejl)
 
-
 @app.route('/skiftkode', methods=['POST'])
 def skiftkode_post():
     brugernavn = request.form['brugernavn'].strip().lower()
@@ -221,7 +220,6 @@ def skiftkode_post():
     conn.commit()
     conn.close()
     return redirect('/login?besked=Adgangskode+opdateret')
-
 
 @app.route('/opret', methods=['POST'])
 def opret():
@@ -266,8 +264,6 @@ def opret_bruger():
     conn.commit()
     conn.close()
     return redirect("/vis_brugere")
-
-
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
