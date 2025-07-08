@@ -1,14 +1,12 @@
-# v97: Render commit marker
-
-dummy_render_trigger = 0  # v97 commit trigger
-
-# v87: Render commit marker
-# v85: Render commit marker
 
 from flask import Flask, render_template, request, redirect, session, jsonify
 import psycopg2
 from datetime import datetime, timedelta
 import os
+
+from email.mime.text import MIMEText
+import smtplib
+from twilio.rest import Client
 
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
@@ -43,6 +41,40 @@ def bookinger_json():
     ])
 
 def get_db_connection():
+def send_email(modtager, emne, besked):
+    afsender = "hornsbergmorten@gmail.com"
+    adgangskode = "uzqhchvfvphumxvi"
+
+    msg = MIMEText(besked)
+    msg["Subject"] = emne
+    msg["From"] = f"No Reply Vasketider <{afsender}>"
+    msg["To"] = modtager
+    msg.add_header('Reply-To', 'noreply@vasketider.dk')
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(afsender, adgangskode)
+            server.sendmail(afsender, [modtager], msg.as_string())
+    except Exception as e:
+        print("Fejl ved afsendelse af e-mail:", e)
+
+def send_sms_twilio(modtager, besked):
+    account_sid = "AC8c6f56f5bef9c190482b5555c29425c8"
+    auth_token = "d7ee46ae9bf6bbe4945ed78e24840639"
+    afsender_nummer = "+13515298337"
+
+    client = Client(account_sid, auth_token)
+
+    try:
+        message = client.messages.create(
+            body=besked,
+            from_=afsender_nummer,
+            to=modtager
+        )
+        print("Twilio SMS sendt:", message.sid)
+    except Exception as e:
+        print("Twilio fejl:", e)
+
     db_url = os.environ.get("DATABASE_URL") or "postgresql://vasketid_db_user:rGVcD7xXGPrltSmj4AtKqoNcfwEe71bm@dpg-d1i3i09r0fns73bs6j4g-a.frankfurt-postgres.render.com/vasketid_db"
     return psycopg2.connect(db_url, sslmode='require')
 
@@ -53,30 +85,41 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     fejl = request.args.get("fejl", "")
+    besked = request.args.get("besked", "")
     if request.method == 'POST':
-        brugernavn = request.form['brugernavn']
+        brugernavn = request.form['brugernavn'].lower()
         kode = request.form['kode']
+
         conn = get_db_connection()
         cur = conn.cursor()
-
-        cur.execute("SELECT * FROM brugere WHERE brugernavn = 'admin'")
-        if not cur.fetchone():
-            cur.execute("INSERT INTO brugere (brugernavn, kode) VALUES ('admin', 'admin123')")
-            conn.commit()
-
-        cur.execute("SELECT * FROM brugere WHERE brugernavn = %s AND kode = %s", (brugernavn.lower(), kode))
-        bruger = cur.fetchone()
+        cur.execute("SELECT kode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
+        result = cur.fetchone()
         conn.close()
-        if bruger:
-            session['brugernavn'] = brugernavn
-            if brugernavn.lower() == 'admin':
-                return redirect('/admin')
-            else:
-                return redirect('/index')
-        else:
-            return redirect('/login?fejl=Forkert+brugernavn+eller+adgangskode')
-    return render_template('login.html', fejl=fejl)
 
+        if not result:
+            return redirect('/login?fejl=Forkert+brugernavn')
+
+        kode_rigtig, godkendt, email, sms = result
+        if kode != kode_rigtig:
+            return redirect('/login?fejl=Forkert+adgangskode')
+
+        if not godkendt:
+            besked_admin = f"Brugeren '{brugernavn}' forsøger at logge ind og venter godkendelse."
+            send_email("hornsbergmorten@gmail.com", "Bruger venter godkendelse", besked_admin)
+            return redirect('/login?fejl=Bruger+ikke+endnu+godkendt.+Admin+er+informeret.')
+
+        if email:
+            send_email(email, "Login-validering", f"Hej {brugernavn}, du er nu logget ind i vasketidssystemet.")
+        if sms:
+            send_sms_twilio(sms, f"Hej {brugernavn}, du er nu logget ind i vasketidssystemet.")
+
+        session['brugernavn'] = brugernavn
+        if brugernavn == 'admin':
+            return redirect('/admin')
+        else:
+            return redirect('/index')
+
+    return render_template('login.html', fejl=fejl, besked=besked)
 @app.route('/logout')
 def logout():
     session.clear()
@@ -145,7 +188,6 @@ def index():
         bruger=brugernavn
     )
 
-
 @app.route('/skiftkode', methods=['GET'])
 def skiftkode_get():
     fejl = request.args.get("fejl", "")
@@ -200,10 +242,6 @@ def opret():
     cur.close()
     conn.close()
     return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
-
-# Version 101 – Godkendelsesfunktion tilføjet
-
-
 
 @app.route("/vis_brugere")
 def vis_brugere():

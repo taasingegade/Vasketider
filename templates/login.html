@@ -3,6 +3,7 @@
 <html>
 <head>
     <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         body {
             background: url('/static/Bg.jpg') no-repeat center center fixed;
@@ -90,8 +91,12 @@
             <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label><br>
             <button type="submit" class="btn-login">Opret bruger</button>
         </form>
+        {% if fejl %}
+            <p style="color: red;">{{ fejl }}</p>
+        {% endif %}
     </div>
-<footer class="footer">© Hornsberg Group</footer>    
-    </footer>
+
+    <footer>© Hornsberg Group</footer>
+
 </body>
 </html>
