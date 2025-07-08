@@ -47,7 +47,7 @@ def send_email(modtager, emne, besked):
 
     msg = MIMEText(besked)
     msg["Subject"] = emne
-    msg["From"] = f"No Reply Vasketider <{afsender}>"
+    msg["From"] = f"No Reply Vasketid <{afsender}>"
     msg["To"] = modtager
     msg.add_header('Reply-To', 'noreply@vasketider.dk')
 
