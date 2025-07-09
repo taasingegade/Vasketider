@@ -88,7 +88,7 @@ def login():
     besked = request.args.get("besked", "")
     if request.method == 'POST':
         brugernavn = request.form['brugernavn'].lower()
-        kode = request.form['adgangskode']
+        kode = request.form['kode']
 
         conn = get_db_connection()
         cur = conn.cursor()
