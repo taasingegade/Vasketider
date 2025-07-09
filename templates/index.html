@@ -71,7 +71,7 @@
             {% for tid in tider %}
                 <div><strong>{{ tid }}</strong></div>
                 {% for i in range(7) %}
-                    {% set dato = (start_dato + timedelta(days=i)).strftime('%Y-%m-%d') %}
+                    {% set dato = (start_dato + timedelta(days=i)).strftime('%d-%m-%Y') %}
                     {% set booked_by = bookinger.get((dato, tid)) %}
                     <div>
                         {% if booked_by %}
