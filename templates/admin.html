@@ -80,9 +80,9 @@
     <div class="section">
         <h2>Book tid som “service”</h2>
         <form method="post" action="/admin/book_service">
-            <label>Dato:</label>
-            <input type="date" name="dato" required>
-            <label>Tidsrum:</label>
+            <input type="hidden" name="dato" value="{{ some_dato }}">
+            <input type="hidden" name="tid" value="{{ some_tid }}">
+            <button type="submit">Book service</button>
             <select name="tid" required>
                 <option>07–11</option>
                 <option>11–15</option>
