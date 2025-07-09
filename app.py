@@ -256,9 +256,9 @@ def index():
         valgt_uge=valgt_uge,
         bookinger=bookinger,
         bookinger_14=bookinger.copy(),
-        bruger=brugernavn
+        bruger=brugernavn,
         start_dato=start_dato,
-        timedelta=timedelta
+        timedelta=timedelta,
     )
 
 @app.route('/skiftkode', methods=['GET'])
