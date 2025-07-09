@@ -129,13 +129,14 @@ def logout():
 def admin_book_service():
     dato = request.form.get("dato")
     tid = request.form.get("tid")
+    if not dato or not tid:
+        return "Ugyldig dato eller tidspunkt", 400
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
     cur.execute("INSERT INTO bookinger (navn, dato, tid) VALUES (%s, %s, %s)", ("service", dato, tid))
     conn.commit()
     conn.close()
     return redirect("/admin")
-
 @app.route('/admin')
 def admin():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
