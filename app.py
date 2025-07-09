@@ -224,7 +224,7 @@ def skiftkode_post():
 @app.route('/opret', methods=['POST'])
 def opret():
     brugernavn = request.form['brugernavn'].lower()
-    kode = request.form['kode']
+    adgangskode = request.form['adgangskode']
     email = request.form.get('email', '')
     sms = request.form.get('sms', '')
     notifikation = 'ja' if request.form.get('notifikation') == 'ja' else 'nej'
@@ -235,7 +235,7 @@ def opret():
     cur.execute("""
         INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
         VALUES (%s, %s, %s, %s, %s, %s)
-    """, (brugernavn, kode, email, sms, notifikation, godkendt))
+    """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
     conn.commit()
     cur.close()
     conn.close()
@@ -245,14 +245,14 @@ def opret():
 def vis_brugere():
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("SELECT brugernavn, kode, email, notifikation, sms, godkendt FROM brugere")
+    cur.execute("SELECT brugernavn, adgangskode, email, notifikation, sms, godkendt FROM brugere")
     brugere = [dict(zip(['brugernavn','adgangskode','email','notifikation','sms','godkendt'], row)) for row in cur.fetchall()]
     conn.close()
     return render_template("vis_brugere.html", brugere=brugere)
 @app.route("/opret_bruger", methods=["POST"])
 def opret_bruger():
     brugernavn = request.form.get("brugernavn")
-    adgangskode = request.form.get("password")
+    adgangskode = request.form.get("adgangskode")
     email = request.form.get("email")
     notifikation = request.form.get("notifikation")
     sms = request.form.get("sms")
@@ -279,7 +279,7 @@ def opdater_bruger():
         cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
     elif action == "gem":
         ny_brugernavn = request.form.get("ny_brugernavn")
-        adgangskode = request.form.get("password")
+        adgangskode = request.form.get("adgangskode")
         email = request.form.get("email")
         notifikation = request.form.get("notifikation")
         sms = request.form.get("sms")
