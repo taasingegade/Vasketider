@@ -140,12 +140,10 @@ def admin_book_service():
 
 @app.route("/admin/delete_booking", methods=["POST"])
 def admin_delete_booking():
-    bruger = request.form.get("bruger")
-    dato = request.form.get("dato")
-    tid = request.form.get("tid")
+    booking_id = request.form.get("booking_id")
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato = %s AND tid = %s", (bruger, dato, tid))
+    cur.execute("DELETE FROM bookinger WHERE id = %s", (booking_id,))
     conn.commit()
     conn.close()
     return redirect("/admin")
