@@ -339,5 +339,13 @@ def opdater_bruger():
     conn.close()
     return redirect("/vis_brugere")
 
-
+@app.route("/admin/delete_comment", methods=["POST"])
+def admin_delete_comment():
+    kommentar_id = request.form.get("kommentar_id")
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM kommentarer WHERE id = %s", (kommentar_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
 

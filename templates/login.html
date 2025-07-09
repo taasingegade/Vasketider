@@ -26,11 +26,13 @@
             animation: {% if fejl %}shake 0.5s{% endif %};
         }
         input, button {
+            box-sizing: border-box;
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 8px 0;
             border-radius: 5px;
             border: none;
+            font-size: 16px;
         }
         .btn-login {
             background-color: rgba(163, 139, 113, 0.5);
@@ -74,8 +76,8 @@
         <h2>Login</h2>
         {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
         <form method="post">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required><br>
-            <input type="password" name="kode" placeholder="Adgangskode" required><br>
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="kode" placeholder="Adgangskode" required>
             <button type="submit" class="btn-login">Login</button>
         </form>
 
@@ -86,11 +88,11 @@
         <button class="btn-opret" onclick="toggleOpret()">Opret ny bruger</button>
 
         <form method="post" action="/opret" class="opret-form" id="opretForm">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required><br>
-            <input type="password" name="adgangskode" placeholder="Adgangskode" required><br>
-            <input type="text" name="email" placeholder="Email (valgfrit)"><br>
-            <input type="text" name="sms" placeholder="SMS (valgfrit)"><br>
-            <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label><br>
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
+            <input type="text" name="email" placeholder="Email (valgfrit)">
+            <input type="text" name="sms" placeholder="SMS (valgfrit)">
+            <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label>
             <button type="submit" class="btn-login">Opret bruger</button>
         </form>
         {% if fejl %}

@@ -57,3 +57,10 @@ footer {
     font-size: 14px;
     z-index: 1000;
 }
+
+.btn-login,
+.btn-opret,
+.btn-skiftkode {
+    width: 100%;
+    text-align: center;
+}
