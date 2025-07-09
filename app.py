@@ -159,6 +159,25 @@ def admin_book_service():
     conn.close()
     return redirect("/admin")
 
+@app.route("/slet", methods=["POST"])
+def slet_booking():
+    brugernavn = session.get("brugernavn")
+    dato = request.form.get("dato")
+    tid = request.form.get("tid")
+
+    if not brugernavn or not dato or not tid:
+        return "Ugyldig anmodning", 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato = %s AND tid = %s",
+                (brugernavn, dato, tid))
+    conn.commit()
+    conn.close()
+
+    valgt_uge = request.form.get("valgt_uge")
+    return redirect(f"/index?uge={valgt_uge}" if valgt_uge else "/index")
+
 @app.route("/admin/delete_booking", methods=["POST"])
 def admin_delete_booking():
     booking_id = request.form.get("booking_id")
