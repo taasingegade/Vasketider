@@ -261,9 +261,9 @@ def index():
     bookinger = {}
     for b in alle_14:
         try:
-            dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
-        except ValueError:
             dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
+        except ValueError:
+            dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
         dato_str = dato_obj.strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
 
