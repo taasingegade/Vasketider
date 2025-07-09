@@ -230,6 +230,7 @@ def admin():
         bookinger=bookinger,
         kommentarer=kommentarer
     )
+
 @app.route('/index')
 def index():
     if 'brugernavn' not in session:
@@ -253,19 +254,18 @@ def index():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM bookinger WHERE dato >= %s AND dato <= %s",
-                (idag.strftime('%d-%m-%Y'), (idag + timedelta(days=14)).strftime('%d-%m-%Y')))
+                (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
     conn.close()
 
     bookinger = {}
     for b in alle_14:
-        dato_raw = str(b[2])
-try:
-    dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
-except ValueError:
-    dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
-    dato_str = dato_obj.strftime('%d-%m-%Y')
-    bookinger[(dato_str, b[3])] = b[1]
+        try:
+            dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
+        except ValueError:
+            dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
+        dato_str = dato_obj.strftime('%d-%m-%Y')
+        bookinger[(dato_str, b[3])] = b[1]
 
     return render_template(
         "index.html",
@@ -274,7 +274,7 @@ except ValueError:
         tider=tider,
         valgt_uge=valgt_uge,
         bookinger=bookinger,
-        bookinger_14=bookinger.copy(),
+        bookinger_14=bookinger,
         bruger=brugernavn,
         start_dato=start_dato,
         timedelta=timedelta,
