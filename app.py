@@ -249,6 +249,7 @@ def vis_brugere():
     brugere = [dict(zip(['brugernavn','adgangskode','email','notifikation','sms','godkendt'], row)) for row in cur.fetchall()]
     conn.close()
     return render_template("vis_brugere.html", brugere=brugere)
+
 @app.route("/opret_bruger", methods=["POST"])
 def opret_bruger():
     brugernavn = request.form.get("brugernavn")
@@ -261,6 +262,16 @@ def opret_bruger():
     cur = conn.cursor()
     cur.execute("INSERT INTO brugere (brugernavn, kode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
+    conn.commit()
+    conn.close()
+    return redirect("/vis_brugere")
+
+@app.route("/godkend_bruger", methods=["POST"])
+def godkend_bruger():
+    brugernavn = request.form.get("brugernavn")
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
     conn.commit()
     conn.close()
     return redirect("/vis_brugere")

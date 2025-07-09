@@ -97,13 +97,13 @@
         </form>
 
         <form method="post" action="/slet_bruger">
-            <input type="hidden" name="id" value="{{ user.id }}">
+            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
             <button type="submit">Slet</button>
         </form>
 
         {% if not user.godkendt %}
         <form method="post" action="/godkend_bruger">
-            <input type="hidden" name="id" value="{{ user.id }}">
+            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
             <button type="submit">Godkend</button>
         </form>
         {% endif %}
