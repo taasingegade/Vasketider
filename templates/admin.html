@@ -102,9 +102,10 @@
         {% for booking in bookinger %}
         <div class="booking-box">
             {{ booking.dato }} – {{ booking.tid }} ({{ booking.bruger }})
-            <form method="post" action="/admin/delete_booking">
-                <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                <button type="submit">Slet</button>
+           <input type="hidden" name="bruger" value="{{ booking.bruger }}">
+    <input type="hidden" name="dato" value="{{ booking.dato }}">
+    <input type="hidden" name="tid" value="{{ booking.tid }}">
+    <button type="submit">Slet</button>
             </form>
         </div>
         {% endfor %}
