@@ -32,12 +32,11 @@ def bookinger_json():
         try:
             dato_obj = datetime.strptime(dato_raw, '%d-%m-%Y')
         except ValueError:
-    try:
-        dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
-    except ValueError:
-        continue  # Skipper ugyldige datoer
-
-dato_str = dato_obj.strftime('%d-%m-%Y')
+            try:
+                dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
+            except ValueError:
+                continue  # <-- denne linje MANGLEDE!
+        dato_str = dato_obj.strftime('%d-%m-%Y')
         bookinger_14[(dato_str, b[3])] = b[1]
     return jsonify([
         {"dato": k[0], "tid": k[1], "navn": v}
