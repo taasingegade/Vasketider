@@ -120,6 +120,7 @@ def login():
             return redirect('/index')
 
     return render_template('login.html', fejl=fejl, besked=besked)
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -152,20 +153,44 @@ def admin_delete_booking():
 def admin():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
         return redirect('/login')
+
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur = conn.cursor()    # Hent brugere
     cur.execute("SELECT * FROM brugere")
-brugere = [dict(brugernavn=row[0], adgangskode=row[1], email=row[2], sms=row[3]) for row in cur.fetchall()]
+    brugere = [
+        dict(
+            brugernavn=row[0],
+            adgangskode=row[1],
+            email=row[2],
+            sms=row[3]
+        ) for row in cur.fetchall()
+    ]
 
-cur.execute("SELECT id, brugernavn, dato, tid FROM bookinger")
-bookinger = [dict(id=row[0], brugernavn=row[1], dato=row[2], tid=row[3]) for row in cur.fetchall()]
+# Hent bookinger med korrekt ID
+    cur.execute("SELECT id, brugernavn, dato, tid FROM bookinger")
+    bookinger = [
+        dict(
+            id=row[0],
+            brugernavn=row[1],
+            dato=row[2],
+            tid=row[3]
+        ) for row in cur.fetchall()
+    ]
 
-cur.execute("SELECT * FROM kommentarer")
-kommentarer = [dict(id=i+1, bruger=row[0], tekst=row[1]) for i, row in enumerate(cur.fetchall())]
+    # Hent kommentarer
+    cur.execute("SELECT * FROM kommentarer")
+    kommentarer = [
+        dict(id=i+1, bruger=row[0], tekst=row[1]) for i, row in enumerate(cur.fetchall())
+    ]
+
     conn.close()
 
-    return render_template("admin.html", brugere=brugere, bookinger=bookinger, kommentarer=kommentarer)
-
+    return render_template(
+        "admin.html",
+        brugere=brugere,
+        bookinger=bookinger,
+        kommentarer=kommentarer
+    )
 @app.route('/index')
 def index():
     if 'brugernavn' not in session:
