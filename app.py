@@ -260,12 +260,12 @@ def index():
     bookinger = {}
     for b in alle_14:
         dato_raw = str(b[2])
-        try:
+try:
     dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
 except ValueError:
     dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
-dato_str = dato_obj.strftime('%d-%m-%Y')
-        bookinger[(dato_str, b[3])] = b[1]
+    dato_str = dato_obj.strftime('%d-%m-%Y')
+    bookinger[(dato_str, b[3])] = b[1]
 
     return render_template(
         "index.html",
