@@ -261,7 +261,7 @@ def index():
     alle_14 = cur.fetchall()
     conn.close()
 
-   bookinger = {}
+  bookinger = {}
     for b in alle_14:
         dato_obj = b[2]
         if isinstance(dato_obj, str):
