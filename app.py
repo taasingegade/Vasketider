@@ -247,19 +247,17 @@ def index():
         except ValueError:
             dato_str = datetime.strptime(dato_raw, '%Y-%m-%d').strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
-print("BOOKINGER:", bookinger)
+
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
         ugedage_dato=ugedage_dato,
         tider=tider,
-    valgt_uge=valgt_uge,
-    bookinger=bookinger,
-    bookinger_14=bookinger.copy(),
-    bruger=brugernavn,
-    start_dato=start_dato,
-    timedelta=timedelta
-)
+        valgt_uge=valgt_uge,
+        bookinger=bookinger,
+        bookinger_14=bookinger.copy(),
+        bruger=brugernavn
+    )
 
 @app.route('/skiftkode', methods=['GET'])
 def skiftkode_get():
