@@ -78,6 +78,26 @@ def send_sms_twilio(modtager, besked):
     except Exception as e:
         print("Twilio fejl:", e)
 
+@app.route("/book", methods=["POST"])
+def book():
+    brugernavn = session.get('brugernavn')
+    dato = request.form.get("dato")
+    tid = request.form.get("tid")
+
+    if not brugernavn or not dato or not tid:
+        return "Ugyldig anmodning", 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO bookinger (brugernavn, dato, tid) VALUES (%s, %s, %s)",
+        (brugernavn, dato, tid)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect("/index")
+
 @app.route('/')
 def home():
     return redirect('/login')
