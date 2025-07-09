@@ -253,7 +253,7 @@ def index():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM bookinger WHERE dato >= %s AND dato <= %s",
-                (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
+                (idag.strftime('%d-%m-%Y'), (idag + timedelta(days=14)).strftime('%d-%m-%Y')))
     alle_14 = cur.fetchall()
     conn.close()
 
@@ -264,7 +264,7 @@ def index():
             datetime.strptime(dato_raw, '%d-%m-%Y')
             dato_str = dato_raw
         except ValueError:
-            dato_str = datetime.strptime(dato_raw, '%Y-%m-%d').strftime('%d-%m-%Y')
+            dato_str = datetime.strptime(dato_raw, '%d-%m-%Y').strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
 
     return render_template(
