@@ -266,6 +266,16 @@ def opret_bruger():
     conn.close()
     return redirect("/vis_brugere")
 
+@app.route("/slet_bruger", methods=["POST"])
+def slet_bruger():
+    brugernavn = request.form.get("brugernavn")
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM brugere WHERE brugernavn = %s", (brugernavn,))
+    conn.commit()
+    conn.close()
+    return redirect("/vis_brugere")
+
 @app.route("/godkend_bruger", methods=["POST"])
 def godkend_bruger():
     brugernavn = request.form.get("brugernavn")
