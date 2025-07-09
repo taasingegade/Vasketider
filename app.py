@@ -163,6 +163,7 @@ bookinger = [dict(id=row[0], brugernavn=row[1], dato=row[2], tid=row[3]) for row
 cur.execute("SELECT * FROM kommentarer")
 kommentarer = [dict(id=i+1, bruger=row[0], tekst=row[1]) for i, row in enumerate(cur.fetchall())]
     conn.close()
+
     return render_template("admin.html", brugere=brugere, bookinger=bookinger, kommentarer=kommentarer)
 
 @app.route('/index')
