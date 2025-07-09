@@ -233,7 +233,7 @@ def opret():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO brugere (brugernavn, adgangskode, email, sms, notifikation, godkendt)
+        INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
         VALUES (%s, %s, %s, %s, %s, %s)
     """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
     conn.commit()
@@ -245,7 +245,7 @@ def opret():
 def vis_brugere():
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("SELECT brugernavn, adgangskode, email, notifikation, sms, godkendt FROM brugere")
+    cur.execute("SELECT brugernavn, kode, email, notifikation, sms, godkendt FROM brugere")
     brugere = [dict(zip(['brugernavn','adgangskode','email','notifikation','sms','godkendt'], row)) for row in cur.fetchall()]
     conn.close()
     return render_template("vis_brugere.html", brugere=brugere)
@@ -259,7 +259,7 @@ def opret_bruger():
     godkendt = False
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("INSERT INTO brugere (brugernavn, adgangskode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
+    cur.execute("INSERT INTO brugere (brugernavn, kode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
     conn.commit()
     conn.close()
