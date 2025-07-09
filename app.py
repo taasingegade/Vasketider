@@ -253,11 +253,13 @@ def index():
         ugedage_dk=ugedage_dk,
         ugedage_dato=ugedage_dato,
         tider=tider,
-        valgt_uge=valgt_uge,
-        bookinger=bookinger,
-        bookinger_14=bookinger,
-        bruger=brugernavn
-    )
+    valgt_uge=valgt_uge,
+    bookinger=bookinger,
+    bookinger_14=bookinger,
+    bruger=brugernavn,
+    start_dato=start_dato,
+    timedelta=timedelta
+)
 
 @app.route('/skiftkode', methods=['GET'])
 def skiftkode_get():
