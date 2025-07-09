@@ -92,7 +92,7 @@ def login():
 
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT adgangskode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
+        cur.execute("SELECT kode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
         result = cur.fetchone()
         conn.close()
 
