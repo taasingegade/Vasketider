@@ -133,7 +133,7 @@ def admin_book_service():
         return "Ugyldig dato eller tidspunkt", 400
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("INSERT INTO bookinger (navn, dato, tid) VALUES (%s, %s, %s)", ("service", dato, tid))
+    cur.execute("INSERT INTO bookinger (bruger, dato, tid) VALUES (%s, %s, %s)", ("service", dato, tid))
     conn.commit()
     conn.close()
     return redirect("/admin")
