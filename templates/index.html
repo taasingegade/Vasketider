@@ -111,8 +111,13 @@
 <script>
 function hentBookinger() {
     fetch('/bookinger_json')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Netværksfejl: " + res.status);
+        return res.json();
+      })
       .then(data => {
+        console.log("Hentede bookinger:", data); // ← LOG VISNING
+
         let ul = document.getElementById('bookinger_14_ul');
         if (!ul) return;
         ul.innerHTML = "";
@@ -123,6 +128,9 @@ function hentBookinger() {
                 ul.innerHTML += `<li><strong>${item.dato}</strong> – <strong>${item.tid}</strong> → ${item.navn}</li>`;
             });
         }
+      })
+      .catch(error => {
+        console.error("Fejl ved hentning af bookinger:", error); // ← FEJL LOG
       });
 }
 setInterval(hentBookinger, 10000); // Hver 10. sekund
