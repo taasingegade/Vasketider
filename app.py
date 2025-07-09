@@ -261,14 +261,16 @@ def index():
     alle_14 = cur.fetchall()
     conn.close()
 
-    bookinger = {}
-    for b in alle_14:
+   bookinger = {}
+for b in alle_14:
+    dato_obj = b[2]
+    if isinstance(dato_obj, str):
         try:
-            dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
+            dato_obj = datetime.strptime(dato_obj, "%Y-%m-%d")
         except ValueError:
-            dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
-        dato_str = dato_obj.strftime('%d-%m-%Y')
-        bookinger[(dato_str, b[3])] = b[1]
+            dato_obj = datetime.strptime(dato_obj, "%d-%m-%Y")
+    dato_str = dato_obj.strftime('%d-%m-%Y')
+    bookinger[(dato_str, b[3])] = b[1]
 
     return render_template(
         "index.html",
