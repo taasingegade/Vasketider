@@ -88,11 +88,11 @@ def login():
     besked = request.args.get("besked", "")
     if request.method == 'POST':
         brugernavn = request.form['brugernavn'].lower()
-        kode = request.form['kode']
+        kode = request.form['adgangskode']
 
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT kode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
+        cur.execute("SELECT adgangskode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
         result = cur.fetchone()
         conn.close()
 
@@ -132,7 +132,7 @@ def admin():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM brugere")
-    brugere = [dict(username=row[0], password=row[1], email=row[2], sms=row[3]) for row in cur.fetchall()]
+    brugere = [dict(brugernavn=row[0], adgangskode=row[1], email=row[2], sms=row[3]) for row in cur.fetchall()]
     cur.execute("SELECT * FROM bookinger")
     bookinger = [dict(id=i+1, bruger=row[0], dato=row[1], tid=row[2]) for i, row in enumerate(cur.fetchall())]
     cur.execute("SELECT * FROM kommentarer")
@@ -216,7 +216,7 @@ def skiftkode_post():
         conn.close()
         return redirect('/skiftkode?fejl=Admin+kan+kun+ændres+af+admin')
 
-    cur.execute("UPDATE brugere SET kode = %s WHERE LOWER(brugernavn) = %s", (ny_kode1, brugernavn))
+    cur.execute("UPDATE brugere SET adgangskode = %s WHERE LOWER(brugernavn) = %s", (ny_kode1, brugernavn))
     conn.commit()
     conn.close()
     return redirect('/login?besked=Adgangskode+opdateret')
@@ -233,7 +233,7 @@ def opret():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
+        INSERT INTO brugere (brugernavn, adgangskode, email, sms, notifikation, godkendt)
         VALUES (%s, %s, %s, %s, %s, %s)
     """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
     conn.commit()
@@ -259,7 +259,7 @@ def opret_bruger():
     godkendt = False
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("INSERT INTO brugere (brugernavn, kode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
+    cur.execute("INSERT INTO brugere (brugernavn, adgangskode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
     conn.commit()
     conn.close()
@@ -285,7 +285,7 @@ def opdater_bruger():
         sms = request.form.get("sms")
         cur.execute("""
             UPDATE brugere
-            SET brugernavn = %s, kode = %s, email = %s, notifikation = %s, sms = %s
+            SET brugernavn = %s, adgangskode = %s, email = %s, notifikation = %s, sms = %s
             WHERE brugernavn = %s
         """, (ny_brugernavn, adgangskode, email, notifikation, sms, brugernavn))
 
