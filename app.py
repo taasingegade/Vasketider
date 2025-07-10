@@ -384,27 +384,19 @@ def godkend_bruger():
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
     brugernavn = request.form.get("brugernavn")
-    action = request.form.get("action")
+    adgangskode = request.form.get("adgangskode")
+    email = request.form.get("email")
+    sms = request.form.get("sms")
+    notifikation = "ja" if request.form.get("notifikation") == "on" else "nej"
+    godkendt = True if request.form.get("godkendt") == "on" else False
 
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-
-    if action == "slet":
-        cur.execute("DELETE FROM brugere WHERE brugernavn = %s", (brugernavn,))
-    elif action == "godkend":
-        cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
-    elif action == "gem":
-        ny_brugernavn = request.form.get("ny_brugernavn")
-        adgangskode = request.form.get("adgangskode")
-        email = request.form.get("email")
-        notifikation = request.form.get("notifikation")
-        sms = request.form.get("sms")
-        cur.execute("""
-            UPDATE brugere
-            SET brugernavn = %s, adgangskode = %s, email = %s, notifikation = %s, sms = %s
-            WHERE brugernavn = %s
-        """, (ny_brugernavn, adgangskode, email, notifikation, sms, brugernavn))
-
+    cur.execute("""
+        UPDATE brugere
+        SET kode = %s, email = %s, sms = %s, notifikation = %s, godkendt = %s
+        WHERE brugernavn = %s
+    """, (adgangskode, email, sms, notifikation, godkendt, brugernavn))
     conn.commit()
     conn.close()
     return redirect("/vis_brugere")
