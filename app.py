@@ -416,7 +416,7 @@ def kommentar():
         tekst = request.form.get('kommentar', '')
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("INSERT INTO kommentarer (brugernavn, tekst) VALUES (%s, %s)", (brugernavn, tekst))
+        cur.execute("INSERT INTO kommentarer (brugernavn, kommentar) VALUES (%s, %s)", (brugernavn, tekst))
         conn.commit()
         conn.close()
         return redirect('/index')
