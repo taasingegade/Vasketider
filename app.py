@@ -411,19 +411,19 @@ def kommentar():
         tekst = request.form.get('kommentar', '')
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("INSERT INTO kommentarer (brugernavn, kommentar) VALUES (%s, %s)", (brugernavn, tekst))
+        cur.execute("INSERT INTO kommentar (brugernavn, kommentar) VALUES (%s, %s)", (brugernavn, tekst))
         conn.commit()
         conn.close()
         return redirect('/kommentar')
 
-    # GET: hent alle kommentarer
+    # GET: hent alle kommentar
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT brugernavn, kommentar FROM kommentarer ORDER BY id DESC")
-    kommentarer = cur.fetchall()
+    cur.execute("SELECT brugernavn, kommentar FROM kommentar ORDER BY id DESC")
+    kommentar = cur.fetchall()
     conn.close()
 
-    return render_template("kommentar.html", kommentarer=kommentarer)
+    return render_template("kommentar.html", kommentar=kommentar)
 
 @app.route("/admin/skiftkode", methods=["GET", "POST"])
 def admin_skiftkode():
@@ -445,18 +445,18 @@ def admin_skiftkode():
 
     return render_template("admin_skiftkode.html", fejl=fejl)
 
-@app.route("/kommentarer")
+@app.route("/kommentar")
 def kommentaroversigt():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
         return redirect('/login')
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, brugernavn, kommentar FROM kommentarer ORDER BY id DESC")
-    kommentarer = [dict(id=row[0], brugernavn=row[1], kommentar=row[2]) for row in cur.fetchall()]
+    cur.execute("SELECT id, brugernavn, kommentar FROM kommentar ORDER BY id DESC")
+    kommentar = [dict(id=row[0], brugernavn=row[1], kommentar=row[2]) for row in cur.fetchall()]
     conn.close()
 
-    return render_template("kommentarer.html", kommentarer=kommentarer)
+    return render_template("kommentar.html", kommentar=kommentar)
 
 @app.route("/admin/delete_comment", methods=["POST"])
 def admin_delete_comment():
@@ -466,7 +466,7 @@ def admin_delete_comment():
     kommentar_id = request.form.get("kommentar_id")
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    cur.execute("DELETE FROM kommentarer WHERE id = %s", (kommentar_id,))
+    cur.execute("DELETE FROM kommentar WHERE id = %s", (kommentar_id,))
     conn.commit()
     conn.close()
     return redirect("/admin")
