@@ -67,7 +67,7 @@
 <div class="sidebar">
     <a href="/vis_brugere">Bruger</a>
     <a href="/dokumenter">Dokumenter</a>
-    <a href="/kommentarer">Kommentarer</a>
+    <a href="/kommentar">Kommentar</a>
     <form method="post" action="/logout">
         <button type="submit">Log ud</button>
     </form>
@@ -112,8 +112,8 @@
 
     <!-- 3. KOMMENTARER -->
     <div class="section">
-        <h2>Kommentarer</h2>
-        {% for kommentar in kommentarer %}
+        <h2>Kommentar</h2>
+        {% for kommentar in kommentar %}
         <div class="comment-box">
             {{ kommentar.brugernavn }}: {{ kommentar.tekst }}
             <form method="post" action="/admin/delete_comment">
