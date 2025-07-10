@@ -106,7 +106,8 @@ def book():
     conn.commit()
     conn.close()
 
-    return redirect("/index")
+    valgt_uge = request.form.get("valgt_uge")
+    return redirect(f"/index?uge={valgt_uge}" if valgt_uge else "/index")
 
 @app.route('/')
 def home():
