@@ -9,6 +9,20 @@ body {
     background-color: #f0f0f0;
 }
 
+.sidepanel-knap {
+    background-color: rgba(163, 139, 113, 0.5);  /* Coffee Brown udtonet */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+.sidepanel-knap:hover {
+    background-color: rgba(111, 78, 55, 0.8);
+}
+
 .form-box {
     text-align: center;
     display: flex;
