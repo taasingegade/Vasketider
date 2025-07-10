@@ -285,17 +285,18 @@ def index():
 
     valgt_uge = request.args.get("uge")
     idag = datetime.today()
-if valgt_uge:
-    valgt_uge = int(valgt_uge)
-    try:
-        start_dato = datetime.strptime(f"{idag.year}-W{valgt_uge}-1", "%Y-W%W-%w")
-    except ValueError:
-        valgt_uge = 1
-        start_dato = datetime.strptime(f"{idag.year}-W01-1", "%Y-W%W-%w")
-else:
-    valgt_uge = idag.isocalendar().week
-    dag = idag.weekday()
-    start_dato = idag - timedelta(days=dag)
+
+    if valgt_uge:
+        valgt_uge = int(valgt_uge)
+        try:
+            start_dato = datetime.strptime(f"{idag.year} {valgt_uge} 1", "%G %V %u")
+        except ValueError:
+            valgt_uge = 1
+            start_dato = datetime.strptime(f"{idag.year} 1 1", "%G %V %u")
+    else:
+        valgt_uge = idag.isocalendar().week
+        dag = idag.weekday()
+        start_dato = idag - timedelta(days=dag)
 
     ugedage_dk = UGEDAGE_DK
     ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
