@@ -144,7 +144,7 @@ def login():
 
     return render_template('login.html', fejl=fejl, besked=besked)
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
     return redirect('/login')
