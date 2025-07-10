@@ -276,10 +276,10 @@ def index():
         try:
             dato_obj = datetime.strptime(dato_raw, '%d-%m-%Y')
         except ValueError:
-       try:
-            dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
-              except ValueError:
-                   continue
+            try:
+                dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
+            except ValueError:
+                continue
         dato_str = dato_obj.strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
 
