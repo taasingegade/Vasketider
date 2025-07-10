@@ -115,7 +115,7 @@
         <h2>Kommentarer</h2>
         {% for kommentar in kommentarer %}
         <div class="comment-box">
-            {{ kommentar.bruger }}: {{ kommentar.tekst }}
+            {{ kommentar.brugernavn }}: {{ kommentar.tekst }}
             <form method="post" action="/admin/delete_comment">
                 <input type="hidden" name="kommentar_id" value="{{ kommentar.id }}">
                 <button type="submit">Slet</button>
