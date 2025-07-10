@@ -272,10 +272,14 @@ def index():
 
     bookinger = {}
     for b in alle_14:
+        dato_raw = str(b[2])
         try:
-            dato_obj = datetime.strptime(str(b[2]), '%d-%m-%Y')
+            dato_obj = datetime.strptime(dato_raw, '%d-%m-%Y')
         except ValueError:
-            dato_obj = datetime.strptime(str(b[2]), '%Y-%m-%d')
+       try:
+            dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
+              except ValueError:
+                   continue
         dato_str = dato_obj.strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
 
