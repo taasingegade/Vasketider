@@ -425,6 +425,19 @@ def kommentar():
 
     return render_template("kommentar.html", kommentarer=kommentarer)
 
+@app.route("/kommentarer")
+def kommentaroversigt():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, brugernavn, kommentar FROM kommentarer ORDER BY id DESC")
+    kommentarer = [dict(id=row[0], brugernavn=row[1], kommentar=row[2]) for row in cur.fetchall()]
+    conn.close()
+
+    return render_template("kommentarer.html", kommentarer=kommentarer)
+
 @app.route("/admin/delete_comment", methods=["POST"])
 def admin_delete_comment():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
