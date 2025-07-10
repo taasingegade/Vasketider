@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skriv kommentar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+
+        .form-box {
+            background-color: rgba(0, 0, 0, 0.75);
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            color: white;
+        }
+
+        textarea {
+            width: 90%;
+            height: 100px;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            resize: none;
+        }
+
+        .btn-login {
+            background-color: rgba(33, 150, 243, 0.5);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .btn-login:hover {
+            background-color: rgba(33, 150, 243, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-box">
+        <h2>Skriv kommentar</h2>
+        <form method="post" action="/kommentar">
+            <textarea name="kommentar" placeholder="Skriv din kommentar her..." required></textarea>
+            <button type="submit" class="btn-login">Send</button>
+        </form>
+        <form method="get" action="/index">
+            <button type="submit" class="btn-login">Tilbage</button>
+        </form>
+    </div>
+</body>
+</html>

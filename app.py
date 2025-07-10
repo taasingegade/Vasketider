@@ -409,6 +409,19 @@ def opdater_bruger():
     conn.close()
     return redirect("/vis_brugere")
 
+@app.route('/kommentar', methods=['GET', 'POST'])
+def kommentar():
+    if request.method == 'POST':
+        brugernavn = session.get('brugernavn', '')
+        tekst = request.form.get('kommentar', '')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO kommentarer (bruger, tekst) VALUES (%s, %s)", (brugernavn, tekst))
+        conn.commit()
+        conn.close()
+        return redirect('/index')
+    return render_template('kommentar.html')
+
 @app.route("/admin/delete_comment", methods=["POST"])
 def admin_delete_comment():
     kommentar_id = request.form.get("kommentar_id")
