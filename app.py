@@ -184,10 +184,15 @@ def slet_booking():
     if not brugernavn or not dato or not tid:
         return "Ugyldig anmodning", 400
 
+    try:
+        dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
+    except:
+        dato_iso = dato
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato = %s AND tid = %s",
-                (brugernavn, dato, tid))
+    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s AND tid = %s",
+                (brugernavn, dato_iso, tid))
     conn.commit()
     conn.close()
 

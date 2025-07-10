@@ -50,12 +50,6 @@
     <div class="sidebar">
         <h3>Menu</h3>
         
-<pre>
-{% for k, v in bookinger.items() %}
-{{ k }}: {{ v }}
-{% endfor %}
-</pre>
-
 <form method="get" action="/index" style="display: flex; align-items: center; gap: 10px; flex-direction: row;">
     <button type="submit" name="uge" value="{{ valgt_uge - 1 }}" style="font-size: 1.3em;">◀</button>
     <span style="font-weight: bold; font-size: 1.1em;">Uge {{ valgt_uge }}</span>
@@ -67,12 +61,6 @@
         <form method="get" action="/kommentar"><button class="slot-btn">Kommentar</button></form>
         <form method="get" action="/dokumenter"><button class="slot-btn">Dokumenter</button></form>
     </div>
-
-<pre>
-{% for (dato, tid), navn in bookinger.items() %}
-{{ dato }} | {{ tid }} → {{ navn }}
-{% endfor %}
-</pre>
 
     <div class="main">
         <h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
