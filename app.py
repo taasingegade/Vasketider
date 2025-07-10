@@ -411,16 +411,27 @@ def opdater_bruger():
 
 @app.route('/kommentar', methods=['GET', 'POST'])
 def kommentar():
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
     if request.method == 'POST':
-        brugernavn = session.get('brugernavn', '')
+        brugernavn = session['brugernavn']
         tekst = request.form.get('kommentar', '')
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("INSERT INTO kommentarer (brugernavn, kommentar) VALUES (%s, %s)", (brugernavn, tekst))
         conn.commit()
         conn.close()
-        return redirect('/index')
-    return render_template('kommentar.html')
+        return redirect('/kommentar')
+
+    # GET: hent alle kommentarer
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT brugernavn, kommentar FROM kommentarer ORDER BY id DESC")
+    kommentarer = cur.fetchall()
+    conn.close()
+
+    return render_template("kommentar.html", kommentarer=kommentarer)
 
 @app.route("/admin/delete_comment", methods=["POST"])
 def admin_delete_comment():

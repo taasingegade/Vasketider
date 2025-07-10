@@ -23,6 +23,10 @@ body {
     margin-top: 10vh;
 }
 
+.form-box h2 {
+    text-align: center;
+}
+
 button {
     background-color: rgba(163, 139, 113, 0.5);
     color: white;
