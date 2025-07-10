@@ -488,23 +488,6 @@ def dokumenter():
     if request.method == "POST":
         if session['brugernavn'].lower() != 'admin':
             return "Adgang nægtet", 403
-        fil = request.files.get("fil")
-        if fil and tilladt_fil(fil.filename):
-            navn = secure_filename(fil.filename)
-            fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
-            return redirect("/dokumenter")
-
-    filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
-    return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
-
-@app.route("/dokumenter", methods=["GET", "POST"])
-def dokumenter():
-    if 'brugernavn' not in session:
-        return redirect('/login')
-
-    if request.method == "POST":
-        if session['brugernavn'].lower() != 'admin':
-            return "Adgang nægtet", 403
 
         if "fil" in request.files:
             # Upload PDF
