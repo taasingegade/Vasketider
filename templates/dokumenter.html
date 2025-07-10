@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Dokumenter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            display: flex;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+        }
+        .sidebar a {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: rgba(163, 139, 113, 0.5);
+            text-decoration: none;
+            color: white;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        h1 {
+            border-bottom: 2px solid white;
+            padding-bottom: 10px;
+        }
+        .upload-form {
+            margin-top: 30px;
+            background-color: rgba(0,0,0,0.6);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 500px;
+        }
+        .fil-linje {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="{{ '/admin' if admin else '/index' }}">Tilbage</a>
+        <a href="/logout">Log ud</a>
+    </div>
+    <div class="content">
+        <h1>Dokumenter</h1>
+        <p>Her er vigtige dokumenter, manualer og retningslinjer:</p>
+
+        {% for fil in filer %}
+        <div class="fil-linje">
+            <a href="{{ url_for('static', filename=fil) }}" target="_blank" style="color: lightblue;">{{ fil }}</a>
+            {% if admin %}
+            <form method="post" style="display: inline;">
+                <input type="hidden" name="slet_fil" value="{{ fil }}">
+                <button type="submit" class="btn-login">Slet</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if admin %}
+        <div class="upload-form">
+            <h3>Upload ny PDF</h3>
+            <form method="post" enctype="multipart/form-data">
+                <input type="file" name="fil" accept=".pdf" required>
+                <button type="submit" class="btn-login">Upload</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
