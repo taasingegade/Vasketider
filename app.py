@@ -435,6 +435,9 @@ def kommentar():
 
 @app.route("/admin/delete_comment", methods=["POST"])
 def admin_delete_comment():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
     kommentar_id = request.form.get("kommentar_id")
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
@@ -442,4 +445,3 @@ def admin_delete_comment():
     conn.commit()
     conn.close()
     return redirect("/admin")
-
