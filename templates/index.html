@@ -68,6 +68,12 @@
         <form method="get" action="/dokumenter"><button class="slot-btn">Dokumenter</button></form>
     </div>
 
+<pre>
+{% for (dato, tid), navn in bookinger.items() %}
+{{ dato }} | {{ tid }} → {{ navn }}
+{% endfor %}
+</pre>
+
     <div class="main">
         <h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
         <div class="calendar">
