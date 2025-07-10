@@ -222,7 +222,7 @@ def admin():
     # Hent kommentarer
     cur.execute("SELECT * FROM kommentarer")
     kommentarer = [
-        dict(id=i+1, bruger=row[0], tekst=row[1]) for i, row in enumerate(cur.fetchall())
+        dict(id=row[0], brugernavn=row[1], tekst=row[2]) for row in cur.fetchall())
     ]
 
     conn.close()
