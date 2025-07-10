@@ -168,11 +168,6 @@ def login():
             send_email("hornsbergmorten@gmail.com", "Bruger venter godkendelse", besked_admin)
             return redirect('/login?fejl=Bruger+ikke+endnu+godkendt.+Admin+er+informeret.')
 
-        if email:
-            send_email(email, "Login-validering", f"Hej {brugernavn}, du er nu logget ind i vasketidssystemet.")
-        if sms:
-            send_sms_twilio(sms, f"Hej {brugernavn}, du er nu logget ind i vasketidssystemet.")
-
         session['brugernavn'] = brugernavn
         if brugernavn == 'admin':
             return redirect('/admin')
@@ -290,13 +285,17 @@ def index():
 
     valgt_uge = request.args.get("uge")
     idag = datetime.today()
-    if valgt_uge:
-        valgt_uge = int(valgt_uge)
-        start_dato = datetime.fromisocalendar(idag.year, valgt_uge, 1)
-    else:
-        valgt_uge = idag.isocalendar().week
-        dag = idag.weekday()
-        start_dato = idag - timedelta(days=dag)
+if valgt_uge:
+    valgt_uge = int(valgt_uge)
+    try:
+        start_dato = datetime.strptime(f"{idag.year}-W{valgt_uge}-1", "%Y-W%W-%w")
+    except ValueError:
+        valgt_uge = 1
+        start_dato = datetime.strptime(f"{idag.year}-W01-1", "%Y-W%W-%w")
+else:
+    valgt_uge = idag.isocalendar().week
+    dag = idag.weekday()
+    start_dato = idag - timedelta(days=dag)
 
     ugedage_dk = UGEDAGE_DK
     ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
