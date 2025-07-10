@@ -283,6 +283,10 @@ def index():
         dato_str = dato_obj.strftime('%d-%m-%Y')
         bookinger[(dato_str, b[3])] = b[1]
 
+  print("BOOKINGER:")
+    for k, v in bookinger.items():
+        print(f"{k}: {v}")
+
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
