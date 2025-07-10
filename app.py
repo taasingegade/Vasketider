@@ -263,7 +263,7 @@ def index():
     idag = datetime.today()
     if valgt_uge:
         valgt_uge = int(valgt_uge)
-        start_dato = datetime.strptime(f"{idag.year}-W{valgt_uge}-1", "%Y-W%W-%w")
+        start_dato = datetime.fromisocalendar(idag.year, valgt_uge, 1)
     else:
         valgt_uge = idag.isocalendar().week
         dag = idag.weekday()
