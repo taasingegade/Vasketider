@@ -31,22 +31,14 @@ def bookinger_json():
     cur = conn.cursor()
     idag = datetime.today()
     cur.execute(
-        "SELECT * FROM bookinger WHERE dato >= %s AND dato <= %s",
+        "SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
         (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d'))
     )
     alle_14 = cur.fetchall()
     conn.close()
     for b in alle_14:
-        dato_raw = str(b[2])
-        try:
-            dato_obj = datetime.strptime(dato_raw, '%d-%m-%Y')
-        except ValueError:
-            try:
-                dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
-            except ValueError:
-                continue  # <-- denne linje MANGLEDE!
-        dato_str = dato_obj.strftime('%d-%m-%Y')
-        bookinger_14[(dato_str, b[3])] = b[1]
+        dato_str = b[1].strftime('%d-%m-%Y')  # dato_rigtig er allerede et DATE-objekt
+        bookinger_14[(dato_str, b[2])] = b[0]
     return jsonify([
         {"dato": k[0], "tid": k[1], "navn": v}
         for k, v in bookinger_14.items()
@@ -99,11 +91,17 @@ def book():
     if not brugernavn or not dato or not tid:
         return "Ugyldig anmodning", 400
 
+    # Konverter dato til ISO-format (YYYY-MM-DD)
+    try:
+        dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
+    except:
+        dato_iso = dato  # fallback hvis allerede i korrekt format
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO bookinger (brugernavn, dato, tid) VALUES (%s, %s, %s)",
-        (brugernavn, dato, tid)
+        "INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
+        (brugernavn, dato_iso, tid)
     )
     conn.commit()
     conn.close()
@@ -164,9 +162,15 @@ def admin_book_service():
     tid = request.form.get("tid")
     if not dato or not tid:
         return "Ugyldig dato eller tidspunkt", 400
-    conn = psycopg2.connect(DATABASE_URL)
+
+    try:
+        dato_iso = datetime.strptime(dato, '%Y-%m-%d').strftime('%Y-%m-%d')
+    except:
+        dato_iso = dato
+
+    conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO bookinger (brugernavn, dato, tid) VALUES (%s, %s, %s)", ("service", dato, tid))
+    cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)", ("service", dato_iso, tid))
     conn.commit()
     conn.close()
     return redirect("/admin")
@@ -265,25 +269,16 @@ def index():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM bookinger WHERE dato >= %s AND dato <= %s",
+    cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
                 (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
     conn.close()
 
     bookinger = {}
     for b in alle_14:
-        dato_raw = str(b[2])
-        try:
-            dato_obj = datetime.strptime(dato_raw, '%d-%m-%Y')
-        except ValueError:
-            try:
-                dato_obj = datetime.strptime(dato_raw, '%Y-%m-%d')
-            except ValueError:
-                continue
-        dato_str = dato_obj.strftime('%d-%m-%Y')
-        bookinger[(dato_str, b[3])] = b[1]
+        dato_str = b[1].strftime('%d-%m-%Y')  # dato_rigtig er allerede et DATE-objekt
+        bookinger[(dato_str, b[2])] = b[0]
 
-    # Debug print (korrekt indrykket!)
     print("BOOKINGER:")
     for k, v in bookinger.items():
         print(f"{k}: {v}")
