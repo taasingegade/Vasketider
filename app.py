@@ -8,8 +8,17 @@ from email.mime.text import MIMEText
 import smtplib
 from twilio.rest import Client
 
+from werkzeug.utils import secure_filename
+
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
+
+UPLOAD_FOLDER = 'static'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def tilladt_fil(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 
@@ -470,3 +479,47 @@ def admin_delete_comment():
     conn.commit()
     conn.close()
     return redirect("/admin")
+
+@app.route("/dokumenter", methods=["GET", "POST"])
+def dokumenter():
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
+    if request.method == "POST":
+        if session['brugernavn'].lower() != 'admin':
+            return "Adgang nægtet", 403
+        fil = request.files.get("fil")
+        if fil and tilladt_fil(fil.filename):
+            navn = secure_filename(fil.filename)
+            fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
+            return redirect("/dokumenter")
+
+    filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
+    return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
+
+@app.route("/dokumenter", methods=["GET", "POST"])
+def dokumenter():
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
+    if request.method == "POST":
+        if session['brugernavn'].lower() != 'admin':
+            return "Adgang nægtet", 403
+
+        if "fil" in request.files:
+            # Upload PDF
+            fil = request.files["fil"]
+            if fil and tilladt_fil(fil.filename):
+                navn = secure_filename(fil.filename)
+                fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
+        elif "slet_fil" in request.form:
+            # Slet PDF
+            filnavn = request.form["slet_fil"]
+            sti = os.path.join(app.config['UPLOAD_FOLDER'], filnavn)
+            if os.path.exists(sti):
+                os.remove(sti)
+
+        return redirect("/dokumenter")
+
+    filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
+    return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
