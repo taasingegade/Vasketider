@@ -3,9 +3,8 @@ from flask import Flask, render_template, request, redirect, session, jsonify
 import psycopg2
 from datetime import datetime, timedelta
 import os
-
-from email.mime.text import MIMEText
 import smtplib
+from email.mime.text import MIMEText
 from twilio.rest import Client
 
 from werkzeug.utils import secure_filename
@@ -50,7 +49,7 @@ def get_db_connection():
 
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
-    adgangskode =  os.environ.get("uzqhchvfvphumxvi")
+    adgangskode =  os.environ.get("Gmail_adgangskode")
 
     msg = MIMEText(besked)
     msg["Subject"] = emne
@@ -66,13 +65,16 @@ def send_email(modtager, emne, besked):
         print("Fejl ved afsendelse af e-mail:", e)
 
 def send_sms_twilio(modtager, besked):
-    account_sid = os.environ.get("AC8c6f56f5bef9c190482b5555c29425c8")
-    auth_token = os.environ.get("d7ee46ae9bf6bbe4945ed78e24840639")
-    afsender_nummer = "+13515298337"
+    account_sid = os.environ.get("Twilio_SID")
+    auth_token = os.environ.get("Twilio_token")
+    afsender_nummer = "Twilio_number"
 
-    client = Client(account_sid, auth_token)
+    if not all([account_sid, auth_token, afsender_nummer]):
+        print("Twilio miljøvariabler mangler.")
+        return
 
     try:
+        client = Client(account_sid, auth_token)
         message = client.messages.create(
             body=besked,
             from_=afsender_nummer,
@@ -113,6 +115,25 @@ def book():
         (brugernavn, dato_iso, tid)
     )
     conn.commit()
+
+    cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
+    brugerinfo = cur.fetchone()
+    if brugerinfo:
+        email, sms = brugerinfo
+
+        # Send e-mail
+        send_email(
+            email,
+            "Vasketid bekræftet",
+            f"Du har booket vasketid den {dato} i tidsrummet {tid}."
+        )
+
+        # Send SMS
+        send_sms_twilio(
+            sms,
+            f"Du har booket vasketid {dato} kl. {tid} – Vasketider.dk"
+        )
+
     conn.close()
 
     return redirect(f"/index?uge={valgt_uge}" if valgt_uge else "/index")
