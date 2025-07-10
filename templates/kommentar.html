@@ -87,11 +87,11 @@
     </div>
 
     <div class="kommentar-liste">
-        <h3>Kommentarer fra brugere</h3>
-        {% for navn, tekst in kommentarer %}
+        <h3>Kommentar fra brugere</h3>
+        {% for navn, tekst in kommentar %}
             <p><strong>{{ navn }}</strong>: {{ tekst }}</p>
         {% else %}
-            <p>Ingen kommentarer endnu.</p>
+            <p>Ingen kommentar endnu.</p>
         {% endfor %}
     </div>
 </body>
