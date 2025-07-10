@@ -228,16 +228,16 @@ def admin():
     ]
 
 # Hent bookinger med korrekt ID
-    cur.execute("SELECT id, brugernavn, dato, tid FROM bookinger")
+    cur.execute("SELECT id, brugernavn, dato_rigtig, tid FROM bookinger")
     bookinger = [
-        dict(
-            id=row[0],
-            brugernavn=row[1],
-            dato=row[2],
-            tid=row[3]
-        ) for row in cur.fetchall()
-    ]
-
+    dict(
+        id=row[0],
+        brugernavn=row[1],
+        dato=row[2].strftime('%d-%m-%Y'),  # formatér dato_rigtig som tekst
+        tid=row[3]
+    ) for row in cur.fetchall()
+]
+    
     # Hent kommentar
     cur.execute("SELECT * FROM kommentar")
     kommentar = [
