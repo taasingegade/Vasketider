@@ -219,9 +219,9 @@ def admin():
         ) for row in cur.fetchall()
     ]
 
-    # Hent kommentarer
-    cur.execute("SELECT * FROM kommentarer")
-    kommentarer = [
+    # Hent kommentar
+    cur.execute("SELECT * FROM kommentar")
+    kommentar = [
         dict(id=row[0], brugernavn=row[1], tekst=row[2]) for row in cur.fetchall()
     ]
 
@@ -231,7 +231,7 @@ def admin():
         "admin.html",
         brugere=brugere,
         bookinger=bookinger,
-        kommentarer=kommentarer
+        kommentar=kommentar
     )
 
 @app.route('/index')
