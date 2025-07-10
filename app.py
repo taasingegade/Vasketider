@@ -425,6 +425,26 @@ def kommentar():
 
     return render_template("kommentar.html", kommentarer=kommentarer)
 
+@app.route("/admin/skiftkode", methods=["GET", "POST"])
+def admin_skiftkode():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    fejl = ""
+    if request.method == "POST":
+        ny_kode = request.form.get("ny_kode")
+        if not ny_kode:
+            fejl = "Kode kan ikke være tom"
+        else:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE brugere SET kode = %s WHERE LOWER(brugernavn) = 'admin'", (ny_kode,))
+            conn.commit()
+            conn.close()
+            return redirect("/admin")
+
+    return render_template("admin_skiftkode.html", fejl=fejl)
+
 @app.route("/kommentarer")
 def kommentaroversigt():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':

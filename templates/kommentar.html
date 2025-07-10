@@ -74,9 +74,16 @@
             <textarea name="kommentar" placeholder="Skriv din kommentar her..." required></textarea>
             <button type="submit" class="btn-login">Send</button>
         </form>
-        <form method="get" action="/index">
-            <button type="submit" class="btn-login">Tilbage</button>
-        </form>
+
+        {% if session['brugernavn'].lower() == 'admin' %}
+            <form method="get" action="/admin">
+                <button type="submit" class="btn-login">Tilbage</button>
+            </form>
+        {% else %}
+            <form method="get" action="/index">
+                <button type="submit" class="btn-login">Tilbage</button>
+            </form>
+        {% endif %}
     </div>
 
     <div class="kommentar-liste">
