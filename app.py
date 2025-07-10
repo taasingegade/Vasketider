@@ -311,7 +311,7 @@ def skiftkode_post():
         conn.close()
         return redirect('/skiftkode?fejl=Admin+kan+kun+ændres+af+admin')
 
-    cur.execute("UPDATE brugere SET adgangskode = %s WHERE LOWER(brugernavn) = %s", (ny_kode1, brugernavn))
+    cur.execute("UPDATE brugere SET kode = %s WHERE LOWER(brugernavn) = %s", (ny_kode1, brugernavn))
     conn.commit()
     conn.close()
     return redirect('/login?besked=Adgangskode+opdateret')
