@@ -87,11 +87,11 @@ def book():
     brugernavn = session.get('brugernavn')
     dato = request.form.get("dato")
     tid = request.form.get("tid")
+    valgt_uge = request.form.get("valgt_uge")
 
     if not brugernavn or not dato or not tid:
         return "Ugyldig anmodning", 400
 
-    # Konverter dato til ISO-format (YYYY-MM-DD)
     try:
         dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
     except:
@@ -99,6 +99,15 @@ def book():
 
     conn = get_db_connection()
     cur = conn.cursor()
+
+    # Tjek antal eksisterende bookinger på dagen
+    cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
+    antal = cur.fetchone()[0]
+    if antal >= 2:
+        conn.close()
+        return redirect(f"/index?uge={valgt_uge}&fejl=Du+har+allerede+2+bookinger+denne+dag")
+
+    # Indsæt ny booking
     cur.execute(
         "INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
         (brugernavn, dato_iso, tid)
@@ -106,7 +115,6 @@ def book():
     conn.commit()
     conn.close()
 
-    valgt_uge = request.form.get("valgt_uge")
     return redirect(f"/index?uge={valgt_uge}" if valgt_uge else "/index")
 
 @app.route('/')
