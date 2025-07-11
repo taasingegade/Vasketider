@@ -101,42 +101,38 @@ def book():
 
     conn = get_db_connection()
     cur = conn.cursor()
-
     # Tjek antal eksisterende bookinger på dagen
     cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
     antal = cur.fetchone()[0]
     if antal >= 2:
         conn.close()
         return redirect(f"/index?uge={valgt_uge}&fejl=Du+har+allerede+2+bookinger+denne+dag")
-
     # Indsæt ny booking
     cur.execute(
         "INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
         (brugernavn, dato_iso, tid)
     )
     conn.commit()
-
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
     brugerinfo = cur.fetchone()
     if brugerinfo:
         email, sms = brugerinfo
-
         # Send e-mail
         send_email(
             email,
             "Vasketid bekræftet",
             f"Du har booket vasketid den {dato} i tidsrummet {tid}."
         )
-
         # Send SMS
         send_sms_twilio(
             sms,
             f"Du har booket vasketid {dato} kl. {tid} – Vasketider.dk"
         )
-
     conn.close()
+    if not valgt_uge:
+    valgt_uge = datetime.today().isocalendar().week
 
-    return redirect(f"/index?uge={valgt_uge}" if valgt_uge else "/index")
+return redirect(f"/index?uge={valgt_uge}&besked=Booking+bekræftet")
 
 @app.route('/')
 def home():
