@@ -553,7 +553,7 @@ def dokumenter():
 
 @app.route("/iot_toggle", methods=["POST"])
 def iot_toggle():
-    status = "ja" if request.form.get("iot_vaskemaskine") == "on" else "nej"
+    status = request.form.get("iot_vaskemaskine", "nej")
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("UPDATE indstillinger SET vaerdi = %s WHERE navn = 'iot_vaskemaskine'", (status,))
