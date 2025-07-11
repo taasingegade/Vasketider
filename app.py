@@ -307,6 +307,10 @@ def index():
     cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
                 (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
+
+    cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
+    iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
+
     conn.close()
 
     bookinger = {}
@@ -329,6 +333,7 @@ def index():
         bruger=brugernavn,
         start_dato=start_dato,
         timedelta=timedelta,
+        iot=iot,
     )
 
 @app.route('/skiftkode', methods=['GET'])
