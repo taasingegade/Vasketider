@@ -385,6 +385,10 @@ def opret():
     conn.commit()
     cur.close()
     conn.close()
+    token = generer_token(brugernavn)
+    link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
+    besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
+    send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
     return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
 
 @app.route("/vis_brugere")
@@ -410,12 +414,6 @@ def opret_bruger():
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
     conn.commit()
     conn.close()
-
-    token = generer_token(brugernavn)
-    link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
-    besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
-    send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
-
     return redirect("/vis_brugere")
 
 @app.route("/slet_bruger", methods=["POST"])
