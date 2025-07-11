@@ -550,3 +550,13 @@ def dokumenter():
 
     filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
     return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
+
+@app.route("/iot_toggle", methods=["POST"])
+def iot_toggle():
+    status = "ja" if request.form.get("iot_vaskemaskine") == "on" else "nej"
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE indstillinger SET vaerdi = %s WHERE navn = 'iot_vaskemaskine'", (status,))
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
