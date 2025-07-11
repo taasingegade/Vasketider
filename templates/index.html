@@ -121,10 +121,7 @@
         <hr>
         <h3>Alle bookede tider (næste 14 dage):</h3>
 <ul id="bookinger_14_ul">
-    <li>Test: længde af bookinger_14 = {{ bookinger_14|length }}</li>
-    {% for (dato, tid), navn in bookinger_14.items() %}
-        <li><strong>{{ dato }}</strong> – <strong>{{ tid }}</strong> → {{ navn }}</li>
-    {% endfor %}
+    <li>Henter bookinger...</li>
 </ul>        </div>
     </div>
 
@@ -159,12 +156,6 @@
   </script>
 </div>
 {% endif %}
-
-  <script>
-    document.getElementById("dør").addEventListener("click", function() {
-      alert("Døren kan ikke åbnes under vask.");
-    });
-  </script>
 </div>
 
 <script>
