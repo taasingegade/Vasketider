@@ -4,6 +4,7 @@ import psycopg2
 from datetime import datetime, timedelta
 import os
 import smtplib
+import hashlib
 from email.mime.text import MIMEText
 from twilio.rest import Client
 
@@ -18,6 +19,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def tilladt_fil(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def generer_token(brugernavn):
+    hemmelig_nøgle = "min_vasketid_nøgle"
+    return hashlib.sha256((brugernavn + hemmelig_nøgle).encode()).hexdigest()
 
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 
@@ -405,6 +410,12 @@ def opret_bruger():
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
     conn.commit()
     conn.close()
+
+    token = generer_token(brugernavn)
+    link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
+    besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
+    send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
+
     return redirect("/vis_brugere")
 
 @app.route("/slet_bruger", methods=["POST"])
@@ -553,3 +564,19 @@ def iot_toggle():
     conn.commit()
     conn.close()
     return redirect("/admin")
+
+@app.route("/godkend/<brugernavn>")
+def godkend_via_link(brugernavn):
+    token = request.args.get("token", "")
+    korrekt_token = generer_token(brugernavn)
+
+    if token != korrekt_token:
+        return "Ugyldigt token – godkendelse afvist"
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
+    conn.commit()
+    conn.close()
+
+    return f"Brugeren '{brugernavn}' er nu godkendt."
