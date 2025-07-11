@@ -67,7 +67,7 @@ def send_email(modtager, emne, besked):
 def send_sms_twilio(modtager, besked):
     account_sid = os.environ.get("Twilio_SID")
     auth_token = os.environ.get("Twilio_token")
-    afsender_nummer = "Twilio_number"
+    afsender_nummer = "+13515298337"
 
     if not all([account_sid, auth_token, afsender_nummer]):
         print("Twilio miljøvariabler mangler.")
