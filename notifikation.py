@@ -12,7 +12,7 @@ def get_db_connection():
 
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
-    adgangskode = os.environ.get("GMAIL_ADGANGSKODE")
+    adgangskode = os.environ.get("Gmail_adgangskode")
 
     msg = MIMEText(besked)
     msg["Subject"] = emne
@@ -27,9 +27,9 @@ def send_email(modtager, emne, besked):
         print("E-mail fejl:", e)
 
 def send_sms_twilio(modtager, besked):
-    account_sid = os.environ.get("TWILIO_SID")
-    auth_token = os.environ.get("TWILIO_TOKEN")
-    afsender_nummer = os.environ.get("TWILIO_NUMBER")
+    account_sid = os.environ.get("Twilio_SID")
+    auth_token = os.environ.get("Twilio_token")
+    afsender_nummer = os.environ.get("+13515298337")
 
     if not all([account_sid, auth_token, afsender_nummer]):
         return
