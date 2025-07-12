@@ -578,3 +578,62 @@ def godkend_via_link(brugernavn):
     conn.close()
 
     return f"Brugeren '{brugernavn}' er nu godkendt."
+
+@app.route("/kiosk", methods=["GET", "POST"])
+def kiosk():
+    idag = datetime.today()
+    dato = idag.strftime('%d-%m-%Y')
+    tider = ['07–11', '11–15', '15–19', '19–23']
+    fejl = ""
+    besked = ""
+
+    if request.method == "POST":
+        kode = request.form.get("kode")
+        valgt_tid = request.form.get("valgt_tid")
+        valgt_dato = request.form.get("dato")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Find brugernavn ud fra adgangskode
+        cur.execute("SELECT brugernavn FROM brugere WHERE kode = %s AND godkendt = TRUE", (kode,))
+        bruger = cur.fetchone()
+
+        if not bruger:
+            fejl = "Forkert kode eller bruger ikke godkendt."
+        elif valgt_tid:
+            brugernavn = bruger[0]
+            # Tjek antal bookinger på dagen
+            cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s",
+                        (brugernavn, datetime.strptime(valgt_dato, "%d-%m-%Y").strftime('%Y-%m-%d')))
+            if cur.fetchone()[0] >= 2:
+                fejl = "Du har allerede 2 bookinger i dag."
+            else:
+                cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
+                            (brugernavn,
+                             datetime.strptime(valgt_dato, "%d-%m-%Y").strftime('%Y-%m-%d'),
+                             valgt_tid))
+                conn.commit()
+                besked = f"Vasketid {valgt_tid} booket"
+        conn.close()
+
+    # Vis dagens tider
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT brugernavn, tid FROM bookinger WHERE dato_rigtig = %s",
+                (idag.strftime('%Y-%m-%d'),))
+    bookinger = cur.fetchall()
+    conn.close()
+
+    status = {tid: "ledig" for tid in tider}
+    for navn, tid in bookinger:
+        status[tid] = f"Booket ({navn})"
+
+    return render_template(
+        "kiosk.html",
+        dato=dato,
+        tider=tider,
+        status=status,
+        fejl=fejl,
+        besked=besked
+    )

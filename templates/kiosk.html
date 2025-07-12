@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiosk – Vasketider</title>
+  <meta http-equiv="refresh" content="30">
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f2f2f2;
+      text-align: center;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 26px;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+    }
+    .tid-box {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .tid {
+      width: 160px;
+      padding: 20px;
+      font-size: 18px;
+      border-radius: 10px;
+      color: white;
+    }
+    .ledig {
+      background-color: #28a745;
+      cursor: pointer;
+    }
+    .booket {
+      background-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vasketider – {{ dato }}</h1>
+
+    <form method="post">
+      <input type="password" name="kode" placeholder="Indtast kode" required>
+      <input type="hidden" name="dato" value="{{ dato }}">
+      <input type="hidden" name="valgt_tid" id="valgt_tid">
+      <button type="submit">Book valgt tid</button>
+    </form>
+
+    <div class="tid-box">
+      {% for tid in tider %}
+        {% if status[tid].startswith("Booket") %}
+          <div class="tid booket">{{ tid }}<br>{{ status[tid] }}</div>
+        {% else %}
+          <div class="tid ledig" onclick="document.getElementById('valgt_tid').value='{{ tid }}';">{{ tid }}<br>{{ status[tid] }}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if fejl %}
+      <p style="color:red;">{{ fejl }}</p>
+    {% elif besked %}
+      <p style="color:green;">{{ besked }}</p>
+    {% endif %}
+  </div>
+</body>
+</html>
