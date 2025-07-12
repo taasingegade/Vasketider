@@ -86,3 +86,28 @@ footer {
     width: 100%;
     text-align: center;
 }
+
+/* Tilgængelighedsvenlig visning */
+.kiosk-tilgaengelig {
+    font-size: 1.5em;
+    color: #ffffff;
+    background-color: #000000;
+}
+
+.kiosk-tilgaengelig button {
+    font-size: 1.4em;
+    padding: 15px 20px;
+    background-color: #0066cc;
+    color: white;
+    border: 2px solid white;
+}
+
+.kiosk-tilgaengelig button:hover {
+    background-color: #004080;
+}
+
+.kiosk-tilgaengelig .panel, .kiosk-tilgaengelig .tabel {
+    border: 2px solid white;
+    padding: 15px;
+    background-color: #111111;
+}

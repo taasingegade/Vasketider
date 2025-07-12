@@ -2,6 +2,7 @@ import psycopg2
 import os
 import time
 from datetime import datetime, timedelta
+from pytz import timezone
 from email.mime.text import MIMEText
 import smtplib
 from twilio.rest import Client
@@ -46,21 +47,30 @@ def send_sms_twilio(modtager, besked):
 
 def check_bookinger():
     while True:
-        nu = datetime.now()
+        nu = datetime.now(timezone("Europe/Copenhagen"))
         en_time_senere = nu + timedelta(hours=1)
         dato = en_time_senere.date().strftime("%Y-%m-%d")
-        tid = en_time_senere.hour
+        klok = en_time_senere.hour
+    
+def check_bookinger():
+    while True:
+        nu = datetime.now(timezone("Europe/Copenhagen"))
+        en_time_senere = nu + timedelta(hours=1)
+        dato = en_time_senere.strftime("%Y-%m-%d")
+        klok = en_time_senere.hour
 
-        if 7 <= tid < 11:
+        # Find hvilket tidsrum det passer ind i
+        slot = None
+        if 7 <= klok < 11:
             slot = "07–11"
-        elif 11 <= tid < 15:
+        elif 11 <= klok < 15:
             slot = "11–15"
-        elif 15 <= tid < 19:
+        elif 15 <= klok < 19:
             slot = "15–19"
-        elif 19 <= tid < 23:
+        elif 19 <= klok < 23:
             slot = "19–23"
         else:
-            slot = None
+            slot = None  # uden for gyldig bookingtid
 
         if slot:
             conn = get_db_connection()
