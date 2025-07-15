@@ -16,7 +16,9 @@
         }
 
         .toppanel {
+            width: 100%;
             display: flex;
+            align-items: center;
             gap: 10px;
             padding: 10px;
             background-color: rgba(0,0,0,0.4);
@@ -27,7 +29,7 @@
         }
 
         .toppanel-knap {
-            background-color: rgba(33, 150, 243, 0.5);
+            background-color: rgba(200, 200, 200, 0.6);
             color: white;
             border: none;
             padding: 10px 15px;
@@ -38,7 +40,7 @@
         }
 
         .toppanel-knap:hover {
-            background-color: rgba(33, 150, 243, 0.8);
+            background-color: rgba(200, 200, 200, 0.6);
             transform: scale(1.03);
         }
 
@@ -46,11 +48,10 @@
             background: rgba(255, 255, 255, 0.2);
             border-radius: 16px;
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             max-width: 400px;
-            margin: 40px auto;
+            margin: 50px auto;
             padding: 20px;
         }
 
@@ -100,8 +101,8 @@
 
     <script>
         function toggleOpret() {
-            var form = document.getElementById('opretForm');
-            var stil = window.getComputedStyle(form).display;
+            const form = document.getElementById('opretForm');
+            const stil = window.getComputedStyle(form).display;
             form.style.display = (stil === 'none') ? 'block' : 'none';
         }
     </script>
