@@ -29,18 +29,19 @@
         }
 
         .toppanel-knap {
-            background-color: rgba(200, 200, 200, 0.6);
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
+            background-color: rgba(220, 220, 220, 0.9);
+            color: black;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: background-color 0.3s, transform 0.1s;
         }
 
         .toppanel-knap:hover {
-            background-color: rgba(200, 200, 200, 0.6);
+            background-color: rgba(180, 180, 180, 1);
             transform: scale(1.03);
         }
 
@@ -62,10 +63,6 @@
             border-radius: 5px;
             border: none;
             font-size: 16px;
-        }
-
-        label {
-            color: white;
         }
 
         .opret-form {
@@ -117,7 +114,7 @@
 <body>
 
     <div class="toppanel">
-        <form method="post" action="/login">
+        <form method="get" action="/login">
             <button type="submit" class="toppanel-knap">Log ind</button>
         </form>
 
@@ -133,28 +130,16 @@
         {% if fejl %}<div class="error">{{ fejl }}</div>{% endif %}
 
         <form method="post" action="/login">
-            <label for="brugernavn">Brugernavn</label>
-            <input type="text" name="brugernavn" id="brugernavn" required>
-
-            <label for="kode">Adgangskode</label>
-            <input type="password" name="kode" id="kode" required>
+            <input type="text" name="brugernavn" id="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="kode" id="kode" placeholder="Adgangskode" required>
         </form>
 
         <form method="post" action="/opret" class="opret-form" id="opretForm">
-            <label for="ny_brugernavn">Nyt brugernavn</label>
-            <input type="text" name="brugernavn" id="ny_brugernavn" required>
-
-            <label for="ny_kode">Adgangskode</label>
-            <input type="password" name="adgangskode" id="ny_kode" required>
-
-            <label for="email">Email (valgfrit)</label>
-            <input type="text" name="email" id="email">
-
-            <label for="sms">SMS (valgfrit)</label>
-            <input type="text" name="sms" id="sms">
-
+            <input type="text" name="brugernavn" placeholder="Nyt brugernavn" required>
+            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
+            <input type="text" name="email" placeholder="Email (valgfrit)">
+            <input type="text" name="sms" placeholder="SMS (valgfrit)">
             <label><input type="checkbox" name="notifikation" value="ja"> Ønsker notifikation</label>
-
             <button type="submit" class="btn-standard">Opret bruger</button>
         </form>
     </div>
