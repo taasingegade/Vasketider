@@ -50,7 +50,7 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             max-width: 400px;
-            margin: 60px auto;
+            margin: 40px auto;
             padding: 20px;
         }
 
@@ -67,6 +67,26 @@
             color: white;
         }
 
+        .opret-form {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .btn-standard {
+            background-color: rgba(220, 220, 220, 0.9);
+            color: black;
+            cursor: pointer;
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        .error {
+            color: red;
+            padding: 10px 0;
+        }
+
         footer {
             position: fixed;
             bottom: 10px;
@@ -75,23 +95,6 @@
             width: 100%;
             font-size: 12px;
             z-index: 1000;
-        }
-
-        .opret-form {
-            display: none;
-            margin-top: 15px;
-        }
-
-        .btn-login {
-            background-color: rgba(220, 220, 220, 0.9);
-            color: black;
-            cursor: pointer;
-            width: 100%;
-        }
-
-        .error {
-            color: red;
-            padding: 10px 0;
         }
     </style>
 
@@ -113,17 +116,14 @@
 <body>
 
     <div class="toppanel">
-        <!-- 1. Log ind-knap -->
         <form method="post" action="/login">
             <button type="submit" class="toppanel-knap">Log ind</button>
         </form>
 
-        <!-- 2. Ændre adgangskode -->
         <form method="get" action="/skiftkode">
             <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
         </form>
 
-        <!-- 3. Opret ny bruger -->
         <button class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
     </div>
 
@@ -133,10 +133,10 @@
 
         <form method="post" action="/login">
             <label for="brugernavn">Brugernavn</label>
-            <input type="text" name="brugernavn" id="brugernavn" placeholder="Brugernavn" required>
+            <input type="text" name="brugernavn" id="brugernavn" required>
+
             <label for="kode">Adgangskode</label>
-            <input type="password" name="kode" id="kode" placeholder="Adgangskode" required>
-            <button type="submit" class="btn-login">Log ind</button>
+            <input type="password" name="kode" id="kode" required>
         </form>
 
         <form method="post" action="/opret" class="opret-form" id="opretForm">
@@ -154,7 +154,7 @@
 
             <label><input type="checkbox" name="notifikation" value="ja"> Ønsker notifikation</label>
 
-            <button type="submit" class="btn-login">Opret bruger</button>
+            <button type="submit" class="btn-standard">Opret bruger</button>
         </form>
     </div>
 
