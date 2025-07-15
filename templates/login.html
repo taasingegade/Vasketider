@@ -5,133 +5,43 @@
     <meta charset="UTF-8">
     <title>Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body {
-            background: url('/static/Bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            font-family: sans-serif;
-            color: white;
-            margin: 0;
-            padding: 0;
-        }
-
-        .toppanel {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background-color: rgba(0,0,0,0.4);
-            backdrop-filter: blur(5px);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .toppanel-knap {
-            background-color: rgba(220, 220, 220, 0.9);
-            color: black;
-            cursor: pointer;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            transition: background-color 0.3s, transform 0.1s;
-        }
-
-        .toppanel-knap:hover {
-            background-color: rgba(180, 180, 180, 1);
-            transform: scale(1.03);
-        }
-
-        .form-box {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border-radius: 5px;
-            border: none;
-            font-size: 16px;
-        }
-
-        .opret-form {
-            display: none;
-            margin-top: 20px;
-        }
-
-        .btn-standard {
-            background-color: rgba(220, 220, 220, 0.9);
-            color: black;
-            cursor: pointer;
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-        }
-
-        .error {
-            color: red;
-            padding: 10px 0;
-        }
-
-        footer {
-            position: fixed;
-            bottom: 10px;
-            left: 15px;
-            color: white;
-            width: 100%;
-            font-size: 12px;
-            z-index: 1000;
-        }
-    </style>
-
-    <script>
-        function toggleOpret() {
-            const form = document.getElementById('opretForm');
-            const stil = window.getComputedStyle(form).display;
-            form.style.display = (stil === 'none') ? 'block' : 'none';
-        }
-    </script>
 
     <link rel="manifest" href="/static/manifest.json">
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/static/service-worker.js');
         }
+
+        function toggleOpret() {
+            const form = document.getElementById('opretForm');
+            const stil = window.getComputedStyle(form).display;
+            form.style.display = (stil === 'none') ? 'block' : 'none';
+        }
+
+        function submitLoginForm() {
+            document.getElementById('loginForm').submit();
+        }
     </script>
 </head>
 <body>
 
     <div class="toppanel">
-        <form method="get" action="/login">
-            <button type="button" class="toppanel-knap" onclick="document.getElementById('loginForm').submit()">Log ind</button>
-        </form>
+        <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
 
         <form method="get" action="/skiftkode">
             <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
         </form>
 
-        <button class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
+        <button type="button" class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
     </div>
 
-    <div class="form-box">
+    <div class="form-box glassbox">
         <h2 style="text-align: center;">Log ind</h2>
-        {% if fejl %}<div class="error">{{ fejl }}</div>{% endif %}
+        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
 
         <form method="post" action="/login" id="loginForm">
-            <input type="text" name="brugernavn" id="brugernavn" placeholder="Brugernavn" required>
-            <input type="password" name="kode" id="kode" placeholder="Adgangskode" required>
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="kode" placeholder="Adgangskode" required>
         </form>
 
         <form method="post" action="/opret" class="opret-form" id="opretForm">
@@ -140,7 +50,7 @@
             <input type="text" name="email" placeholder="Email (valgfrit)">
             <input type="text" name="sms" placeholder="SMS (valgfrit)">
             <label><input type="checkbox" name="notifikation" value="ja"> Ønsker notifikation</label>
-            <button type="submit" class="btn-standard">Opret bruger</button>
+            <button type="submit" class="btn-login">Opret bruger</button>
         </form>
     </div>
 
