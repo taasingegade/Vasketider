@@ -10,34 +10,15 @@
             background: url('/static/Bg.jpg') no-repeat center center fixed;
             background-size: cover;
             font-family: sans-serif;
-            color: White;
+            color: white;
             margin: 0;
             padding: 0;
         }
 
-        input {
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-            font-size: 16px;
-        }
-
-        footer {
-            position: fixed;
-            bottom: 10px;
-            left: 15px;
-            color: white;
-            width: 100%;
-            font-size: 12px;
-            z-index: 1000;
-        }
-
         .toppanel {
             display: flex;
-            flex-wrap: wrap;
-            align-items: center;
             gap: 10px;
-            padding: 15px;
+            padding: 10px;
             background-color: rgba(0,0,0,0.4);
             backdrop-filter: blur(5px);
             position: sticky;
@@ -61,15 +42,66 @@
             transform: scale(1.03);
         }
 
-        .error {
-            color: red;
-            padding: 10px 15px;
+        .form-box {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
         }
 
         label {
             color: white;
         }
+
+        footer {
+            position: fixed;
+            bottom: 10px;
+            left: 15px;
+            color: white;
+            width: 100%;
+            font-size: 12px;
+            z-index: 1000;
+        }
+
+        .opret-form {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .btn-login {
+            background-color: rgba(220, 220, 220, 0.9);
+            color: black;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .error {
+            color: red;
+            padding: 10px 0;
+        }
     </style>
+
+    <script>
+        function toggleOpret() {
+            var form = document.getElementById('opretForm');
+            var stil = window.getComputedStyle(form).display;
+            form.style.display = (stil === 'none') ? 'block' : 'none';
+        }
+    </script>
 
     <link rel="manifest" href="/static/manifest.json">
     <script>
@@ -81,27 +113,48 @@
 <body>
 
     <div class="toppanel">
+        <!-- 1. Log ind-knap -->
+        <form method="post" action="/login">
+            <button type="submit" class="toppanel-knap">Log ind</button>
+        </form>
+
+        <!-- 2. Ændre adgangskode -->
+        <form method="get" action="/skiftkode">
+            <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
+        </form>
+
+        <!-- 3. Opret ny bruger -->
+        <button class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
+    </div>
+
+    <div class="form-box">
+        <h2 style="text-align: center;">Log ind</h2>
         {% if fejl %}<div class="error">{{ fejl }}</div>{% endif %}
 
-        <form method="post" action="/login" style="display: flex; gap: 10px;">
-            <button type="submit" class="toppanel-knap">Log ind</button>
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-            <input type="password" name="kode" placeholder="Adgangskode" required>
+        <form method="post" action="/login">
+            <label for="brugernavn">Brugernavn</label>
+            <input type="text" name="brugernavn" id="brugernavn" placeholder="Brugernavn" required>
+            <label for="kode">Adgangskode</label>
+            <input type="password" name="kode" id="kode" placeholder="Adgangskode" required>
+            <button type="submit" class="btn-login">Log ind</button>
         </form>
 
-        <form method="get" action="/skiftkode">
-            <button type="submit" class="toppanel-knap">Ændre kode</button>
-        </form>
+        <form method="post" action="/opret" class="opret-form" id="opretForm">
+            <label for="ny_brugernavn">Nyt brugernavn</label>
+            <input type="text" name="brugernavn" id="ny_brugernavn" required>
 
-        <form method="post" action="/opret" style="display: flex; gap: 10px;">
-            <input type="text" name="brugernavn" placeholder="Nyt brugernavn" required>
-            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
-            <input type="text" name="email" placeholder="Email (valgfrit)">
-            <input type="text" name="sms" placeholder="SMS (valgfrit)">
-            <label style="align-self: center;">
-                <input type="checkbox" name="notifikation" value="ja"> Notifikation
-            </label>
-            <button type="submit" class="toppanel-knap">Opret</button>
+            <label for="ny_kode">Adgangskode</label>
+            <input type="password" name="adgangskode" id="ny_kode" required>
+
+            <label for="email">Email (valgfrit)</label>
+            <input type="text" name="email" id="email">
+
+            <label for="sms">SMS (valgfrit)</label>
+            <input type="text" name="sms" id="sms">
+
+            <label><input type="checkbox" name="notifikation" value="ja"> Ønsker notifikation</label>
+
+            <button type="submit" class="btn-login">Opret bruger</button>
         </form>
     </div>
 
