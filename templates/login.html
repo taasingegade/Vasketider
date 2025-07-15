@@ -115,7 +115,7 @@
 
     <div class="toppanel">
         <form method="get" action="/login">
-            <button type="button" class="toppanel-knap" onclick=document.getElementById('loginForm').submit()">Log ind</button>
+            <button type="button" class="toppanel-knap" onclick="document.getElementById('loginForm').submit()">Log ind</button>
         </form>
 
         <form method="get" action="/skiftkode">
@@ -129,7 +129,7 @@
         <h2 style="text-align: center;">Log ind</h2>
         {% if fejl %}<div class="error">{{ fejl }}</div>{% endif %}
 
-        <form method="post" action="/login" id="loginform">
+        <form method="post" action="/login" id="loginForm">
             <input type="text" name="brugernavn" id="brugernavn" placeholder="Brugernavn" required>
             <input type="password" name="kode" id="kode" placeholder="Adgangskode" required>
         </form>
