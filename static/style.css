@@ -1,0 +1,215 @@
+/* Baggrund og grundlayout */
+body {
+    margin: 0;
+    padding: 0;
+    background: url('/static/Bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    background-color: #f8f9fa;
+    font-family: sans-serif;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* Topmenu */
+.toppanel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 15px;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 10px 20px;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(6px);
+}
+
+/* Knapper i topmenu */
+.toppanel-knap {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+}
+
+.toppanel-knap:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.03);
+}
+
+.wrapper {
+    width: 100%;
+    max-width: 1100px;
+    margin-top: 100px;
+    padding: 20px;
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 10px;
+}
+
+/* Hovedindhold centreret */
+.main {
+    padding-top: 100px;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Kalenderlayout */
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+}
+
+.calendar div {
+    padding: 5px;
+    text-align: center;
+}
+
+.slot-btn {
+    padding: 10px;
+    font-size: 1vw;
+    min-width: 50px;
+    min-height: 20px;
+    background-color: rgba(76, 175, 80, 0.5);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+}
+
+.slot-btn[disabled] {
+    cursor: not-allowed;
+}
+
+/* Responsiv visning */
+@media (max-width: 768px) {
+    .calendar {
+        overflow-x: auto;
+    }
+
+    .slot-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .calendar div {
+        font-size: 12px;
+    }
+}
+
+/* Footer */
+.footer {
+    font-size: 12px;
+  color: white;
+  margin-top: 40px;
+  padding-bottom: 20px;
+}
+
+/* Øvrige elementer */
+.glassbox {
+    background: rgba(255, 255, 255, 0.2); /* Let hvid gennemsigtighed */
+    border-radius: 16px;
+    padding: 20px;
+    backdrop-filter: blur(10px); /* ← Magien sker her */
+    -webkit-backdrop-filter: blur(10px); /* For Safari */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Lidt dybde */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Let glasramme */
+}
+
+.center-knap {
+    display: flex;
+    justify-content: center;
+}
+
+.form-box {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    margin-top: 10vh;
+}
+
+.form-box h2 {
+    text-align: center;
+}
+
+button {
+    background-color: rgba(220, 220, 220, 0.9);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin: 8px 0;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: rgba(220, 220, 220, 0.9);
+}
+
+input {
+    margin: 5px 10px 5px 0;
+    padding: 6px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.page-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+}
+
+.btn-login,
+.btn-opret,
+.btn-skiftkode {
+    width: 80%;
+    text-align: center;
+}
+
+/* Tilgængelighedsvenlig visning */
+.kiosk-tilgaengelig {
+    font-size: 1.5em;
+    color: #ffffff;
+    background-color: #000000;
+}
+
+.kiosk-tilgaengelig button {
+    font-size: 1.4em;
+    padding: 15px 20px;
+    background-color: #0066cc;
+    color: white;
+    border: 2px solid white;
+}
+
+.kiosk-tilgaengelig button:hover {
+    background-color: #004080;
+}
+
+.kiosk-tilgaengelig .panel, .kiosk-tilgaengelig .tabel {
+    border: 2px solid white;
+    padding: 15px;
+    background-color: #111111;
+}
+
+.main {
+    padding-top: 80px;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+}

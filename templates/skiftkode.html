@@ -1,0 +1,70 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skift adgangskode</title>
+    <style>
+        body {
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: sans-serif;
+            color: black;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .form-box {
+             background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+            color: black;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+
+        }
+        input, button {
+            width: 80%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: none;
+        }
+        .btn-skift {
+            background-color: rgba(200, 200, 200, 0.6);
+            color: black;
+            cursor: pointer;
+        }
+        .btn-tilbage {
+            background-color: rgba(200, 200, 200, 0.6);
+            color: black;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="form-box">
+    <h2>Skift adgangskode</h2>
+    {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
+    <form method="post" action="/skiftkode">
+        <input type="text" name="brugernavn" placeholder="Brugernavn" required><br>
+        <input type="password" name="gammel_kode" placeholder="Nuværende kode" required><br>
+        <input type="password" name="ny_kode1" placeholder="Ny kode" required><br>
+        <input type="password" name="ny_kode2" placeholder="Gentag ny kode" required><br>
+        <button type="submit" class="btn-skift">Skift kode</button>
+    </form>
+    <br>
+    <form method="get" action="/login">
+        <button type="submit" class="btn-tilbage">Tilbage til login</button>
+    </form>
+</div>
+</body>
+</html>

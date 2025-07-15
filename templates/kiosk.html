@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bookning af vasketid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="5">
+ <style>
+    body {
+      font-family: sans-serif;
+      background: black;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      margin: 10px;
+      padding: 20px;
+      font-size: 20px;
+      width: 80%;
+      border: none;
+      border-radius: 10px;
+    }
+    .ledig {
+    background-color: green; 
+    color: white
+     }
+    .booket { 
+    background-color: red; 
+    color: white
+    }
+  </style>
+</head>
+<body>
+  <h1>Bookning af vasketid – {{ dato }}</h1>
+  {% for tid in tider %}
+    <form method="POST" style="margin: 10px;">
+      <input type="hidden" name="tid" value="{{ tid }}">
+      <button type="submit" class="{% if tid in bookede %}booket{% else %}ledig{% endif %}" {% if tid in bookede %}disabled{% endif %}>
+        {{ tid }} {% if tid in bookede %}(Booket){% endif %}
+      </button>
+    </form>
+  {% endfor %}
+</body>
+</html>

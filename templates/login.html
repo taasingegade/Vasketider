@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: sans-serif;
+            color: White;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .form-box {
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            animation: {% if fejl %}shake 0.5s{% endif %};
+        }
+
+        .glassbox {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        input, button {
+            box-sizing: border-box;
+            width: 80%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+
+        .btn-login, .btn-opret, .btn-skiftkode {
+            background-color: rgba(220, 220, 220, 0.9);
+            color: black;
+            cursor: pointer;
+        }
+
+        .opret-form {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .center-knap {
+            text-align: center;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 10px;
+            left: 15px;
+            color: white;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+
+    <script>
+        function toggleOpret() {
+            var form = document.getElementById('opretForm');
+            form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+        }
+    </script>
+
+    <link rel="manifest" href="/static/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js');
+        }
+    </script>
+</head>
+<body>
+    <div class="form-box glassbox">
+        <h2 style="text-align: center;">Log ind</h2>
+        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
+
+        <form method="post">
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="kode" placeholder="Adgangskode" required>
+            <button type="submit" class="btn-login">Log ind</button>
+        </form>
+
+        <form method="get" action="/skiftkode" style="width: 100%;">
+            <button type="submit" class="btn-skiftkode">Ændre adgangskode</button>
+        </form>
+
+        <div class="center-knap">
+            <button class="btn-opret" onclick="toggleOpret()">Opret ny bruger</button>
+        </div>
+
+        <form method="post" action="/opret" class="opret-form" id="opretForm">
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
+            <input type="text" name="email" placeholder="Email (valgfrit)">
+            <input type="text" name="sms" placeholder="SMS (valgfrit)">
+            <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label>
+            <button type="submit" class="btn-login">Opret bruger</button>
+        </form>
+    </div>
+
+    <footer>© Hornsberg Group</footer>
+</body>
+</html>

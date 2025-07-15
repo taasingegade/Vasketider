@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Adminpanel – Vasketidssystem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            color: white;
+        }
+
+.glassbox {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+        .sidebar {
+            width: 200px;
+            background-color: rgba(200, 200, 200, 0.6);
+            padding: 20px;
+        }
+        .sidebar button, .sidebar a {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            background-color: rgba(220, 220, 220, 0.9);
+            border: none;
+            padding: 12px;
+            color: black;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(200, 200, 200, 0.6);
+        }
+        .main {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        h1, h2 {
+            border-bottom: 2px solid white;
+            padding-bottom: 5px;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            max-width: 300px;
+        }
+        input, select {
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        .booking-box, .comment-box {
+            background-color: rgba(255,255,255,0.1);
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .booking-box form,
+        .comment-box form {
+            margin-top: 5px;
+        }
+    </style>
+ <link rel="manifest" href="/static/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js');
+        }
+    </script>
+</head>
+<body>
+<div class="sidebar glassbox">
+    <form method="get" action="/vis_brugere"><button class="sidepanel-knap">Bruger</button></form>
+    <form method="get" action="/dokumenter"><button class="sidepanel-knap">Dokumenter</button></form>
+    <form method="get" action="/kommentar"><button class="sidepanel-knap">Kommentar</button></form>
+    <form method="get" action="/admin/skiftkode"><button class="sidepanel-knap">Skift kode</button></form>
+    <form method="get" action="/statistik"><button class="sidepanel-knap">Statistik</button></form>
+    <form method="post" action="/logout"><button class="sidepanel-knap">Log ud</button></form>
+
+<!-- 4. SYSTEMINDSTILLINGER -->
+<div class="section">
+    <h2>Systemindstillinger</h2>
+    <form method="POST" action="/iot_toggle">
+    <button name="iot_vaskemaskine" value="ja" type="submit" class="sidepanel-knap">🔌 Tænd IoT</button>
+    <button name="iot_vaskemaskine" value="nej" type="submit" class="sidepanel-knap">❌ Sluk IoT</button>
+</form>
+</div>
+</div>
+
+<div class="main">
+    <h1>Adminpanel – Tåsingegade 16</h1>
+
+    <!-- 1. BOOKNING SOM SERVICE -->
+    <div class="section">
+        <h2>Book service-tid</h2>
+<form method="post" action="/admin/book_service" class="user-form">
+    <div class="form-row">
+        <label>Dato:</label>
+        <input type="date" name="dato" required>
+
+        <label>Tid:</label>
+        <select name="tid" required>
+            <option value="07–11">07–11</option>
+            <option value="11–15">11–15</option>
+            <option value="15–19">15–19</option>
+            <option value="19–23">19–23</option>
+        </select>
+    </div>
+    <button type="submit">Book service</button>
+</form>
+    </div>
+
+    <!-- 2. BOOKINGER -->
+    <div class="section">
+        <h2>Bookinger</h2>
+        {% for booking in bookinger %}
+        <div class="booking-box">
+            {{ booking.dato }} – {{ booking.tid }} – {{ booking.brugernavn }}  (ID: {{ booking.id }})
+          <form method="post" action="/admin/delete_booking">
+    <input type="hidden" name="booking_id" value="{{ booking.id }}">
+    <button type="submit">Slet</button>
+</form>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 3. KOMMENTARER -->
+    <div class="section">
+        <h2>Kommentar</h2>
+        {% for kommentar in kommentar %}
+        <div class="comment-box">
+            {{ kommentar.brugernavn }}: {{ kommentar.tekst }}
+            <form method="post" action="/admin/delete_comment">
+                <input type="hidden" name="kommentar_id" value="{{ kommentar.id }}">
+                <button type="submit">Slet</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+ </div> <!-- lukker .main -->
+</script>
+</body>
+</html>

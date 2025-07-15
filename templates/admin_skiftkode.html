@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skift kode (admin)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: sans-serif;
+            color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .form-box {
+             background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+            color: black;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+
+        }
+        input {
+            padding: 10px;
+            width: 80%;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background-color: rgba(200, 200, 200, 0.6);
+            color: black;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: rgba(200, 200, 200, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-box">
+        <h2>Ændre adgangskode for admin</h2>
+        {% if fejl %}<p style="color: red;">{{ fejl }}</p>{% endif %}
+        <form method="post">
+            <input type="password" name="ny_kode" placeholder="Ny adgangskode" required>
+            <button type="submit">Opdater kode</button>
+        </form>
+        <form action="/admin" method="get">
+            <button type="submit">Tilbage</button>
+        </form>
+    </div>
+</body>
+</html>

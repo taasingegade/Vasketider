@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Vis brugere</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            display: flex;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: rgba(0,0,0,0.7);
+            padding: 20px;
+        }
+        .sidebar a {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            text-decoration: none;
+            color: white;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        form.user-form {
+            background-color: rgba(0,0,0,0.6);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .form-row label {
+            min-width: 90px;
+        }
+        .form-row input {
+            width: 150px;
+            padding: 5px;
+        }
+        .knap-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .knap-row form {
+            display: inline;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="/admin">Tilbage</a>
+        <a href="/dokumenter">Dokumenter</a>
+        <a href="/kommentarer">Kommentarer</a>
+        <a href="/logout">Log ud</a>
+    </div>
+    <div class="content">
+        <h1>Brugeradministration</h1>
+        {% for user in brugere %}
+        <form method="post" action="/opdater_bruger" class="user-form">
+            <input type="hidden" name="id" value="{{ user.id }}">
+            <div class="form-row">
+                <label>Brugernavn:</label>
+                <input type="text" name="brugernavn" value="{{ user.brugernavn }}">
+                <label>Adgangskode:</label>
+                <input type="text" name="adgangskode" value="{{ user.kode }}">
+                <label>Email:</label>
+                <input type="email" name="email" value="{{ user.email }}">
+                <label>SMS:</label>
+                <input type="text" name="sms" value="{{ user.sms }}">
+            </div>
+            <div class="form-row">
+                <label>Notifikation:</label>
+                <input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}>
+                <label>Godkendt:</label>
+                <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
+            </div>
+            <div class="knap-row">
+                <button type="submit">Gem</button>
+        </form>
+
+        <form method="post" action="/slet_bruger">
+            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+            <button type="submit">Slet</button>
+        </form>
+
+        {% if not user.godkendt %}
+        <form method="post" action="/godkend_bruger">
+            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+            <button type="submit">Godkend</button>
+        </form>
+        {% endif %}
+            </div>
+        {% endfor %}
+
+        <h2>Opret ny bruger</h2>
+        <form method="post" action="/opret_bruger" class="user-form">
+            <div class="form-row">
+                <label>Brugernavn:</label>
+                <input type="text" name="brugernavn">
+                <label>Adgangskode:</label>
+                <input type="text" name="adgangskode">
+                <label>Email:</label>
+                <input type="email" name="email">
+                <label>SMS:</label>
+                <input type="text" name="sms">
+            </div>
+            <div class="form-row">
+                <label>Notifikation:</label>
+                <input type="checkbox" name="notifikation">
+                <label>Godkendt:</label>
+                <input type="checkbox" name="godkendt">
+            </div>
+            <button type="submit">Opret</button>
+        </form>
+    </div>
+</body>
+</html>

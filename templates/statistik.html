@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistik – Vasketider</title>
+    <style>
+        body {
+            background: url('/static/Bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            color: black;
+        }
+
+        .glassbox {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            max-width: 800px;
+            margin: 50px auto;
+        }
+
+        .sidepanel-knap {
+            background-color: rgba(220, 220, 220, 0.9);
+            color: black;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 10px;
+            left: 15px;
+            color: white;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="glassbox">
+        <h2 style="text-align:center;">Statistik over bookinger</h2>
+        <p style="text-align:center;"> brugere der booker:</p>
+        {{ diagram|safe }}
+        <div style="text-align: center;">
+            <form action="/admin" method="get">
+                <button type="submit" class="sidepanel-knap">Tilbage til Admin</button>
+            </form>
+        </div>
+    </div>
+    <div class="footer">© Hornsberg Group</div>
+</body>
+</html>
