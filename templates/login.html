@@ -17,6 +17,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            flex-direction: column;
         }
 
         .form-box {
@@ -81,6 +82,7 @@
     <script>
         function toggleOpret() {
             var form = document.getElementById('opretForm');
+            var stil = window.getComputedStyle(form).display;
             form.style.display = (form.style.display === 'none') ? 'block' : 'none';
         }
     </script>
@@ -93,6 +95,12 @@
     </script>
 </head>
 <body>
+    <div class="toppanel">
+        <form method="get" action="/login">
+            <button class="toppanel-knap">Log ind</button>
+        </form>
+    </div>
+
     <div class="form-box glassbox">
         <h2 style="text-align: center;">Log ind</h2>
         {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
