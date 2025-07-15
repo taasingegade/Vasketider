@@ -13,79 +13,63 @@
             color: White;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
         }
 
-        .form-box {
-            padding: 20px;
-            width: 100%;
-            max-width: 400px;
-            animation: {% if fejl %}shake 0.5s{% endif %};
-        }
-
-        .glassbox {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        input, button {
-            box-sizing: border-box;
-            width: 80%;
-            padding: 12px;
-            margin: 8px 0;
+        input {
+            padding: 10px;
             border-radius: 5px;
             border: none;
             font-size: 16px;
         }
 
-        .btn-login, .btn-opret, .btn-skiftkode {
-            background-color: rgba(220, 220, 220, 0.9);
-            color: black;
-            cursor: pointer;
-        }
-
-        .opret-form {
-            display: none;
-            margin-top: 15px;
-        }
-
-        .center-knap {
-            text-align: center;
-        }
-
         footer {
-            position: absolute;
+            position: fixed;
             bottom: 10px;
             left: 15px;
             color: white;
             width: 100%;
             font-size: 12px;
+            z-index: 1000;
         }
 
-        @keyframes shake {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            50% { transform: translateX(5px); }
-            75% { transform: translateX(-5px); }
-            100% { transform: translateX(0); }
+        .toppanel {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .toppanel-knap {
+            background-color: rgba(33, 150, 243, 0.5);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .toppanel-knap:hover {
+            background-color: rgba(33, 150, 243, 0.8);
+            transform: scale(1.03);
+        }
+
+        .error {
+            color: red;
+            padding: 10px 15px;
+        }
+
+        label {
+            color: white;
         }
     </style>
-
-    <script>
-        function toggleOpret() {
-            var form = document.getElementById('opretForm');
-            var stil = window.getComputedStyle(form).display;
-            form.style.display = (form.style.display === 'none') ? 'block' : 'none';
-        }
-    </script>
 
     <link rel="manifest" href="/static/manifest.json">
     <script>
@@ -95,37 +79,29 @@
     </script>
 </head>
 <body>
+
     <div class="toppanel">
-        <form method="get" action="/login">
-            <button class="toppanel-knap">Log ind</button>
-        </form>
-    </div>
+        {% if fejl %}<div class="error">{{ fejl }}</div>{% endif %}
 
-    <div class="form-box glassbox">
-        <h2 style="text-align: center;">Log ind</h2>
-        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
-
-        <form method="post">
+        <form method="post" action="/login" style="display: flex; gap: 10px;">
+            <button type="submit" class="toppanel-knap">Log ind</button>
             <input type="text" name="brugernavn" placeholder="Brugernavn" required>
             <input type="password" name="kode" placeholder="Adgangskode" required>
-            <button type="submit" class="btn-login">Log ind</button>
         </form>
 
-        <form method="get" action="/skiftkode" style="width: 100%;">
-            <button type="submit" class="btn-skiftkode">Ændre adgangskode</button>
+        <form method="get" action="/skiftkode">
+            <button type="submit" class="toppanel-knap">Ændre kode</button>
         </form>
 
-        <div class="center-knap">
-            <button class="btn-opret" onclick="toggleOpret()">Opret ny bruger</button>
-        </div>
-
-        <form method="post" action="/opret" class="opret-form" id="opretForm">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+        <form method="post" action="/opret" style="display: flex; gap: 10px;">
+            <input type="text" name="brugernavn" placeholder="Nyt brugernavn" required>
             <input type="password" name="adgangskode" placeholder="Adgangskode" required>
             <input type="text" name="email" placeholder="Email (valgfrit)">
             <input type="text" name="sms" placeholder="SMS (valgfrit)">
-            <label><input type="checkbox" name="notifikation" value="ja"><br>Ønsker notifikation</label>
-            <button type="submit" class="btn-login">Opret bruger</button>
+            <label style="align-self: center;">
+                <input type="checkbox" name="notifikation" value="ja"> Notifikation
+            </label>
+            <button type="submit" class="toppanel-knap">Opret</button>
         </form>
     </div>
 
