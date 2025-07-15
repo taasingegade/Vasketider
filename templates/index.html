@@ -23,13 +23,13 @@
             <button class="toppanel-knap">Dokumenter</button>
         </form>
         <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
-            <button type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
+            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
             <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>
-            <button type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
+            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
         </form>
     </div>
 
-    <div class="wrapper"> # starten på midten
+    <div class="wrapper">
 
     <div class="main">
         <h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
