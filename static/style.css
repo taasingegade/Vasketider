@@ -110,10 +110,12 @@ body {
 footer {
     position: fixed;
     bottom: 10px;
-    left: 15px;
+    left: 10px;
     color: white;
     font-size: 12px;
     z-index: 1000;
+    margin: 0;
+    padding: 0;
 }
 
 /* Øvrige elementer */
