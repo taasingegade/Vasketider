@@ -807,7 +807,7 @@ def slet_loginforsøg():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM loginlog WHERE id = %s", (log_id,))
+    cur.execute("DELETE FROM login_forsøg WHERE id = %s", (log_id,))
     conn.commit()
     conn.close()
     return redirect("/statistik")
