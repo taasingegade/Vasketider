@@ -19,14 +19,16 @@
         <h2 style="text-align: center;">Skift adgangskode</h2>
         {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
         <form method="post" action="/skiftkode">
+            <div style="display: flex; flex-direction: column; align-items: center;">
             <input type="text" name="brugernavn" placeholder="Brugernavn" required>
             <input type="password" name="gammel_kode" placeholder="Nuværende kode" required>
             <input type="password" name="ny_kode1" placeholder="Ny kode" required>
             <input type="password" name="ny_kode2" placeholder="Gentag ny kode" required>
             <button type="submit" class="sidepanel-knap">Skift kode</button>
         </form>
+</div>
     </div>
 
-    <footer>© Hornsberg Group</footer>
+<footer>© Hornsberg Group</footer>
 </body>
 </html>
