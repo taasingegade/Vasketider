@@ -669,25 +669,12 @@ def kommentar():
 
     return render_template("kommentar.html", kommentar=kommentar)
 
-@app.route("/kommentar")
-def kommentaroversigt():
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
-        return redirect('/login')
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, brugernavn, kommentar FROM kommentar ORDER BY id DESC")
-    kommentar = [dict(id=row[0], brugernavn=row[1], kommentar=row[2]) for row in cur.fetchall()]
-    conn.close()
-
-    return render_template("kommentar.html", kommentar=kommentar)
-
 @app.route("/dokumenter", methods=["GET", "POST"])
 def dokumenter():
     if 'brugernavn' not in session:
         return redirect('/login')
 
-      if request.method == "POST":
+    if request.method == "POST":
         if session['brugernavn'].lower() != 'admin':
             return "Adgang nægtet", 403
 
@@ -707,7 +694,6 @@ def dokumenter():
 
     filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
     return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
-
     # on/off tilslutning af vaskemaskine
 
 @app.route("/iot_toggle", methods=["POST"])
