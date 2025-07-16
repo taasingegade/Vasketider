@@ -2,133 +2,72 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-    <meta charset="UTF-8">
-    <title>Vis brugere</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body {
-            margin: 0;
-            font-family: sans-serif;
-            background: url('/static/Bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            color: white;
-            display: flex;
-        }
-        .sidebar {
-            width: 200px;
-            background-color: rgba(0,0,0,0.7);
-            padding: 20px;
-        }
-        .sidebar a {
-            display: block;
-            margin-bottom: 10px;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.1);
-            text-decoration: none;
-            color: white;
-            text-align: center;
-            border-radius: 8px;
-        }
-        .content {
-            flex-grow: 1;
-            padding: 20px;
-        }
-        form.user-form {
-            background-color: rgba(0,0,0,0.6);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        .form-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .form-row label {
-            min-width: 90px;
-        }
-        .form-row input {
-            width: 150px;
-            padding: 5px;
-        }
-        .knap-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .knap-row form {
-            display: inline;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Vis brugere</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <div class="sidebar">
-        <a href="/admin">Tilbage</a>
-        <a href="/dokumenter">Dokumenter</a>
-        <a href="/kommentarer">Kommentarer</a>
-        <a href="/logout">Log ud</a>
-    </div>
-    <div class="content">
-        <h1>Brugeradministration</h1>
-        {% for user in brugere %}
-        <form method="post" action="/opdater_bruger" class="user-form">
-            <input type="hidden" name="id" value="{{ user.id }}">
-            <div class="form-row">
-                <label>Brugernavn:</label>
-                <input type="text" name="brugernavn" value="{{ user.brugernavn }}">
-                <label>Adgangskode:</label>
-                <input type="text" name="adgangskode" value="{{ user.kode }}">
-                <label>Email:</label>
-                <input type="email" name="email" value="{{ user.email }}">
-                <label>SMS:</label>
-                <input type="text" name="sms" value="{{ user.sms }}">
-            </div>
-            <div class="form-row">
-                <label>Notifikation:</label>
-                <input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}>
-                <label>Godkendt:</label>
-                <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
-            </div>
-            <div class="knap-row">
-                <button type="submit">Gem</button>
-        </form>
+<body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
-        <form method="post" action="/slet_bruger">
-            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-            <button type="submit">Slet</button>
-        </form>
+  <!-- TOPPANEL -->
+  <div class="toppanel">
+    <form method="post" action="/logout">
+      <button class="toppanel-knap">Log ud</button>
+    </form>
+    <form method="get" action="/admin">
+      <button class="toppanel-knap">Tilbage</button>
+    </form>
+    <form method="get" action="/dokumenter">
+      <button class="toppanel-knap">Dokumenter</button>
+    </form>
+    <form method="get" action="/kommentar">
+      <button class="toppanel-knap">Kommentarer</button>
+    </form>
+  </div>
 
-        {% if not user.godkendt %}
-        <form method="post" action="/godkend_bruger">
-            <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-            <button type="submit">Godkend</button>
-        </form>
-        {% endif %}
-            </div>
-        {% endfor %}
+  <!-- INDHOLD -->
+  <div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
+    <h2>Brugeradministration</h2>
 
-        <h2>Opret ny bruger</h2>
-        <form method="post" action="/opret_bruger" class="user-form">
-            <div class="form-row">
-                <label>Brugernavn:</label>
-                <input type="text" name="brugernavn">
-                <label>Adgangskode:</label>
-                <input type="text" name="adgangskode">
-                <label>Email:</label>
-                <input type="email" name="email">
-                <label>SMS:</label>
-                <input type="text" name="sms">
-            </div>
-            <div class="form-row">
-                <label>Notifikation:</label>
-                <input type="checkbox" name="notifikation">
-                <label>Godkendt:</label>
-                <input type="checkbox" name="godkendt">
-            </div>
-            <button type="submit">Opret</button>
-        </form>
-    </div>
+    {% for user in brugere %}
+    <form method="post" action="/opdater_bruger" style="margin-bottom: 20px;">
+      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+      <p>
+        <strong>{{ user.brugernavn }}</strong><br>
+        Kode: <input type="text" name="adgangskode" value="{{ user.adgangskode }}">
+        Email: <input type="email" name="email" value="{{ user.email }}">
+        SMS: <input type="text" name="sms" value="{{ user.sms }}">
+        <label><input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}> Notifikation</label>
+        <label><input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}> Godkendt</label>
+        <br><br>
+        <button type="submit">Gem</button>
+    </form>
+
+    <form method="post" action="/slet_bruger" style="display:inline;">
+      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+      <button type="submit">Slet</button>
+    </form>
+
+    {% if not user.godkendt %}
+    <form method="post" action="/godkend_bruger" style="display:inline;">
+      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+      <button type="submit">Godkend</button>
+    </form>
+    {% endif %}
+    <hr>
+    {% endfor %}
+
+    <h3>Opret ny bruger</h3>
+    <form method="post" action="/opret_bruger">
+      Brugernavn: <input type="text" name="brugernavn" required><br>
+      Kode: <input type="text" name="adgangskode" required><br>
+      E-mail: <input type="text" name="email"><br>
+      SMS: <input type="text" name="sms"><br>
+      <label><input type="checkbox" name="notifikation"> Notifikation</label><br>
+      <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
+      <button type="submit">Opret</button>
+    </form>
+  </div>
+
+  <footer>© Hornsberg Group</footer>
 </body>
 </html>
