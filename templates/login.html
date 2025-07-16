@@ -26,33 +26,17 @@
 <body>
 
     <div class="toppanel">
-        <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
+    <form id="loginForm" method="post" action="/login" style="display: flex; gap: 10px; align-items: center;">
+        <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+        <input type="password" name="kode" placeholder="Adgangskode" required>
+        <button type="submit" class="toppanel-knap">Log ind</button>
+    </form>
 
-        <form method="get" action="/skiftkode">
-            <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
-        </form>
+    <form method="get" action="/skiftkode">
+        <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
+    </form>
 
-        <button type="button" class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
-    </div>
-
-    <div class="form-box glassbox">
-        <h2 style="text-align: center;">Log ind</h2>
-        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
-
-        <form method="post" action="/login" id="loginForm">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-            <input type="password" name="kode" placeholder="Adgangskode" required>
-        </form>
-
-        <form method="post" action="/opret" class="opret-form" id="opretForm">
-            <input type="text" name="brugernavn" placeholder="Nyt brugernavn" required>
-            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
-            <input type="text" name="email" placeholder="Email (valgfrit)">
-            <input type="text" name="sms" placeholder="SMS (valgfrit)">
-            <label><input type="checkbox" name="notifikation" value="ja"> Ønsker notifikation</label>
-            <button type="submit" class="btn-login">Opret bruger</button>
-        </form>
-    </div>
+    <button type="button" class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
 </div>
 <footer>© Hornsberg Group</footer>
 </body>
