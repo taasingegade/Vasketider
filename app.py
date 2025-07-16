@@ -406,6 +406,38 @@ def slet_booking():
 
     # Bruger
 
+@app.route("/profil", methods=["GET", "POST"])
+def profil():
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
+    fejl = ""
+    besked = ""
+    brugernavn = session['brugernavn']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if request.method == "POST":
+        email = request.form.get("email", "")
+        sms = request.form.get("sms", "")
+        notifikation = "ja" if request.form.get("notifikation") == "on" else "nej"
+
+        cur.execute("""
+            UPDATE brugere
+            SET email = %s, sms = %s, notifikation = %s
+            WHERE brugernavn = %s
+        """, (email, sms, notifikation, brugernavn))
+        conn.commit()
+        besked = "Oplysninger opdateret"
+
+    cur.execute("SELECT email, sms, notifikation FROM brugere WHERE brugernavn = %s", (brugernavn,))
+    result = cur.fetchone()
+    email, sms, notifikation = result if result else ("", "", "nej")
+    conn.close()
+
+    return render_template("opret_bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked)
+
 @app.route('/opret', methods=['GET', 'POST'])
 def opret():
     if request.method == 'POST':
