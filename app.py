@@ -436,7 +436,7 @@ def profil():
     email, sms, notifikation = result if result else ("", "", "nej")
     conn.close()
 
-    return render_template("opret_bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked)
+    return render_template("opret bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked)
 
 @app.route('/opret', methods=['GET', 'POST'])
 def opret():
