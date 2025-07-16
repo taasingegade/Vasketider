@@ -38,8 +38,42 @@
     <form method="get" action="/admin">
       <button class="toppanel-knap">Tilbage til Admin</button>
     </form>
-  </div>
+    <form method="get" action="/download_logins_pdf">
+    <button type="submit">Download PDF</button>
+    </form>
+</div>
 
+<div class="glassbox" style="max-width: 1000px; margin: 100px auto;">
+  <h2>Statistik – Aktivitet & Loginforsøg</h2>
+
+  <canvas id="bookingChart" style="max-width: 600px; margin: 20px auto;"></canvas>
+
+  <div class="statistik-flex">
+    <div class="stat-col">
+      <h3>Bookinger</h3>
+      {% for booking in bookinger %}
+        <p>{{ booking.brugernavn }} har booket {{ booking.dato }} – {{ booking.tid }}</p>
+      {% else %}
+        <p>Ingen bookinger fundet.</p>
+      {% endfor %}
+    </div>
+
+    <div class="stat-col">
+      <h3>Loginforsøg</h3>
+      {% for log in loginforsøg %}
+        <p>
+          <strong>{{ log.brugernavn }}</strong> – {{ log.tidspunkt }}
+          <form method="post" action="/slet_loginforsøg" style="display:inline;">
+            <input type="hidden" name="log_id" value="{{ log.id }}">
+            <button type="submit">Slet</button>
+          </form>
+        </p>
+      {% else %}
+        <p>Ingen loginforsøg registreret.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
   <!-- Indhold -->
   <div class="glassbox" style="max-width: 1000px; margin: 100px auto;">
     <h2>Statistik – Aktivitet & Loginforsøg</h2>
@@ -82,6 +116,40 @@
       <img src="{{ url_for('static', filename='booking_diagram.png') }}" alt="Booking diagram">
     </div>
   </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch("/bookinger_json")
+  .then(res => res.json())
+  .then(data => {
+    const grupperet = {};
+
+    data.forEach(b => {
+      if (!grupperet[b.dato]) grupperet[b.dato] = 0;
+      grupperet[b.dato]++;
+    });
+
+    const labels = Object.keys(grupperet);
+    const antal = Object.values(grupperet);
+
+    new Chart(document.getElementById("bookingChart"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Antal bookinger pr. dag",
+          data: antal,
+          backgroundColor: "rgba(54, 162, 235, 0.6)"
+        }]
+      },
+      options: {
+        scales: {
+          x: { ticks: { maxRotation: 90, minRotation: 45 } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  });
+</script>
 
   <footer>© Hornsberg Group</footer>
 </body>

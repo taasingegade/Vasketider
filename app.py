@@ -793,3 +793,15 @@ def statistik():
 
     return render_template("statistik.html", diagram=image_html, loginforsøg=loginforsøg)
 
+@app.route("/slet_loginforsøg", methods=["POST"])
+def slet_loginforsøg():
+    log_id = request.form.get("log_id")
+    if not log_id:
+        return "Manglende ID", 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM loginlog WHERE id = %s", (log_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/statistik")
