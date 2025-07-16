@@ -27,13 +27,19 @@
             <button type="submit" class="btn-login">Opret bruger</button>
         </form>
     </div>
+
+  {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
+        {% if besked %}<p style="color:lightgreen;">{{ besked }}</p>{% endif %}
+
 <form method="post">
+ {% if profil_visning %}
     <input type="email" name="email" placeholder="E-mail" value="{{ email }}">
     <input type="text" name="sms" placeholder="SMS nummer" value="{{ sms }}">
     <label>
         <input type="checkbox" name="notifikation" {% if notifikation == 'ja' %}checked{% endif %}>
         Modtag notifikationer
     </label>
+ {% endif %}
     <button type="submit" class="btn-login">Gem ændringer</button>
 </form>
 </div>

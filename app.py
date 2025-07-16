@@ -430,13 +430,13 @@ def profil():
         """, (email, sms, notifikation, brugernavn))
         conn.commit()
         besked = "Oplysninger opdateret"
-
+        
     cur.execute("SELECT email, sms, notifikation FROM brugere WHERE brugernavn = %s", (brugernavn,))
     result = cur.fetchone()
     email, sms, notifikation = result if result else ("", "", "nej")
     conn.close()
 
-    return render_template("opret bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked)
+    return render_template("opret bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked, profil_visning=True)
 
 @app.route('/opret', methods=['GET', 'POST'])
 def opret():
