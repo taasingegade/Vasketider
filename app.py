@@ -753,7 +753,7 @@ def statistik():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Top 10 brugere med flest bookinger (ekskl. service)
+    # Top 10 brugere
     cur.execute("""
         SELECT brugernavn, COUNT(*) AS antal
         FROM bookinger
@@ -764,17 +764,17 @@ def statistik():
     """)
     rows = cur.fetchall()
 
-    # Loginforsøg (seneste 30)
-   cur.execute("""
-    SELECT id, brugernavn, ip, tidspunkt, succes
-    FROM login_forsøg
-    ORDER BY tidspunkt DESC
-    LIMIT 30
-""")
-loginforsøg = [
-    dict(id=row[0], brugernavn=row[1], ip=row[2], tidspunkt=row[3], succes=row[4])
-    for row in cur.fetchall()
-]
+    # ✅ Loginforsøg med korrekt indrykning
+    cur.execute("""
+        SELECT id, brugernavn, ip, tidspunkt, succes
+        FROM login_forsøg
+        ORDER BY tidspunkt DESC
+        LIMIT 30
+    """)
+    loginforsøg = [
+        dict(id=row[0], brugernavn=row[1], ip=row[2], tidspunkt=row[3], succes=row[4])
+        for row in cur.fetchall()
+    ]
 
     conn.close()
 
