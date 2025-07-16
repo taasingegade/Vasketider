@@ -5,36 +5,50 @@
     <meta charset="UTF-8">
     <title>Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-    <link rel="manifest" href="/static/manifest.json">
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/static/service-worker.js');
         }
 
-        function toggleOpret() {
-            const form = document.getElementById('opretForm');
-            const stil = window.getComputedStyle(form).display;
-            form.style.display = (stil === 'none') ? 'block' : 'none';
+        function submitLoginForm() {
+            document.getElementById('loginForm').submit();
         }
 
-</script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const loginForm = document.getElementById("loginForm");
+            loginForm.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    loginForm.submit();
+                }
+            });
+        });
+    </script>
 </head>
 <body>
+    <!-- TOPPANEL MED LOGIN-KNAP -->
+    <div class="toppanel" style="display: flex; gap: 10px;">
+        <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
+        <form method="get" action="/skiftkode">
+            <button type="submit" class="toppanel-knap">Ændr adgangskode</button>
+        </form>
+        <form method="get" action="/opret">
+            <button type="submit" class="toppanel-knap">Opret ny bruger</button>
+        </form>
+    </div>
 
-    <div class="toppanel">
-    <form id="loginForm" method="post" action="/login" style="display: flex; gap: 10px; align-items: center;">
-        <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-        <input type="password" name="kode" placeholder="Adgangskode" required>
-        <button type="submit" class="toppanel-knap">Log ind</button>
-    </form>
+    <!-- MAIN LOGINFELTER I CENTER -->
+    <div class="form-box glassbox">
+        <h2 style="text-align: center;">Log ind</h2>
+        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
+        {% if besked %}<p style="color:green;">{{ besked }}</p>{% endif %}
 
-    <form method="get" action="/skiftkode">
-        <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
-    </form>
+        <form id="loginForm" method="post" action="/login">
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="kode" placeholder="Adgangskode" required>
+        </form>
+    </div>
 
-    <button type="button" class="toppanel-knap" onclick="toggleOpret()">Opret ny bruger</button>
-</div>
-<footer>© Hornsberg Group</footer>
+    <footer>© Hornsberg Group</footer>
 </body>
 </html>
