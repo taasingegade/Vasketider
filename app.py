@@ -834,7 +834,7 @@ def download_logins_pdf():
     pdf.ln(10)
 
     for login in logins:
-        linje = f"{login[0]} ({login[1]}) – {login[2].strftime('%d-%m-%Y %H:%M:%S')} – {'✓' if login[3] else '✗'}"
+        linje = f"{login[0]} ({login[1]}) - {login[2].strftime('%d-%m-%Y %H:%M:%S')} - {'JA' if login[3] else 'NEJ'}"
         pdf.cell(0, 10, txt=linje, ln=True)
 
     response = make_response(pdf.output(dest="S").encode("latin1"))
