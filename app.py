@@ -3,6 +3,8 @@ import psycopg2
 from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from fpdf import FPDF
+from flask import make_response
 import os
 import smtplib
 import hashlib
@@ -811,3 +813,31 @@ def slet_loginforsøg():
     conn.commit()
     conn.close()
     return redirect("/statistik")
+
+@app.route("/download_logins_pdf")
+def download_logins_pdf():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT brugernavn, ip, tidspunkt, succes
+        FROM login_forsøg
+        ORDER BY tidspunkt DESC
+        LIMIT 100
+    """)
+    logins = cur.fetchall()
+    conn.close()
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Loginforsøg – Statistik", ln=True, align="C")
+    pdf.ln(10)
+
+    for login in logins:
+        linje = f"{login[0]} ({login[1]}) – {login[2].strftime('%d-%m-%Y %H:%M:%S')} – {'✓' if login[3] else '✗'}"
+        pdf.cell(0, 10, txt=linje, ln=True)
+
+    response = make_response(pdf.output(dest="S").encode("latin1"))
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=login_statistik.pdf"
+    return response
