@@ -3,120 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <title>Dokumenter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            margin: 0;
-            font-family: sans-serif;
-            background: url('/static/Bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            color: white;
-            display: flex;
-        }
-
-        .glassbox {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
-        }
-
-        .sidebar {
-            width: 200px;
-            background-color: rgba(200, 200, 200, 0.6);
-            padding: 20px;
-        }
-
-        .sidebar a {
-            display: block;
-            margin-bottom: 10px;
-            padding: 10px;
-            background-color: rgba(200, 200, 200, 0.6);
-            text-decoration: none;
-            color: black;
-            text-align: center;
-            border-radius: 8px;
-        }
-
-        .sidebar a:hover {
-            background-color: rgba(200, 200, 200, 0.6);
-        }
-
-        .content {
-            flex-grow: 1;
-            padding: 20px;
-        }
-
-        h1 {
-            border-bottom: 2px solid white;
-            padding-bottom: 10px;
-        }
-
-        .upload-form {
-            margin-top: 30px;
-            background-color: rgba(0,0,0,0.7);
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 500px;
-        }
-
-        .fil-linje {
-            margin-bottom: 10px;
-        }
-
-        .btn-login {
-            background-color: rgba(200, 200, 200, 0.6);
-            color: black;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin: 5px;
-            cursor: pointer;
-        }
-
-        .btn-login:hover {
-            background-color: rgba(200, 200, 200, 0.6);
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <div class="sidebar glassbox">
-        <a href="{{ '/admin' if admin else '/index' }}">Tilbage</a>
-        <a href="/logout">Log ud</a>
-    </div>
+<body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
-    <div class="content glassbox">
-        <h1>Dokumenter</h1>
+    <div class="form-box" style="max-width: 800px; margin-top: 60px;">
+        <h2>Dokumenter</h2>
         <p>Her kan du finde vigtige dokumenter, manualer og retningslinjer:</p>
 
         {% for fil in filer %}
-        <div class="fil-linje">
-            <a href="{{ url_for('static', filename=fil) }}" target="_blank" style="color: lightblue;">{{ fil }}</a>
-            {% if admin %}
-            <form method="post" style="display: inline;">
-                <input type="hidden" name="slet_fil" value="{{ fil }}">
-                <button type="submit" class="btn-login">Slet</button>
-            </form>
-            {% endif %}
-        </div>
+            <div style="margin-bottom: 10px;">
+                <a href="{{ url_for('static', filename=fil) }}" target="_blank" style="color: lightblue;">{{ fil }}</a>
+                {% if admin %}
+                <form method="post" style="display: inline;">
+                    <input type="hidden" name="slet_fil" value="{{ fil }}">
+                    <button type="submit">Slet</button>
+                </form>
+                {% endif %}
+            </div>
         {% endfor %}
 
         {% if admin %}
-        <div class="upload-form">
-            <h3>Upload ny PDF</h3>
-            <form method="post" enctype="multipart/form-data">
-                <input type="file" name="fil" accept=".pdf" required>
-                <button type="submit" class="btn-login">Upload</button>
-            </form>
-        </div>
+        <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.3);">
+        <h3>Upload nye PDF-filer</h3>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="fil" accept=".pdf" multiple required><br><br>
+            <button type="submit">Upload</button>
+        </form>
         {% endif %}
+
+        <br>
+        <form method="get" action="{{ '/admin' if admin else '/index' }}">
+            <button type="submit">Tilbage</button>
+        </form>
+        <form method="post" action="/logout">
+            <button type="submit">Log ud</button>
+        </form>
     </div>
 
-    <div style="position: absolute; bottom: 10px; left: 15px; color: white; font-size: 12px;">
-        © Hornsberg Group
-    </div>
+    <footer>© Hornsberg Group</footer>
 </body>
 </html>
