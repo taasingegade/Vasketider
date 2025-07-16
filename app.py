@@ -406,29 +406,35 @@ def slet_booking():
 
     # Bruger
 
-@app.route('/opret', methods=['POST'])
+@app.route('/opret', methods=['GET', 'POST'])
 def opret():
-    brugernavn = request.form['brugernavn'].lower()
-    adgangskode = request.form['adgangskode']
-    email = request.form.get('email', '')
-    sms = request.form.get('sms', '')
-    notifikation = 'ja' if request.form.get('notifikation') == 'ja' else 'nej'
-    godkendt = False  # kræver admin-godkendelse
+    if request.method == 'POST':
+        brugernavn = request.form['brugernavn'].lower()
+        adgangskode = request.form['adgangskode']
+        email = request.form.get('email', '')
+        sms = request.form.get('sms', '')
+        notifikation = 'ja' if request.form.get('notifikation') == 'ja' else 'nej'
+        godkendt = False  # kræver admin-godkendelse
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
-    conn.commit()
-    cur.close()
-    conn.close()
-    token = generer_token(brugernavn)
-    link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
-    besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
-    send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
-    return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        token = generer_token(brugernavn)
+        link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
+        besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
+        send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
+
+        return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
+
+    # GET-request → vis opret bruger-formular
+    return render_template("opret bruger.html")
 
 @app.route("/vis_brugere")
 def vis_brugere():
@@ -770,21 +776,3 @@ def statistik():
 
     return render_template("statistik.html", diagram=image_html, loginforsøg=loginforsøg)
 
-def opret_login_forsøg_tabel():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS login_forsøg (
-            id SERIAL PRIMARY KEY,
-            brugernavn TEXT,
-            ip TEXT,
-            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            succes BOOLEAN
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# Kør ved opstart
-opret_login_forsøg_tabel()
