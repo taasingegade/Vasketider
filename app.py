@@ -769,3 +769,22 @@ def statistik():
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
     return render_template("statistik.html", diagram=image_html, loginforsøg=loginforsøg)
+
+def opret_login_forsøg_tabel():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS login_forsøg (
+            id SERIAL PRIMARY KEY,
+            brugernavn TEXT,
+            ip TEXT,
+            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            succes BOOLEAN
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Kør ved opstart
+opret_login_forsøg_tabel()
