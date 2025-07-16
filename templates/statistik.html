@@ -2,85 +2,87 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-    <meta charset="UTF-8">
-    <title>Statistik – Vasketider</title>
-    <style>
-        body {
-            background: url('/static/Bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            font-family: sans-serif;
-            margin: 0;
-            padding: 0;
-            color: black;
-        }
-
-        .glassbox {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            max-width: 800px;
-            margin: 50px auto;
-        }
-
-        .sidepanel-knap {
-            background-color: rgba(220, 220, 220, 0.9);
-            color: black;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px;
-        }
-
-        .footer {
-            position: absolute;
-            bottom: 10px;
-            left: 15px;
-            color: white;
-            font-size: 12px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Statistik</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .statistik-flex {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 30px;
+    }
+    .stat-col {
+      flex: 1;
+      min-width: 300px;
+    }
+    .diagram-container {
+      text-align: center;
+      margin-top: 40px;
+    }
+    .diagram-container img {
+      max-width: 400px;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+  </style>
 </head>
-<body>
-    <div class="glassbox">
-        <h2 style="text-align:center;">Statistik over bookinger</h2>
-        <p style="text-align:center;"> brugere der booker:</p>
-        {{ diagram|safe }}
-        <div style="text-align: center;">
-            <form action="/admin" method="get">
-                <button type="submit" class="sidepanel-knap">Tilbage til Admin</button>
+<body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
+
+  <!-- Toppanel -->
+  <div class="toppanel">
+    <form method="post" action="/logout">
+      <button class="toppanel-knap">Log ud</button>
+    </form>
+    <form method="get" action="/admin">
+      <button class="toppanel-knap">Tilbage til Admin</button>
+    </form>
+  </div>
+
+  <!-- Indhold -->
+  <div class="glassbox" style="max-width: 1000px; margin: 100px auto;">
+    <h2>Statistik – Aktivitet & Loginforsøg</h2>
+
+    <div class="statistik-flex">
+      <!-- Venstre: Bookinger -->
+      <div class="stat-col">
+        <h3>Bookinger</h3>
+        {% for booking in bookinger %}
+          <p>{{ booking.brugernavn }} har booket {{ booking.dato }} – {{ booking.tid }}</p>
+        {% else %}
+          <p>Ingen bookinger fundet.</p>
+        {% endfor %}
+      </div>
+
+      <!-- Højre: Loginforsøg -->
+      <div class="stat-col">
+        <h3>Loginforsøg</h3>
+        <form method="get" action="/download_logins_pdf">
+          <button type="submit">Download PDF</button>
+        </form>
+        <br>
+        {% for log in loginforsøg %}
+          <p>
+            <strong>{{ log.brugernavn }}</strong> – {{ log.tidspunkt }}
+            <form method="post" action="/slet_loginforsøg" style="display:inline;">
+              <input type="hidden" name="log_id" value="{{ log.id }}">
+              <button type="submit">Slet</button>
             </form>
-        </div>
+          </p>
+        {% else %}
+          <p>Ingen loginforsøg registreret.</p>
+        {% endfor %}
+      </div>
     </div>
-<div class="glassbox">
-    <h2>Seneste loginforsøg</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Brugernavn</th>
-                <th>IP-adresse</th>
-                <th>Tidspunkt</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for forsøg in loginforsøg %}
-            <tr>
-                <td>{{ forsøg[0] }}</td>
-                <td>{{ forsøg[1] }}</td>
-                <td>{{ forsøg[2].strftime('%d-%m-%Y %H:%M:%S') }}</td>
-                <td style="color: {% if forsøg[3] %}green{% else %}red{% endif %};">
-                    {% if forsøg[3] %}Succes{% else %}Fejl{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-    <div class="footer">© Hornsberg Group</div>
+
+    <!-- Diagram -->
+    <div class="diagram-container">
+      <h3>Diagram: Bookingaktivitet</h3>
+      <img src="{{ url_for('static', filename='booking_diagram.png') }}" alt="Booking diagram">
+    </div>
+  </div>
+
+  <footer>© Hornsberg Group</footer>
 </body>
 </html>
