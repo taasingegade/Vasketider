@@ -24,13 +24,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 DATABASE_URL = os.environ.get("DATABASE_URL") or "din_default_postgres_url"
 
-limiter = Limiter(app, key_func=get_remote_address, default_limits=[])
-
 limiter = Limiter(
-    get_remote_address,
-    app=app,
+    key_func=get_remote_address,
     default_limits=[]
 )
+limiter.init_app(app)
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
