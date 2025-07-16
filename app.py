@@ -42,6 +42,19 @@ def generer_token(brugernavn):
     hemmelig_nøgle = "min_vasketid_nøgle"
     return hashlib.sha256((brugernavn + hemmelig_nøgle).encode()).hexdigest()
 
+def latin1_sikker_tekst(tekst):
+    if tekst is None:
+        return ""
+    return (
+        tekst
+        .replace("–", "-")
+        .replace("✓", "JA")
+        .replace("✗", "NEJ")
+        .replace("æ", "ae")
+        .replace("ø", "oe")
+        .replace("å", "aa")
+    )
+
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
     adgangskode = os.environ.get("Gmail_adgangskode")
