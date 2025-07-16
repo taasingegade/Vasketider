@@ -1,1 +1,45 @@
 
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Opret ny bruger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="form-box glassbox">
+        <h2 style="text-align: center;">{% if fase == 'opdater' %}Rediger dine oplysninger{% else %}Opret ny bruger{% endif %}</h2>
+        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
+        {% if besked %}<p style="color:green;">{{ besked }}</p>{% endif %}
+
+        {% if fase != 'opdater' %}
+        <form method="post" action="/opret">
+            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
+            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
+            <button type="submit" class="btn-login">Opret bruger</button>
+        </form>
+        {% else %}
+        <form method="post" action="/opret_opdater">
+            <label>Email:</label>
+            <input type="text" name="email" value="{{ email }}" placeholder="Email (valgfrit)">
+
+            <label>SMS:</label>
+            <input type="text" name="sms" value="{{ sms }}" placeholder="SMS (valgfrit)">
+
+            <label>
+                <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% endif %}>
+                Ønsker notifikation
+            </label>
+
+            <button type="submit" class="btn-login">Gem oplysninger</button>
+        </form>
+        {% endif %}
+
+        <form method="get" action="/login">
+            <button type="submit" class="btn-login" style="margin-top: 10px;">Tilbage til login</button>
+        </form>
+    </div>
+
+    <footer>© Hornsberg Group</footer>
+</body>
+</html>

@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
 import psycopg2
 from datetime import datetime, timedelta
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 import smtplib
 import hashlib
@@ -22,6 +24,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 DATABASE_URL = os.environ.get("DATABASE_URL") or "din_default_postgres_url"
 
+limiter = Limiter(app, key_func=get_remote_address, default_limits=[])
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[]
+)
+
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
@@ -36,18 +46,23 @@ def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
     adgangskode = os.environ.get("Gmail_adgangskode")
 
-    msg = MIMEText(besked)
+    if not adgangskode:
+        print("❌ Gmail adgangskode mangler i miljøvariabler!")
+        return
+
+    msg = MIMEText(besked, "plain", "utf-8")
     msg["Subject"] = emne
     msg["From"] = f"No Reply Vasketid <{afsender}>"
     msg["To"] = modtager
-    msg.add_header('Reply-To', 'noreply@vasketider.dk')
+    msg.add_header("Reply-To", "noreply@vasketider.dk")
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(afsender, adgangskode)
             server.sendmail(afsender, [modtager], msg.as_string())
+            print(f"📧 E-mail sendt til {modtager} med emne: {emne}")
     except Exception as e:
-        print("Fejl ved e-mail:", e)
+        print(f"❌ Fejl ved afsendelse af e-mail: {e}")
 
 def send_sms_twilio(modtager, besked):
     account_sid = os.environ.get("Twilio_SID")
@@ -84,31 +99,57 @@ ryd_gamle_bookinger()
 def home():
     return redirect('/login')
 
+@limiter.limit("5 per 10 minutes")
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     fejl = request.args.get("fejl", "")
     besked = request.args.get("besked", "")
+
     if request.method == 'POST':
         brugernavn = request.form['brugernavn'].lower()
         kode = request.form['kode']
+        ip = request.remote_addr
 
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT kode, godkendt, email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
         result = cur.fetchone()
-        conn.close()
 
         if not result:
+            cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
+            conn.commit()
+            cur.close()
+            conn.close()
             return redirect('/login?fejl=Forkert+brugernavn')
 
         kode_rigtig, godkendt, email, sms = result
+
         if kode != kode_rigtig:
+            cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
+            conn.commit()
+            cur.close()
+            conn.close()
             return redirect('/login?fejl=Forkert+adgangskode')
 
         if not godkendt:
-            besked_admin = f"Brugeren '{brugernavn}' forsøger at logge ind og venter godkendelse."
+            cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            tidspunkt = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            besked_admin = f"""Brugeren '{brugernavn}' forsøgte at logge ind {tidspunkt}
+IP: {ip}
+Status: Brugeren er endnu ikke godkendt."""
+
             send_email("hornsbergmorten@gmail.com", "Bruger venter godkendelse", besked_admin)
             return redirect('/login?fejl=Bruger+ikke+endnu+godkendt.+Admin+er+informeret.')
+
+        # SUCCESFULDT LOGIN
+        cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, True))
+        conn.commit()
+        cur.close()
+        conn.close()
 
         session['brugernavn'] = brugernavn
         if brugernavn == 'admin':
@@ -691,7 +732,7 @@ def statistik():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Hent top 10 brugere med flest bookinger (kun godkendte brugere og ekskl. 'service')
+    # Top 10 brugere med flest bookinger (ekskl. service)
     cur.execute("""
         SELECT brugernavn, COUNT(*) AS antal
         FROM bookinger
@@ -701,19 +742,26 @@ def statistik():
         LIMIT 10
     """)
     rows = cur.fetchall()
+
+    # Loginforsøg (seneste 30)
+    cur.execute("""
+        SELECT brugernavn, ip, tidspunkt, succes
+        FROM login_forsøg
+        ORDER BY tidspunkt DESC
+        LIMIT 30
+    """)
+    loginforsøg = cur.fetchall()
+
     conn.close()
 
-    # Lav dataframe
+    # Lav bookingdiagram
     df = pd.DataFrame(rows, columns=["Brugernavn", "Bookinger"])
-
-    # Tegn diagram
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.bar(df["Brugernavn"], df["Bookinger"], color="skyblue")
     ax.set_title("Top 10 brugere med flest bookinger")
     ax.set_xlabel("Brugernavn")
     ax.set_ylabel("Antal bookinger")
     plt.xticks(rotation=45)
-
     buf = BytesIO()
     plt.tight_layout()
     plt.savefig(buf, format="png")
@@ -722,4 +770,4 @@ def statistik():
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html)
+    return render_template("statistik.html", diagram=image_html, loginforsøg=loginforsøg)
