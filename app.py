@@ -796,6 +796,9 @@ def statistik():
 @app.route("/slet_loginforsøg", methods=["POST"])
 def slet_loginforsøg():
     log_id = request.form.get("log_id")
+
+    print("Modtaget log_id:", log_id)
+
     if not log_id:
         return "Manglende ID", 400
 
