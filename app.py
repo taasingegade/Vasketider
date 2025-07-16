@@ -830,12 +830,12 @@ def download_logins_pdf():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Loginforsøg – Statistik", ln=True, align="C")
+    pdf.cell(200, 10, txt="Loginforsøg - Statistik", ln=True, align="C")
     pdf.ln(10)
 
     for login in logins:
         linje = f"{login[0]} ({login[1]}) - {login[2].strftime('%d-%m-%Y %H:%M:%S')} - {'JA' if login[3] else 'NEJ'}"
-        pdf.cell(0, 10, txt=linje, ln=True)
+        pdf.cell(0, 10, txt=latin1_sikker_tekst(linje), ln=True)
 
     response = make_response(pdf.output(dest="S").encode("latin1"))
     response.headers["Content-Type"] = "application/pdf"
