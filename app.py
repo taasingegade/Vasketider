@@ -687,21 +687,21 @@ def dokumenter():
     if 'brugernavn' not in session:
         return redirect('/login')
 
-       if request.method == "POST":
+      if request.method == "POST":
         if session['brugernavn'].lower() != 'admin':
             return "Adgang nægtet", 403
-
-        filer = request.files.getlist("fil")
-        for fil in filer:
-            if fil and tilladt_fil(fil.filename):
-                navn = secure_filename(fil.filename)
-                fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
 
         if "slet_fil" in request.form:
             filnavn = request.form["slet_fil"]
             sti = os.path.join(app.config['UPLOAD_FOLDER'], filnavn)
             if os.path.exists(sti):
                 os.remove(sti)
+
+        filer = request.files.getlist("fil")
+        for fil in filer:
+            if fil and tilladt_fil(fil.filename):
+                navn = secure_filename(fil.filename)
+                fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
 
         return redirect("/dokumenter")
 
