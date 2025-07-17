@@ -121,7 +121,10 @@ def login():
     if request.method == 'POST':
         brugernavn = request.form['brugernavn'].lower()
         kode = request.form['kode']
+
         ip = request.remote_addr
+        enhed = request.headers.get('User-Agent', 'Ukendt')
+        tidspunkt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -129,39 +132,81 @@ def login():
         result = cur.fetchone()
 
         if not result:
+            # Fejl – brugernavn findes ikke
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
+            conn.close()
+
+            status = "Fejl i login"
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO login_log (brugernavn, ip, enhed, tidspunkt, status) VALUES (%s, %s, %s, %s, %s)",
+                        (brugernavn, ip, enhed, tidspunkt, status))
+            conn.commit()
             conn.close()
             return redirect('/login?fejl=Forkert+brugernavn')
 
         kode_rigtig, godkendt, email, sms = result
 
         if kode != kode_rigtig:
+            # Fejl – forkert kode
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
             conn.close()
+
+            status = "Fejl i login"
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO login_log (brugernavn, ip, enhed, tidspunkt, status) VALUES (%s, %s, %s, %s, %s)",
+                        (brugernavn, ip, enhed, tidspunkt, status))
+            conn.commit()
+
+            # Tæl antal fejllogin fra IP i dag
+            cur.execute("SELECT COUNT(*) FROM login_log WHERE ip = %s AND status = 'Fejl i login' AND tidspunkt::date = CURRENT_DATE", (ip,))
+            antal = cur.fetchone()[0]
+            conn.close()
+
+            if antal >= 5:
+                send_email("hornsbergmorten@gmail.com", "Advarsel: Fejllogin", f"{antal} fejllogin fra IP {ip} – Enhed:\n{enhed}")
+
             return redirect('/login?fejl=Forkert+adgangskode')
 
         if not godkendt:
+            # Fejl – bruger ikke godkendt
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
             conn.close()
 
-            tidspunkt = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            status = "Fejl i login"
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO login_log (brugernavn, ip, enhed, tidspunkt, status) VALUES (%s, %s, %s, %s, %s)",
+                        (brugernavn, ip, enhed, tidspunkt, status))
+            conn.commit()
+            conn.close()
+
             besked_admin = f"""Brugeren '{brugernavn}' forsøgte at logge ind {tidspunkt}
 IP: {ip}
 Status: Brugeren er endnu ikke godkendt."""
-
             send_email("hornsbergmorten@gmail.com", "Bruger venter godkendelse", besked_admin)
+
             return redirect('/login?fejl=Bruger+ikke+endnu+godkendt.+Admin+er+informeret.')
 
-        # SUCCESFULDT LOGIN
+        # ✅ SUCCESFULDT LOGIN
         cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, True))
         conn.commit()
         cur.close()
+        conn.close()
+
+        status = "OK"
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO login_log (brugernavn, ip, enhed, tidspunkt, status) VALUES (%s, %s, %s, %s, %s)",
+                    (brugernavn, ip, enhed, tidspunkt, status))
+        conn.commit()
         conn.close()
 
         session['brugernavn'] = brugernavn
@@ -765,10 +810,13 @@ def statistik():
     from io import BytesIO
     import base64
 
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Top 10 brugere
+    # 📊 Top 10 brugere
     cur.execute("""
         SELECT brugernavn, COUNT(*) AS antal
         FROM bookinger
@@ -779,21 +827,18 @@ def statistik():
     """)
     rows = cur.fetchall()
 
-    # ✅ Loginforsøg med korrekt indrykning
+    # 🛡️ Loginforsøg (fra login_log)
     cur.execute("""
-        SELECT id, brugernavn, ip, tidspunkt, succes
-        FROM login_forsøg
+        SELECT brugernavn, ip, enhed, tidspunkt, status, id
+        FROM login_log
         ORDER BY tidspunkt DESC
-        LIMIT 30
+        LIMIT 100
     """)
-    loginforsøg = [
-        dict(id=row[0], brugernavn=row[1], ip=row[2], tidspunkt=row[3], succes=row[4])
-        for row in cur.fetchall()
-    ]
+    logins = cur.fetchall()
 
     conn.close()
 
-    # Lav bookingdiagram
+    # 📈 Lav bookingdiagram
     df = pd.DataFrame(rows, columns=["Brugernavn", "Bookinger"])
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.bar(df["Brugernavn"], df["Bookinger"], color="skyblue")
@@ -809,24 +854,24 @@ def statistik():
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html, loginforsøg=loginforsøg)
+    return render_template("statistik.html", diagram=image_html, logins=logins)
 
-@app.route("/slet_loginforsøg", methods=["POST"])
+@app.route('/slet_loginforsøg', methods=['POST'])
 def slet_loginforsøg():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
     log_id = request.form.get("log_id")
-
-    print("Modtaget log_id:", log_id)
-
     if not log_id:
-        return "Manglende ID", 400
+        return redirect("/statistik")
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM login_forsøg WHERE id = %s", (log_id,))
+    cur.execute("DELETE FROM login_log WHERE id = %s", (log_id,))
     conn.commit()
     conn.close()
-    return redirect("/statistik")
 
+    return redirect("/statistik")
 @app.route("/download_logins_pdf")
 def download_logins_pdf():
     conn = get_db_connection()

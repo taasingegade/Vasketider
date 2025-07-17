@@ -61,22 +61,35 @@
       </div>
 
       <!-- Loginforsøg -->
-      <div class="stat-col" style="margin-right: 10px;">
-        <h3>Loginforsøg</h3>
-        {% for log in loginforsøg %}
-          <p>
-            <strong>{{ log.brugernavn }}</strong> – {{ log.tidspunkt }}
-            <form method="post" action="/slet_loginforsøg" style="display:inline;">
-              <input type="hidden" name="log_id" value="{{ log.id }}">
-              <button type="submit">Slet</button>
-            </form>
-          </p>
-        {% else %}
-          <p>Ingen loginforsøg registreret.</p>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
+<div class="stat-col" style="margin-right: 10px;">
+  <h3>Loginforsøg</h3>
+  <table>
+    <tr>
+      <th>Bruger</th>
+      <th>IP</th>
+      <th>Enhed</th>
+      <th>Status</th>
+      <th>Tidspunkt + Slet</th>
+    </tr>
+    {% for log in logins %}
+    <tr {% if log[4] == "Fejl i login" %}style="background-color: #ffcccc;"{% endif %}>
+      <td>{{ log[0] }}</td>
+      <td>{{ log[1] }}</td>
+      <td style="max-width: 300px; word-break: break-word;">{{ log[2] }}</td>
+      <td>{{ log[4] }}</td>
+      <td>
+        {{ log[3] }}
+        <form method="post" action="/slet_loginforsøg" style="display:inline;">
+          <input type="hidden" name="log_id" value="{{ log[5] }}">
+          <button type="submit">Slet</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Ingen loginforsøg registreret.</td></tr>
+    {% endfor %}
+  </table>
+</div>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
