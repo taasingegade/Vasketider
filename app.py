@@ -827,7 +827,7 @@ def statistik():
     """)
     rows = cur.fetchall()
 
-    # 🛡️ Loginforsøg (fra login_log)
+# 🛡️ Loginforsøg (fra login_log)
     cur.execute("""
         SELECT brugernavn, ip, enhed, tidspunkt, status, id
         FROM login_log
@@ -836,11 +836,13 @@ def statistik():
     """)
     logins = cur.fetchall()
 
+    # 🧾 Seneste bookinger
     cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger ORDER BY dato_rigtig DESC LIMIT 20")
-seneste_bookinger = [
-    {"brugernavn": row[0], "dato": row[1].strftime('%d-%m-%Y'), "tid": row[2]}
-    for row in cur.fetchall()
-   ]
+    seneste_bookinger = [
+        {"brugernavn": row[0], "dato": row[1].strftime('%d-%m-%Y'), "tid": row[2]}
+        for row in cur.fetchall()
+    ]
+
     conn.close()
 
     # 📈 Lav bookingdiagram
@@ -860,7 +862,6 @@ seneste_bookinger = [
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
     return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger)
-
 @app.route("/download_valg")
 def download_valg():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
