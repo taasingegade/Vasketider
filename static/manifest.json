@@ -1,10 +1,11 @@
 {
-  "name": "Vasketider",
-  "short_name": "Vasketid",
-  "start_url": "/login",
+  "name": "Vasketid Kiosk",
+  "short_name": "Kiosk",
+  "start_url": "/direkte",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2196f3",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/static/icon-192.png",

@@ -1,11 +1,14 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="da">
 <head>
-  <title>Bookning af vasketid</title>
+  <meta charset="UTF-8">
+  <title>Vasketid Kiosk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="5">
- <style>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
     body {
       font-family: sans-serif;
       background: black;
@@ -13,31 +16,47 @@
       text-align: center;
       padding: 20px;
     }
-    button {
-      margin: 10px;
-      padding: 20px;
-      font-size: 20px;
-      width: 80%;
-      border: none;
-      border-radius: 10px;
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 30px;
     }
+
+    form {
+      margin: 15px auto;
+    }
+
+    button {
+      width: 90%;
+      padding: 20px;
+      font-size: 1.8em;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
     .ledig {
-    background-color: green; 
-    color: white
-     }
-    .booket { 
-    background-color: red; 
-    color: white
+      background-color: rgba(76, 175, 80, 0.9);
+      color: white;
+    }
+
+    .booket {
+      background-color: rgba(244, 67, 54, 0.9);
+      color: white;
+    }
+
+    .booket[disabled] {
+      opacity: 0.6;
     }
   </style>
 </head>
 <body>
-  <h1>Bookning af vasketid – {{ dato }}</h1>
+  <h1>Vasketid – {{ dato }}</h1>
   {% for tid in tider %}
-    <form method="POST" style="margin: 10px;">
+    <form method="POST">
       <input type="hidden" name="tid" value="{{ tid }}">
       <button type="submit" class="{% if tid in bookede %}booket{% else %}ledig{% endif %}" {% if tid in bookede %}disabled{% endif %}>
-        {{ tid }} {% if tid in bookede %}(Booket){% endif %}
+        {{ tid }} {% if tid in bookede %}(Optaget){% endif %}
       </button>
     </form>
   {% endfor %}
