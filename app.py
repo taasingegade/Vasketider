@@ -840,7 +840,7 @@ def statistik():
 seneste_bookinger = [
     {"brugernavn": row[0], "dato": row[1].strftime('%d-%m-%Y'), "tid": row[2]}
     for row in cur.fetchall()
-   
+   ]
     conn.close()
 
     # 📈 Lav bookingdiagram
