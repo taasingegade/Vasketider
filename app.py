@@ -856,6 +856,12 @@ def statistik():
 
     return render_template("statistik.html", diagram=image_html, logins=logins)
 
+@app.route("/download_valg")
+def download_valg():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+    return render_template("download_statistik.html")
+
 @app.route('/slet_loginforsøg', methods=['POST'])
 def slet_loginforsøg():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
@@ -872,30 +878,60 @@ def slet_loginforsøg():
     conn.close()
 
     return redirect("/statistik")
-@app.route("/download_logins_pdf")
-def download_logins_pdf():
+
+@app.route("/download_statistik_pdf", methods=["POST"])
+def download_statistik_pdf():
+    from fpdf import FPDF
+
+    top10 = "top10" in request.form
+    antal_login = "antal_login" in request.form
+    seneste_login = "seneste_login" in request.form
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("""
-        SELECT brugernavn, ip, tidspunkt, succes
-        FROM login_forsøg
-        ORDER BY tidspunkt DESC
-        LIMIT 100
-    """)
-    logins = cur.fetchall()
-    conn.close()
 
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Loginforsøg - Statistik", ln=True, align="C")
-    pdf.ln(10)
 
-    for login in logins:
-        linje = f"{login[0]} ({login[1]}) - {login[2].strftime('%d-%m-%Y %H:%M:%S')} - {'JA' if login[3] else 'NEJ'}"
-        pdf.cell(0, 10, txt=latin1_sikker_tekst(linje), ln=True)
+    if top10:
+        cur.execute("""
+            SELECT brugernavn, COUNT(*) AS antal
+            FROM bookinger
+            WHERE brugernavn != 'service'
+            GROUP BY brugernavn
+            ORDER BY antal DESC
+            LIMIT 10
+        """)
+        top_rows = cur.fetchall()
+        pdf.cell(0, 10, "Top 10 brugere med flest bookinger:", ln=True)
+        for navn, antal in top_rows:
+            pdf.cell(0, 10, f"{navn}: {antal} bookinger", ln=True)
+        pdf.ln(5)
+
+    if antal_login:
+        cur.execute("SELECT COUNT(*) FROM login_log")
+        total = cur.fetchone()[0]
+        pdf.cell(0, 10, f"Totalt antal loginforsøg: {total}", ln=True)
+        pdf.ln(5)
+
+    if seneste_login:
+        cur.execute("""
+            SELECT brugernavn, ip, enhed, tidspunkt, status
+            FROM login_log
+            ORDER BY tidspunkt DESC
+            LIMIT 20
+        """)
+        rows = cur.fetchall()
+        pdf.cell(0, 10, "Seneste loginforsøg:", ln=True)
+        for r in rows:
+            tid = r[3].strftime('%d-%m-%Y %H:%M')
+            linje = f"{r[0]} | {r[1]} | {tid} | {r[4]}"
+            pdf.cell(0, 10, latin1_sikker_tekst(linje), ln=True)
+
+    conn.close()
 
     response = make_response(pdf.output(dest="S").encode("latin1"))
     response.headers["Content-Type"] = "application/pdf"
-    response.headers["Content-Disposition"] = "attachment; filename=login_statistik.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=statistik_valgt.pdf"
     return response

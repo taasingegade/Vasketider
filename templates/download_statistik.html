@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <title>Download statistik</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="main glassbox">
+        <h2>Vælg statistik at hente som PDF</h2>
+        <form method="post" action="/download_statistik_pdf">
+            <label><input type="checkbox" name="top10" checked> Top 10 brugere</label><br>
+            <label><input type="checkbox" name="antal_login" checked> Antal loginforsøg</label><br>
+            <label><input type="checkbox" name="seneste_login" checked> Seneste loginforsøg</label><br><br>
+            <button type="submit">Download PDF</button>
+        </form>
+    </div>
+</body>
+</html>
