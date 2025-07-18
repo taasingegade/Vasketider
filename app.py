@@ -836,6 +836,11 @@ def statistik():
     """)
     logins = cur.fetchall()
 
+    cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger ORDER BY dato_rigtig DESC LIMIT 20")
+seneste_bookinger = [
+    {"brugernavn": row[0], "dato": row[1].strftime('%d-%m-%Y'), "tid": row[2]}
+    for row in cur.fetchall()
+   
     conn.close()
 
     # 📈 Lav bookingdiagram
@@ -854,7 +859,7 @@ def statistik():
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html, logins=logins)
+    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger))
 
 @app.route("/download_valg")
 def download_valg():
