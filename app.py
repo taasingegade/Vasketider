@@ -859,7 +859,7 @@ seneste_bookinger = [
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger))
+    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger)
 
 @app.route("/download_valg")
 def download_valg():
