@@ -258,12 +258,16 @@ def admin():
         dict(id=row[0], brugernavn=row[1], tekst=row[2]) for row in cur.fetchall()
     ]
 
+    # Hent booking log
+    cur.execute("SELECT brugernavn, handling, dato, tid, tidspunkt FROM booking_log ORDER BY tidspunkt DESC LIMIT 100")
+    booking_log = cur.fetchall()
     conn.close()
     return render_template(
         "admin.html",
         brugere=brugere,
         bookinger=bookinger,
         kommentar=kommentar,
+        booking_log=booking_log,
     )
 
 @app.route("/admin/skiftkode", methods=["GET", "POST"])
@@ -422,6 +426,11 @@ def book():
         "INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
         (brugernavn, dato_iso, tid)
     )
+    # Efter cur.execute(...) for at indsætte booking:
+    cur.execute("""
+    INSERT INTO booking_log (brugernavn, handling, dato, tid)
+    VALUES (%s, %s, %s, %s)
+""", (brugernavn, 'booket', dato_iso, tid))
     conn.commit()
 
     # Send notifikationer hvis info findes
@@ -458,6 +467,12 @@ def slet_booking():
     cur = conn.cursor()
     cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s AND tid = %s",
                 (brugernavn, dato_iso, tid))
+     
+    # Før conn.close()
+    cur.execute("""
+    INSERT INTO booking_log (brugernavn, handling, dato, tid)
+    VALUES (%s, %s, %s, %s)
+""", (brugernavn, 'annulleret', dato_iso, tid))
     conn.commit()
     conn.close()
 

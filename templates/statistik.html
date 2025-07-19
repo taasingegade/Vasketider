@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="UTF-8">
   <title>Statistik</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -105,6 +106,25 @@
         </table>
       </div>
     </div>
+<h3>Ændringslog for bookinger</h3>
+<table>
+  <tr>
+    <th>Bruger</th>
+    <th>Handling</th>
+    <th>Dato</th>
+    <th>Tid</th>
+    <th>Tidspunkt</th>
+  </tr>
+  {% for log in booking_log %}
+  <tr>
+    <td>{{ log[0] }}</td>
+    <td>{{ log[1] }}</td>
+    <td>{{ log[2].strftime('%d-%m-%Y') }}</td>
+    <td>{{ log[3] }}</td>
+    <td>{{ log[4].strftime('%d-%m-%Y %H:%M:%S') }}</td>
+  </tr>
+  {% endfor %}
+</table>
   </div>
 
   <!-- Chart.js -->
