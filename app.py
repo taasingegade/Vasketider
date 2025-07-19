@@ -966,3 +966,20 @@ def download_statistik_pdf():
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = "attachment; filename=statistik_valgt.pdf"
     return response
+
+@app.route("/slet_bookinglog", methods=["POST"])
+def slet_bookinglog():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    log_id = request.form.get("log_id")
+    if not log_id:
+        return redirect("/statistik")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM booking_log WHERE id = %s", (log_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/statistik")
