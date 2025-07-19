@@ -860,7 +860,7 @@ def statistik():
 
     # Ændringslog for bookninger
     cur.execute("""
-    SELECT brugernavn, handling, dato, tid, tidspunkt
+    SELECT id, brugernavn, handling, dato, tid, tidspunkt
     FROM booking_log
     ORDER BY tidspunkt DESC
     LIMIT 100

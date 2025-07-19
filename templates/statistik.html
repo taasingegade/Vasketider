@@ -118,14 +118,14 @@
   </tr>
   {% for log in booking_log %}
   <tr>
-    <td>{{ log[0] }}</td>
     <td>{{ log[1] }}</td>
-    <td>{{ log[2].strftime('%d-%m-%Y') }}</td>
-    <td>{{ log[3] }}</td>
-    <td>{{ log[4].strftime('%d-%m-%Y %H:%M:%S') }}</td>
+    <td>{{ log[2] }}</td>
+    <td>{{ log[3].strftime('%d-%m-%Y') }}</td>
+    <td>{{ log[4] }}</td>
+    <td>{{ log[5].strftime('%d-%m-%Y %H:%M:%S') }}</td>
     <td>
       <form method="post" action="/slet_bookinglog" style="display:inline;">
-        <input type="hidden" name="log_id" value="{{ log[5] }}">
+        <input type="hidden" name="log_id" value="{{ log[0] }}">
         <button type="submit">Slet</button>
       </form>
     </td>
