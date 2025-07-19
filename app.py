@@ -858,6 +858,15 @@ def statistik():
         for row in cur.fetchall()
     ]
 
+    # Ændringslog for bookninger
+    cur.execute("""
+    SELECT brugernavn, handling, dato, tid, tidspunkt
+    FROM booking_log
+    ORDER BY tidspunkt DESC
+    LIMIT 100
+""")
+    booking_log = cur.fetchall()
+
     conn.close()
 
     # 📈 Lav bookingdiagram
@@ -876,7 +885,8 @@ def statistik():
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger)
+    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger, booking_log=booking_log)
+
 @app.route("/download_valg")
 def download_valg():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
