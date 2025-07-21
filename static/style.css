@@ -214,3 +214,36 @@ input {
     max-width: 1000px;
     margin: 0 auto;
 }
+
+.toppanel-ekg {
+    position: absolute;
+    top: 50%;
+    left: -100%;
+    width: 200%;
+    height: 2px;
+    background: transparent;
+    background-image: 
+        linear-gradient(
+            to right, 
+            transparent 0%, 
+            lime 1%, 
+            transparent 3%, 
+            lime 4%, 
+            transparent 5%, 
+            lime 5.2%, 
+            transparent 6%, 
+            lime 6.5%, 
+            transparent 8%, 
+            lime 9%, 
+            transparent 100%
+        );
+    animation: ekg-bevægelse 2s linear infinite;
+    opacity: 0.8;
+    z-index: 0;
+    pointer-events: none;
+}
+
+@keyframes ekg-bevægelse {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
