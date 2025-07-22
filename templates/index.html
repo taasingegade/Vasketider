@@ -44,53 +44,42 @@
 </div>
 {% endif %}
         <div class="calendar">
-    <div></div>
-    {% for dag in ugedage_dk %}
-        <div><strong>{{ dag }}</strong></div>
-    {% endfor %}
+  <div></div>
+  {% for dag in ugedage_dk %}
+    <div><strong>{{ dag }}</strong></div>
+  {% endfor %}
 
-    {% for i in range(4) %}
-        <div><strong>{{ tider[i] }}</strong></div>
-        {% for j in range(7) %}
-            {% set dato = ugedage_dato[j] %}
-            {% set booking = bookinger.get((dato, tider[i])) %}
-            <form method="POST" action="/book">
-                <input type="hidden" name="dato" value="{{ dato }}">
-                <input type="hidden" name="tid" value="{{ tider[i] }}">
-                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-              {% if booking %}
-    {% if booking == 'direkte' %}
-        <button class="slot-btn slot-direkte" disabled>{{ tider[i] }} – Direkte</button>
-    {% elif booking == 'service' %}
-        <button class="slot-btn slot-service" disabled>{{ tider[i] }} – Service</button>
-    {% elif booking == bruger %}
-        <form method="POST" action="/slet" style="display:inline;">
+  {% for i in range(4) %}
+    <div><strong>{{ tider[i] }}</strong></div>
+    {% for j in range(7) %}
+      {% set dato = ugedage_dato[j] %}
+      {% set booking = bookinger.get((dato, tider[i])) %}
+
+      {% if booking %}
+        {% if booking == 'direkte' %}
+          <button class="slot-btn" disabled>{{ tider[i] }} – Direkte</button>
+        {% elif booking == 'service' %}
+          <button class="slot-btn" disabled>{{ tider[i] }} – Service</button>
+        {% elif booking == bruger %}
+          <form method="POST" action="/slet" style="display:inline;">
             <input type="hidden" name="dato" value="{{ dato }}">
             <input type="hidden" name="tid" value="{{ tider[i] }}">
             <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
             <button type="submit" class="slot-btn">{{ tider[i] }} – Annuller</button>
+          </form>
+        {% else %}
+          <button class="slot-btn" disabled>{{ tider[i] }} – {{ booking }}</button>
+        {% endif %}
+      {% else %}
+        <form method="POST" action="/book" style="display:inline;">
+          <input type="hidden" name="dato" value="{{ dato }}">
+          <input type="hidden" name="tid" value="{{ tider[i] }}">
+          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+          <button type="submit" class="slot-btn">{{ tider[i] }}</button>
         </form>
-    {% else %}
-        <button class="slot-btn" disabled>{{ tider[i] }} – {{ booking }}</button>
-    {% endif %}
-{% else %}
-    <form method="POST" action="/book" style="display:inline;">
-        <input type="hidden" name="dato" value="{{ dato }}">
-        <input type="hidden" name="tid" value="{{ tider[i] }}">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button class="slot-btn" type="submit">{{ tider[i] }}</button>
-    </form>
-{% endif %}
-    <button class="slot-btn" disabled>{{ tider[i] }} – {{ booking }}</button>
-{% endif %}
-{% else %}
-    <button class="slot-btn">
-        {{ tider[i] }}
-    </button>
-{% endif %}
-            </form>
-        {% endfor %}
+      {% endif %}
     {% endfor %}
+  {% endfor %}
 </div>
 
         <hr>
