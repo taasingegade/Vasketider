@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Vasketid Kiosk</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="5">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body {
+      font-family: sans-serif;
+      background: black;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 30px;
+    }
+
+    form {
+      margin: 15px auto;
+    }
+
+    button {
+      width: 90%;
+      padding: 20px;
+      font-size: 1.8em;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .ledig {
+      background-color: rgba(76, 175, 80, 0.9);
+      color: white;
+    }
+
+    .booket {
+      background-color: rgba(244, 67, 54, 0.9);
+      color: white;
+    }
+
+    .booket[disabled] {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+{% if fejl %}
+  <div style="color:red; font-weight:bold; margin-bottom:10px;">
+    {{ fejl }}
+  </div>
+{% endif %}
+<h1>Vasketid – {{ dato }}</h1>
+{% for tid in tider %}
+  <form method="POST">
+    <input type="hidden" name="tid" value="{{ tid }}">
+    {% if tid in bookede %}
+      <button type="submit" class="booket" disabled>
+        {{ tid }} – {{ bookede[tid]|capitalize }}
+      </button>
+    {% else %}
+      <button type="submit" class="ledig">
+        {{ tid }} – Ledig
+      </button>
+    {% endif %}
+  </form>
+{% endfor %}
+</body>
+</html>

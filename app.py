@@ -785,33 +785,43 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
-      if request.method == 'POST':
-        dato = datetime.today().strftime('%Y-%m-%d')
+    dato_obj = datetime.today()
+    dato = dato_obj.strftime('%Y-%m-%d')
+    tider = ['07–11', '11–15', '15–19', '19–23']
+    fejl = ""
+
+    if request.method == 'POST':
         tid = request.form.get("tid")
 
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # ❗ Tjek om tid allerede er booket af nogen
+        # Tjek om tiden allerede er booket
         cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND tid = %s", (dato, tid))
         eksisterende = cur.fetchone()
         if eksisterende:
-            conn.close()
-            return "Tiden er allerede booket af: " + eksisterende[0]
+            fejl = f"Tiden {tid} er allerede booket af {eksisterende[0]}"
+        else:
+            # Tjek hvor mange tider 'direkte' har
+            cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
+            antal = cur.fetchone()[0]
+            if antal >= 2:
+                fejl = "Direkte har allerede booket 2 tider i dag"
+            else:
+                cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
+                            ('direkte', dato, tid))
+                conn.commit()
 
-        # Tæl dagens 'direkte'-bookinger
-        cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
-        antal = cur.fetchone()[0]
-
-        if antal >= 2:
-            conn.close()
-            return "Maks 2 tider booket i dag af 'direkte'"
-
-        cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
-                    ('direkte', dato, tid))
-        conn.commit()
         conn.close()
-        return redirect('/direkte')
+
+    # Hent bookinger igen (uanset POST/GET)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT tid, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
+    bookede = dict(cur.fetchall())
+    conn.close()
+
+    return render_template("direkte.html", dato=dato_obj.strftime('%d-%m-%Y'), tider=tider, bookede=bookede, fejl=fejl)
 
     # statestik
 
