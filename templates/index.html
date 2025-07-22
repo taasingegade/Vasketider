@@ -45,41 +45,44 @@
 {% endif %}
         <div class="calendar">
     <div></div>
-    {% for i in range(7) %}
-        <div><strong>{{ ugedage_dk[i] }}<br>{{ ugedage_dato[i] }}</strong></div>
+    {% for dag in ugedage_dk %}
+        <div><strong>{{ dag }}</strong></div>
     {% endfor %}
-            {% for tid in tider %}
-                <div><strong>{{ tid }}</strong></div>
-                {% for i in range(7) %}
-                    {% set dato = (start_dato + timedelta(days=i)).strftime('%d-%m-%Y') %}
-                    {% set tid = tid.replace("-", "–") %}
-                    {% set booked_by = bookinger.get((dato, tid)) %}
-                    <div>
-                        {% if booked_by %}
-                            <form method="post" action="/slet">
-                                <input type="hidden" name="dato" value="{{ dato }}">
-                                <input type="hidden" name="tid" value="{{ tid }}">
-                                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-			        {% if booked_by == 'service' %}
-            <button class="slot-btn" style="background-color: yellow; color: black;" disabled>Service</button>
-        {% elif booked_by == bruger %}
-            <button class="slot-btn" style="background-color: red;">{{ booked_by }}</button>
-        {% else %}
-            <button class="slot-btn" style="background-color: red;" disabled>{{ booked_by }}</button>
-        {% endif %}
-                            </form>
-                        {% else %}
-                            <form method="post" action="/book">
-                                <input type="hidden" name="dato" value="{{ dato }}">
-                                <input type="hidden" name="tid" value="{{ tid }}">
-                                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                                <button class="slot-btn">Ledig</button>
-                            </form>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            {% endfor %}
-        </div>
+
+    {% for i in range(4) %}
+        <div><strong>{{ tider[i] }}</strong></div>
+        {% for j in range(7) %}
+            {% set dato = ugedage_dato[j] %}
+            {% set booking = bookinger.get((dato, tider[i])) %}
+            {% if booking %}
+                {% if booking == 'direkte' %}
+                    <button class="slot-btn" style="background-color: royalblue;" disabled>
+                        Direkte
+                    </button>
+                {% elif booking == 'service' %}
+                    <button class="slot-btn" style="background-color: gold;" disabled>
+                        Service
+                    </button>
+                {% elif booking == bruger %}
+                    <button class="slot-btn" style="background-color: crimson;" disabled>
+                        Din booking
+                    </button>
+                {% else %}
+                    <button class="slot-btn" disabled>
+                        {{ booking }}
+                    </button>
+                {% endif %}
+            {% else %}
+                <form method="POST" action="/book">
+                    <input type="hidden" name="dato" value="{{ dato }}">
+                    <input type="hidden" name="tid" value="{{ tider[i] }}">
+                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                    <button type="submit" class="slot-btn">Book</button>
+                </form>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</div>
 
         <hr>
         <h3>Alle bookede tider (næste 14 dage):</h3>
