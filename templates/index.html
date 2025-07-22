@@ -67,10 +67,15 @@
         <button class="slot-btn slot-service" disabled>
             {{ tider[i] }} – Service
         </button>
-    {% elif booking == bruger %}
-        <button class="slot-btn slot-bruger" disabled>
-            {{ tider[i] }} – Din booking
+        {% elif booking == bruger %}
+    <form method="POST" action="/slet">
+        <input type="hidden" name="dato" value="{{ dato }}">
+        <input type="hidden" name="tid" value="{{ tider[i] }}">
+        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+        <button class="slot-btn slot-bruger">
+            {{ tider[i] }} – Din booking (klik for at slet)
         </button>
+    </form>
     {% else %}
         <button class="slot-btn" disabled>
             {{ tider[i] }} – {{ booking }}
