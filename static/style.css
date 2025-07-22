@@ -83,11 +83,6 @@ body {
     cursor: pointer;
 }
 
-.slot-btn:hover {
-    background-color: rgba(76, 175, 80, 0.7);
-    transform: scale(1.03);
-}
-
 .slot-btn[disabled] {
     cursor: not-allowed;
 }
@@ -219,7 +214,3 @@ input {
     max-width: 1000px;
     margin: 0 auto;
 }
-
-.slot-direkte  { background-color: royalblue; }
-.slot-service  { background-color: gold; color: black; }
-.slot-bruger   { background-color: crimson; }
