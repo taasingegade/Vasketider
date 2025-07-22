@@ -54,32 +54,34 @@
         {% for j in range(7) %}
             {% set dato = ugedage_dato[j] %}
             {% set booking = bookinger.get((dato, tider[i])) %}
-            {% if booking %}
-                {% if booking == 'direkte' %}
-                    <button class="slot-btn" style="background-color: royalblue;" disabled>
-                        Direkte
-                    </button>
-                {% elif booking == 'service' %}
-                    <button class="slot-btn" style="background-color: gold;" disabled>
-                        Service
-                    </button>
-                {% elif booking == bruger %}
-                    <button class="slot-btn" style="background-color: crimson;" disabled>
-                        Din booking
-                    </button>
-                {% else %}
-                    <button class="slot-btn" disabled>
-                        {{ booking }}
-                    </button>
-                {% endif %}
-            {% else %}
-                <form method="POST" action="/book">
-                    <input type="hidden" name="dato" value="{{ dato }}">
-                    <input type="hidden" name="tid" value="{{ tider[i] }}">
-                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                    <button type="submit" class="slot-btn">Book</button>
-                </form>
-            {% endif %}
+            <form method="POST" action="/book">
+                <input type="hidden" name="dato" value="{{ dato }}">
+                <input type="hidden" name="tid" value="{{ tider[i] }}">
+                <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+               {% if booking %}
+    {% if booking == 'direkte' %}
+        <button class="slot-btn slot-direkte" disabled>
+            {{ tider[i] }} – Direkte
+        </button>
+    {% elif booking == 'service' %}
+        <button class="slot-btn slot-service" disabled>
+            {{ tider[i] }} – Service
+        </button>
+    {% elif booking == bruger %}
+        <button class="slot-btn slot-bruger" disabled>
+            {{ tider[i] }} – Din booking
+        </button>
+    {% else %}
+        <button class="slot-btn" disabled>
+            {{ tider[i] }} – {{ booking }}
+        </button>
+    {% endif %}
+{% else %}
+    <button class="slot-btn">
+        {{ tider[i] }}
+    </button>
+{% endif %}
+            </form>
         {% endfor %}
     {% endfor %}
 </div>

@@ -51,14 +51,20 @@
   </style>
 </head>
 <body>
-  <h1>Vasketid – {{ dato }}</h1>
-  {% for tid in tider %}
-    <form method="POST">
-      <input type="hidden" name="tid" value="{{ tid }}">
-      <button type="submit" class="{% if tid in bookede %}booket{% else %}ledig{% endif %}" {% if tid in bookede %}disabled{% endif %}>
-        {{ tid }} {% if tid in bookede %}(Optaget){% endif %}
+<h1>Vasketid – {{ dato }}</h1>
+{% for tid in tider %}
+  <form method="POST">
+    <input type="hidden" name="tid" value="{{ tid }}">
+    {% if tid in bookede %}
+      <button type="submit" class="booket" disabled>
+        {{ tid }} – {{ bookede[tid]|capitalize }}
       </button>
-    </form>
-  {% endfor %}
+    {% else %}
+      <button type="submit" class="ledig">
+        {{ tid }} – Ledig
+      </button>
+    {% endif %}
+  </form>
+{% endfor %}
 </body>
 </html>

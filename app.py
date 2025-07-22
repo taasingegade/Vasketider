@@ -785,36 +785,33 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
-    if request.method == 'POST':
+      if request.method == 'POST':
         dato = datetime.today().strftime('%Y-%m-%d')
         tid = request.form.get("tid")
+
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Tæl dagens kiosk-bookinger
+        # ❗ Tjek om tid allerede er booket af nogen
+        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND tid = %s", (dato, tid))
+        eksisterende = cur.fetchone()
+        if eksisterende:
+            conn.close()
+            return "Tiden er allerede booket af: " + eksisterende[0]
+
+        # Tæl dagens 'direkte'-bookinger
         cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
         antal = cur.fetchone()[0]
 
         if antal >= 2:
             conn.close()
-            return "Maks 2 tider booket i dag"
+            return "Maks 2 tider booket i dag af 'direkte'"
 
         cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
                     ('direkte', dato, tid))
         conn.commit()
         conn.close()
         return redirect('/direkte')
-
-    # GET: vis dagens tider
-    dato = datetime.today()
-    tider = ['07–11', '11–15', '15–19', '19–23']
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT tid FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato.strftime('%Y-%m-%d'),))
-    bookede = [r[0] for r in cur.fetchall()]
-    conn.close()
-
-    return render_template("kiosk.html", dato=dato.strftime('%d-%m-%Y'), tider=tider, bookede=bookede)
 
     # statestik
 
