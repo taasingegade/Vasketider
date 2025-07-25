@@ -497,7 +497,7 @@ def profil():
         email = request.form.get("email", "")
         sms = request.form.get("sms", "")
         if sms and not sms.startswith("+"):
-        sms = "+45" + sms.strip()
+            sms = "+45" + sms.strip()
         notifikation = "ja" if request.form.get("notifikation") == "on" else "nej"
 
         cur.execute("""
@@ -507,7 +507,7 @@ def profil():
         """, (email, sms, notifikation, brugernavn))
         conn.commit()
         besked = "Oplysninger opdateret"
-        
+
     cur.execute("SELECT email, sms, notifikation FROM brugere WHERE brugernavn = %s", (brugernavn,))
     result = cur.fetchone()
     email, sms, notifikation = result if result else ("", "", "nej")
@@ -523,7 +523,7 @@ def opret():
         email = request.form.get('email', '')
         sms = request.form.get('sms', '')
         if sms and not sms.startswith("+"):
-        sms = "+45" + sms.strip()
+            sms = "+45" + sms.strip()
         notifikation = 'ja' if request.form.get('notifikation') == 'ja' else 'nej'
         godkendt = False  # kræver admin-godkendelse
 
@@ -544,7 +544,6 @@ def opret():
 
         return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
 
-    # GET-request → vis opret bruger-formular
     return render_template("opret bruger.html")
 
 @app.route("/vis_brugere")
