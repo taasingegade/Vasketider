@@ -496,6 +496,8 @@ def profil():
     if request.method == "POST":
         email = request.form.get("email", "")
         sms = request.form.get("sms", "")
+        if sms and not sms.startswith("+"):
+        sms = "+45" + sms.strip()
         notifikation = "ja" if request.form.get("notifikation") == "on" else "nej"
 
         cur.execute("""
@@ -520,6 +522,8 @@ def opret():
         adgangskode = request.form['adgangskode']
         email = request.form.get('email', '')
         sms = request.form.get('sms', '')
+        if sms and not sms.startswith("+"):
+        sms = "+45" + sms.strip()
         notifikation = 'ja' if request.form.get('notifikation') == 'ja' else 'nej'
         godkendt = False  # kræver admin-godkendelse
 

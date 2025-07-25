@@ -77,6 +77,9 @@ def check_bookinger():
                 if data:
                     email, sms, notifikation = data
                     if notifikation and notifikation.strip() in ['ja', 'on', 'true']:
+  # 📱 Automatisk +45 foran hvis ikke angivet
+    if sms and not sms.startswith("+"):
+        sms = "+45" + sms.strip()
                         send_email(email, "Påmindelse", f"Husk du har vasketid om 1 time: {dato}, {slot}")
                         send_sms_twilio(sms, f"Påmindelse om: Vasketid om 1 time ({slot})")
 
