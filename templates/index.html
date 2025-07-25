@@ -45,9 +45,10 @@
 {% endif %}
        <div class="calendar">
   <div></div>
-  {% for dag in ugedage_dk %}
-    <div><strong>{{ dag }}</strong></div>
+ {% for dag, dato in zip(ugedage_dk, ugedage_dato) %}
+  <div style="text-align: center;"><strong>{{ dag }}</strong><br>d. {{ dato.split('-')[0] }}/{{ dato.split('-')[1]|int }}</div>
   {% endfor %}
+{% endfor %}
 
   {% for i in range(4) %}
     <div><strong>{{ tider[i] }}</strong></div>
@@ -79,7 +80,7 @@
           <input type="hidden" name="dato" value="{{ dato }}">
           <input type="hidden" name="tid" value="{{ tider[i] }}">
           <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn">Ledig</button>
+          <button type="submit" class="slot-btn" style="margin: auto;">Ledig</button>
         </form>
       {% endif %}
     {% endfor %}
