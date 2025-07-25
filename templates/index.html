@@ -45,9 +45,12 @@
 {% endif %}
        <div class="calendar">
   <div></div>
- {% for dag, dato in zip(ugedage_dk, ugedage_dato) %}
-  <div style="text-align: center;"><strong>{{ dag }}</strong><br>d. {{ dato.split('-')[0] }}/{{ dato.split('-')[1]|int }}</div>
-  {% endfor %}
+ {% for dag in ugedage_dk %}
+  {% set dato = ugedage_dato[loop.index0] %}
+  <div style="text-align: center;">
+    <strong>{{ dag }}</strong><br>d. {{ dato.split('-')[0] }}/{{ dato.split('-')[1]|int }}
+  </div>
+{% endfor %}
 
   {% for i in range(4) %}
     <div><strong>{{ tider[i] }}</strong></div>
