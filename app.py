@@ -322,7 +322,8 @@ def admin_skiftkode():
 @app.route("/admin/book_service", methods=["POST"])
 def admin_book_service():
     dato = request.form.get("dato")
-    tid = request.form.get("tid")
+    tid = request.form.get("tid")  # f.eks. "07–11"
+
     if not dato or not tid:
         return "Ugyldig dato eller tidspunkt", 400
 
@@ -331,13 +332,29 @@ def admin_book_service():
     except:
         dato_iso = dato
 
+    # Map tekst → slot_index
+    tidsmap = {
+        "07–11": 0,
+        "11–15": 1,
+        "15–19": 2,
+        "19–23": 3
+    }
+
+    if tid not in tidsmap:
+        return "Ukendt tidsrum", 400
+
+    slot_index = tidsmap[tid]
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)", ("service", dato_iso, tid))
+    cur.execute(
+        "INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
+        ("service", dato_iso, slot_index)
+    )
     conn.commit()
     conn.close()
-    return redirect("/admin")
 
+    return redirect("/admin")
 @app.route("/admin/opdater_tider", methods=["POST"])
 def admin_opdater_tider():
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
