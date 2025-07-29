@@ -213,7 +213,7 @@ Status: Brugeren er endnu ikke godkendt."""
     # GET (vis login.html)
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT adresse, aktiv FROM adresse_visning WHERE vis_på_login = TRUE")
+    cur.execute("SELECT adresse, aktiv FROM adresse_visning WHERE vis_paa_login = TRUE")
     adresser = cur.fetchall()
     conn.close()
 
