@@ -56,7 +56,7 @@
     <div><strong>{{ tider[i] }}</strong></div>
     {% for j in range(7) %}
       {% set dato = ugedage_dato[j] %}
-      {% set booking = bookinger.get((dato, tider[i])) %}
+      {% set booking = bookinger.get((dato, i)) %}
 
       {% if booking %}
         {% if booking == 'service' %}
@@ -66,7 +66,7 @@
         {% elif booking == bruger %}
           <form method="POST" action="/slet" style="display:inline;">
             <input type="hidden" name="dato" value="{{ dato }}">
-            <input type="hidden" name="tid" value="{{ tider[i] }}">
+            <input type="hidden" name="tid" value="{{ i }}">
             <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
             <button type="submit" class="slot-btn" style="background-color: crimson;">
               {{ booking }}
@@ -80,7 +80,7 @@
       {% else %}
         <form method="POST" action="/book" style="display:inline;">
           <input type="hidden" name="dato" value="{{ dato }}">
-          <input type="hidden" name="tid" value="{{ tider[i] }}">
+          <input type="hidden" name="tid" value="{{ i }}">
           <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
           <button type="submit" class="slot-btn" style="margin: auto;">Ledig</button>
         </form>

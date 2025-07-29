@@ -380,114 +380,94 @@ def admin_delete_comment():
 
 @app.route('/bookinger_json')
 def bookinger_json():
-    bookinger_14 = {}
     conn = get_db_connection()
     cur = conn.cursor()
     idag = datetime.today()
+
+    # Slet gamle bookinger
+    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < CURRENT_DATE")
+
+    # Hent tiderne (tekst) fra vasketider
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    tider = dict(cur.fetchall())  # {0: '07–11', 1: ..., 2: ...}
+
+    # Hent bookinger 14 dage frem
     cur.execute(
-        "SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
+        "SELECT brugernavn, dato_rigtig, slot_index FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
         (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d'))
     )
     alle_14 = cur.fetchall()
+    conn.commit()
     conn.close()
-    for b in alle_14:
-        dato_str = b[1].strftime('%d-%m-%Y')  # dato_rigtig er allerede et DATE-objekt
-        bookinger_14[(dato_str, b[2])] = b[0]
-    return jsonify([
-        {"dato": k[0], "tid": k[1], "navn": v}
-        for k, v in bookinger_14.items()
-    ])
 
-def get_db_connection():
-    db_url = os.environ.get("DATABASE_URL") or "postgresql://vasketid_db_user:rGVcD7xXGPrltSmj4AtKqoNcfwEe71bm@dpg-d1i3i09r0fns73bs6j4g-a.frankfurt-postgres.render.com/vasketid_db"
-    return psycopg2.connect(db_url, sslmode='require')
+    result = []
+    for brugernavn, dato, slot_index in alle_14:
+        dato_str = dato.strftime('%d-%m-%Y')
+        tekst = tider.get(slot_index, f"Slot {slot_index}")
+        result.append({
+            "dato": dato_str,
+            "tid": tekst,
+            "navn": brugernavn
+        })
 
-def send_email(modtager, emne, besked):
-    afsender = "hornsbergmorten@gmail.com"
-    adgangskode =  os.environ.get("Gmail_adgangskode")
-
-    msg = MIMEText(besked)
-    msg["Subject"] = emne
-    msg["From"] = f"No Reply Vasketid <{afsender}>"
-    msg["To"] = modtager
-    msg.add_header('Reply-To', 'noreply@vasketider.dk')
-
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(afsender, adgangskode)
-            server.sendmail(afsender, [modtager], msg.as_string())
-    except Exception as e:
-        print("Fejl ved afsendelse af e-mail:", e)
-
-def send_sms_twilio(modtager, besked):
-    account_sid = os.environ.get("Twilio_SID")
-    auth_token = os.environ.get("Twilio_token")
-    afsender_nummer = "+13515298337"
-
-    if not all([account_sid, auth_token, afsender_nummer]):
-        print("Twilio miljøvariabler mangler.")
-        return
-
-    try:
-        client = Client(account_sid, auth_token)
-        message = client.messages.create(
-            body=besked,
-            from_=afsender_nummer,
-            to=modtager
-        )
-        print("Twilio SMS sendt:", message.sid)
-    except Exception as e:
-        print("Twilio fejl:", e)
-
+    return jsonify(result)
 
 @app.route("/book", methods=["POST"])
 def book():
     brugernavn = session.get('brugernavn')
     dato = request.form.get("dato")
-    tid = request.form.get("tid")
+    slot_index = request.form.get("tid")  # stadig "tid" i formen, men indeholder tal
     valgt_uge = request.form.get("valgt_uge")
 
-    if not brugernavn or not dato or not tid:
+    if not brugernavn or not dato or not slot_index:
         return "Ugyldig anmodning", 400
+
+    try:
+        slot_index = int(slot_index)
+    except:
+        return "Ugyldigt slot_index", 400
 
     try:
         dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
     except:
-        dato_iso = dato  # fallback hvis allerede i korrekt format
+        dato_iso = dato
 
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Tjek antal eksisterende bookinger på dagen
+    # Tjek om brugeren har booket to tider den dag
     cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
     antal = cur.fetchone()[0]
     if antal >= 2:
         conn.close()
         return redirect(f"/index?uge={valgt_uge}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
-    # Indsæt ny booking
-    cur.execute(
-        "INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
-        (brugernavn, dato_iso, tid)
-    )
-    # Efter cur.execute(...) for at indsætte booking:
-    cur.execute("""
-    INSERT INTO booking_log (brugernavn, handling, dato, tid)
-    VALUES (%s, %s, %s, %s)
-""", (brugernavn, 'booket', dato_iso, tid))
-    conn.commit()
+    # Indsæt booking med slot_index
+    cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
+                (brugernavn, dato_iso, slot_index))
 
-    # Send notifikationer hvis info findes
+    # Log handling
+    cur.execute("""
+        INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
+        VALUES (%s, %s, %s, %s)
+    """, (brugernavn, 'booket', dato_iso, slot_index))
+
+    # Hent tekst fra vasketider
+    cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
+    slot_tekst = cur.fetchone()
+    tekst = slot_tekst[0] if slot_tekst else f"Slot {slot_index}"
+
+    # Send notifikationer
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
     brugerinfo = cur.fetchone()
     if brugerinfo:
         email, sms = brugerinfo
-        send_email(email, "Vasketid bekræftet", f"Du har booket vasketid den {dato} i følgende tidsrum {tid}.")
-        send_sms_twilio(sms, f"Du har booket vasketid {dato} kl. {tid} – Vasketider.dk")
+        send_email(email, "Vasketid bekræftet", f"Du har booket vasketid den {dato} i tidsrummet: {tekst}.")
+        send_sms_twilio(sms, f"Vasketid booket {dato} kl. {tekst} – Vasketider.dk")
 
+    conn.commit()
     conn.close()
 
-    # Fallback hvis valgt_uge mangler
     if not valgt_uge:
         valgt_uge = datetime.today().isocalendar().week
 
@@ -730,15 +710,13 @@ def index():
     ugedage_dk = UGEDAGE_DK
     ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
 
-    # ✅ først forbind
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # ✅ hent dynamiske tider
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider = [r[1] for r in cur.fetchall()]
 
-    cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
+    cur.execute("SELECT brugernavn, dato_rigtig, slot_index FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
                 (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
 
@@ -750,7 +728,8 @@ def index():
     bookinger = {}
     for b in alle_14:
         dato_str = b[1].strftime('%d-%m-%Y')
-        bookinger[(dato_str, b[2])] = b[0]
+        slot = int(b[2])
+        bookinger[(dato_str, slot)] = b[0]
 
     return render_template(
         "index.html",
@@ -763,7 +742,7 @@ def index():
         bruger=brugernavn,
         start_dato=start_dato,
         timedelta=timedelta,
-        iot=iot,
+        iot=iot
     )
 
     # kommentar og dokumenter
