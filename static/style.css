@@ -73,15 +73,12 @@ body {
 }
 
 .slot-btn {
-    padding: 10px;
-    font-size: 1vw;
-    min-width: 50px;
-    min-height: 20px;
-    background-color: rgba(76, 175, 80, 0.5);
-    border: none;
-    border-radius: 10px;
-    color: white;
-    cursor: pointer;
+  display: inline-block;
+  padding: 5px 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .slot-btn[disabled] {
