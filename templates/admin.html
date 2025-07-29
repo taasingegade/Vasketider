@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="UTF-8">
   <title>Adminpanel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -9,56 +9,78 @@
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
   <div class="toppanel">
-<form method="post" action="/logout">
-    <button class="toppanel-knap">Log ud</button>
-  </form>
+    <form method="post" action="/logout">
+      <button class="toppanel-knap">Log ud</button>
+    </form>
 
-  <form method="get" action="/vis_brugere">
-    <button class="toppanel-knap">Bruger</button>
-  </form>
+    <form method="get" action="/vis_brugere">
+      <button class="toppanel-knap">Bruger</button>
+    </form>
 
-  <form method="get" action="/dokumenter">
-    <button class="toppanel-knap">Dokumenter</button>
-  </form>
+    <form method="get" action="/dokumenter">
+      <button class="toppanel-knap">Dokumenter</button>
+    </form>
 
-  <form method="get" action="/kommentar">
-    <button class="toppanel-knap">Kommentar</button>
-  </form>
+    <form method="get" action="/kommentar">
+      <button class="toppanel-knap">Kommentar</button>
+    </form>
 
-  <form method="get" action="/admin/skiftkode">
-    <button class="toppanel-knap">Skift kode</button>
-  </form>
+    <form method="get" action="/admin/skiftkode">
+      <button class="toppanel-knap">Skift kode</button>
+    </form>
 
-  <form method="get" action="/statistik">
-    <button class="toppanel-knap">Statistik</button>
-  </form>
+    <form method="get" action="/statistik">
+      <button class="toppanel-knap">Statistik</button>
+    </form>
 
-  <form method="post" action="/iot_toggle">
-    <input type="hidden" name="iot_vaskemaskine" value="ja">
-    <button class="toppanel-knap">Tænd IoT</button>
-  </form>
+    <form method="post" action="/iot_toggle">
+      <input type="hidden" name="iot_vaskemaskine" value="ja">
+      <button class="toppanel-knap">Tænd IoT</button>
+    </form>
 
-  <form method="post" action="/iot_toggle">
-    <input type="hidden" name="iot_vaskemaskine" value="nej">
-    <button class="toppanel-knap">Sluk IoT</button>
-  </form>
-</div>
-<div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
+    <form method="post" action="/iot_toggle">
+      <input type="hidden" name="iot_vaskemaskine" value="nej">
+      <button class="toppanel-knap">Sluk IoT</button>
+    </form>
+  </div>
+
+  <div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
     <h2>Adminpanel</h2>
 
-<h3>Book tid som “service”</h3>
-<form method="post" action="/admin/book_service">
-  Dato: <input type="date" name="dato" required>
-  Tid:
-  <select name="tid" required>
-    <option value="07–11">07–11</option>
-    <option value="11–15">11–15</option>
-    <option value="15–19">15–19</option>
-    <option value="19–23">19–23</option>
-  </select>
-  <button class="toppanel-knap" type="submit">Book som service</button>
-</form>
-<hr>
+    <!-- ✅ Redigerbare vasketider -->
+    <h3>Rediger vasketider</h3>
+    <form method="post" action="/admin/opdater_tider">
+      <table>
+        <tr>
+          <th>Slot</th>
+          <th>Vist tekst</th>
+        </tr>
+        {% for i in range(4) %}
+        <tr>
+          <td>Slot {{ i }}</td>
+          <td><input type="text" name="slot_{{ i }}" value="{{ tider[i] }}"></td>
+        </tr>
+        {% endfor %}
+      </table>
+      <button type="submit" class="toppanel-knap">Gem ændringer</button>
+    </form>
+
+    <hr>
+
+    <h3>Book tid som “service”</h3>
+    <form method="post" action="/admin/book_service">
+      Dato: <input type="date" name="dato" required>
+      Tid:
+      <select name="tid" required>
+        <option value="07–11">07–11</option>
+        <option value="11–15">11–15</option>
+        <option value="15–19">15–19</option>
+        <option value="19–23">19–23</option>
+      </select>
+      <button class="toppanel-knap" type="submit">Book som service</button>
+    </form>
+
+    <hr>
 
     <h3>Bookinger</h3>
     {% for booking in bookinger %}

@@ -132,7 +132,6 @@ def login():
         result = cur.fetchone()
 
         if not result:
-            # Fejl – brugernavn findes ikke
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
@@ -150,7 +149,6 @@ def login():
         kode_rigtig, godkendt, email, sms = result
 
         if kode != kode_rigtig:
-            # Fejl – forkert kode
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
@@ -163,7 +161,6 @@ def login():
                         (brugernavn, ip, enhed, tidspunkt, status))
             conn.commit()
 
-            # Tæl antal fejllogin fra IP i dag
             cur.execute("SELECT COUNT(*) FROM login_log WHERE ip = %s AND status = 'Fejl i login' AND tidspunkt::date = CURRENT_DATE", (ip,))
             antal = cur.fetchone()[0]
             conn.close()
@@ -174,7 +171,6 @@ def login():
             return redirect('/login?fejl=Forkert+adgangskode')
 
         if not godkendt:
-            # Fejl – bruger ikke godkendt
             cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, False))
             conn.commit()
             cur.close()
@@ -195,7 +191,6 @@ Status: Brugeren er endnu ikke godkendt."""
 
             return redirect('/login?fejl=Bruger+ikke+endnu+godkendt.+Admin+er+informeret.')
 
-        # ✅ SUCCESFULDT LOGIN
         cur.execute("INSERT INTO login_forsøg (brugernavn, ip, succes) VALUES (%s, %s, %s)", (brugernavn, ip, True))
         conn.commit()
         cur.close()
@@ -215,7 +210,14 @@ Status: Brugeren er endnu ikke godkendt."""
         else:
             return redirect('/index')
 
-    return render_template('login.html', fejl=fejl, besked=besked)
+    # GET (vis login.html)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT adresse, aktiv FROM adresse_visning WHERE vis_på_login = TRUE")
+    adresser = cur.fetchall()
+    conn.close()
+
+    return render_template('login.html', fejl=fejl, besked=besked, adresser=adresser)
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
@@ -230,7 +232,9 @@ def admin():
         return redirect('/login')
 
     conn = get_db_connection()
-    cur = conn.cursor()    # Hent brugere
+    cur = conn.cursor()
+
+    # Hent brugere
     cur.execute("SELECT * FROM brugere")
     brugere = [
         dict(
@@ -241,17 +245,17 @@ def admin():
         ) for row in cur.fetchall()
     ]
 
-# Hent bookinger med korrekt ID
+    # Hent bookinger
     cur.execute("SELECT id, brugernavn, dato_rigtig, tid FROM bookinger")
     bookinger = [
-    dict(
-        id=row[0],
-        brugernavn=row[1],
-        dato=row[2].strftime('%d-%m-%Y'),  # formatér dato_rigtig som tekst
-        tid=row[3]
-    ) for row in cur.fetchall()
-]
-    
+        dict(
+            id=row[0],
+            brugernavn=row[1],
+            dato=row[2].strftime('%d-%m-%Y'),
+            tid=row[3]
+        ) for row in cur.fetchall()
+    ]
+
     # Hent kommentar
     cur.execute("SELECT * FROM kommentar")
     kommentar = [
@@ -261,14 +265,39 @@ def admin():
     # Hent booking log
     cur.execute("SELECT brugernavn, handling, dato, tid, tidspunkt FROM booking_log ORDER BY tidspunkt DESC LIMIT 100")
     booking_log = cur.fetchall()
+
+    # ✅ Hent vasketider
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    tider = [r[1] for r in cur.fetchall()]
+
     conn.close()
+
     return render_template(
         "admin.html",
         brugere=brugere,
         bookinger=bookinger,
         kommentar=kommentar,
         booking_log=booking_log,
+        tider=tider  # ✅ Send med til admin.html
     )
+@app.route("/opdater_dropdownvisning", methods=["POST"])
+def opdater_dropdownvisning():
+    if 'brugernavn' not in session or session['brugernavn'] != 'admin':
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT adresse FROM adresse_visning")
+    adresser = cur.fetchall()
+
+    for (adresse,) in adresser:
+        felt = f"vis_{adresse}"
+        vis = felt in request.form
+        cur.execute("UPDATE adresse_visning SET vis_på_login = %s WHERE adresse = %s", (vis, adresse))
+
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
 
 @app.route("/admin/skiftkode", methods=["GET", "POST"])
 def admin_skiftkode():
@@ -305,6 +334,21 @@ def admin_book_service():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)", ("service", dato_iso, tid))
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
+
+@app.route("/admin/opdater_tider", methods=["POST"])
+def admin_opdater_tider():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    for i in range(4):
+        ny_tekst = request.form.get(f"slot_{i}", "").strip()
+        if ny_tekst:
+            cur.execute("UPDATE vasketider SET tekst = %s WHERE slot_index = %s", (ny_tekst, i))
     conn.commit()
     conn.close()
     return redirect("/admin")
@@ -685,10 +729,15 @@ def index():
 
     ugedage_dk = UGEDAGE_DK
     ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
-    tider = ['07–11', '11–15', '15–19', '19–23']
 
+    # ✅ først forbind
     conn = get_db_connection()
     cur = conn.cursor()
+
+    # ✅ hent dynamiske tider
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    tider = [r[1] for r in cur.fetchall()]
+
     cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
                 (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
@@ -700,12 +749,8 @@ def index():
 
     bookinger = {}
     for b in alle_14:
-        dato_str = b[1].strftime('%d-%m-%Y')  # dato_rigtig er allerede et DATE-objekt
+        dato_str = b[1].strftime('%d-%m-%Y')
         bookinger[(dato_str, b[2])] = b[0]
-
-    print("BOOKINGER:")
-    for k, v in bookinger.items():
-        print(f"{k}: {v}")
 
     return render_template(
         "index.html",
