@@ -37,16 +37,16 @@
             <button type="submit" class="toppanel-knap">Opret ny bruger</button>
         </form>
 {% if session['brugernavn'] == 'admin' %}
-    <form method="post" action="/opdater_adressevisning">
-        <select name="adresse" onchange="this.form.submit()" class="toppanel-knap">
-            {% for adr in adresser %}
-                <option value="{{ adr[0] }}" {% if adr[1] %}selected{% endif %}>
-                    {{ adr[0] }}
-                </option>
-            {% endfor %}
-        </select>
-        <input type="hidden" name="status" value="toggle">
-    </form>
+<form method="post" action="/opdater_adressevisning" style="margin: 0;">
+  <select name="adresse" onchange="this.form.submit()" class="toppanel-knap" style="height: 38px; padding: 6px 12px; border-radius: 6px; border: none;">
+    {% for adr in adresser %}
+      <option value="{{ adr[0] }}" {% if adr[1] %}selected{% endif %}>
+        {{ adr[0] }}
+      </option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="status" value="toggle">
+</form>
     {% endif %}
     <div class="toppanel-ekg"></div>
     </div>

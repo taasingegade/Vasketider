@@ -214,6 +214,11 @@ input {
 }
 
 .ledig-knap {
-  background-color: #28a745;
-  color: white;
+  background-color: #28a745 !important;  /* Grøn */
+  color: white !important;
+  transition: background-color 0.3s ease;
+}
+
+.ledig-knap:hover {
+  background-color: #218838 !important;  /* Mørkere grøn ved hover */
 }
