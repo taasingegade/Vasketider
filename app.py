@@ -246,7 +246,7 @@ def admin():
     ]
 
     # Hent bookinger
-    cur.execute("SELECT id, brugernavn, dato_rigtig, tid FROM bookinger")
+    cur.execute("SELECT id, brugernavn, dato_rigtig, slot_index FROM bookinger")
     bookinger = [
         dict(
             id=row[0],
@@ -263,7 +263,7 @@ def admin():
     ]
 
     # Hent booking log
-    cur.execute("SELECT brugernavn, handling, dato, tid, tidspunkt FROM booking_log ORDER BY tidspunkt DESC LIMIT 100")
+    cur.execute("SELECT brugernavn, handling, dato, slot_index, tidspunkt FROM booking_log ORDER BY tidspunkt DESC LIMIT 100")
     booking_log = cur.fetchall()
 
     # ✅ Hent vasketider
@@ -876,7 +876,7 @@ def statistik():
     """)
     rows = cur.fetchall()
 
-# 🛡️ Loginforsøg (fra login_log)
+    # 🛡️ Loginforsøg
     cur.execute("""
         SELECT brugernavn, ip, enhed, tidspunkt, status, id
         FROM login_log
@@ -885,25 +885,34 @@ def statistik():
     """)
     logins = cur.fetchall()
 
-    # 🧾 Seneste bookinger
-    cur.execute("SELECT brugernavn, dato_rigtig, tid FROM bookinger ORDER BY dato_rigtig DESC LIMIT 20")
+    # 🧾 Seneste bookinger (vis tekst fra slot_index)
+    cur.execute("SELECT brugernavn, dato_rigtig, slot_index FROM bookinger ORDER BY dato_rigtig DESC LIMIT 20")
+    alle = cur.fetchall()
+
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    tider_dict = dict(cur.fetchall())
+
     seneste_bookinger = [
-        {"brugernavn": row[0], "dato": row[1].strftime('%d-%m-%Y'), "tid": row[2]}
-        for row in cur.fetchall()
+        {
+            "brugernavn": row[0],
+            "dato": row[1].strftime('%d-%m-%Y'),
+            "tid": tider_dict.get(row[2], f"Slot {row[2]}")
+        }
+        for row in alle
     ]
 
-    # Ændringslog for bookninger
+    # 🔁 Ændringslog (booking_log)
     cur.execute("""
-    SELECT id, brugernavn, handling, dato, tid, tidspunkt
-    FROM booking_log
-    ORDER BY tidspunkt DESC
-    LIMIT 100
-""")
+        SELECT id, brugernavn, handling, dato, slot_index, tidspunkt
+        FROM booking_log
+        ORDER BY tidspunkt DESC
+        LIMIT 100
+    """)
     booking_log = cur.fetchall()
 
     conn.close()
 
-    # 📈 Lav bookingdiagram
+    # 📈 Diagram
     df = pd.DataFrame(rows, columns=["Brugernavn", "Bookinger"])
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.bar(df["Brugernavn"], df["Bookinger"], color="skyblue")
@@ -919,7 +928,14 @@ def statistik():
     buf.close()
     image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
 
-    return render_template("statistik.html", diagram=image_html, logins=logins, bookinger=seneste_bookinger, booking_log=booking_log)
+    return render_template(
+        "statistik.html",
+        diagram=image_html,
+        logins=logins,
+        bookinger=seneste_bookinger,
+        booking_log=booking_log,
+        tider_dict=tider_dict
+    )
 
 @app.route("/download_valg")
 def download_valg():
