@@ -212,3 +212,8 @@ input {
     max-width: 1000px;
     margin: 0 auto;
 }
+
+.ledig-knap {
+  background-color: #28a745;
+  color: white;
+}
