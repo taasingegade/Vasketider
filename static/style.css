@@ -147,7 +147,7 @@ footer {
     text-align: center;
 }
 
-button {
+button:not(.slot-btn) {
     background-color: rgba(220, 220, 220, 0.9);
     color: white;
     border: none;
@@ -157,8 +157,8 @@ button {
     cursor: pointer;
 }
 
-button:hover {
-    background-color: rgba(220, 220, 220, 0.9);
+button:not(.slot-btn):hover {
+    background-color: rgba(180, 180, 180, 0.9);
 }
 
 input {
