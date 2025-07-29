@@ -403,7 +403,7 @@ def bookinger_json():
     result = []
     for brugernavn, dato, slot_index in alle_14:
         dato_str = dato.strftime('%d-%m-%Y')
-        tekst = tider.get(slot_index, f"Slot {slot_index}")
+        tekst = tider[int(slot_index)] if int(slot_index) in tider else f"Slot {slot_index}"
         result.append({
             "dato": dato_str,
             "tid": tekst,
