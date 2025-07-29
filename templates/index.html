@@ -58,33 +58,33 @@
       {% set dato = ugedage_dato[j] %}
       {% set booking = bookinger.get((dato, i)) %}
 
-      {% if booking %}
-        {% if booking == 'service' %}
-          <button class="slot-btn" style="background-color: gold; color: black;" disabled>
-            {{ booking }}
-          </button>
-        {% elif booking == bruger %}
-          <form method="POST" action="/slet" style="display:inline;">
-            <input type="hidden" name="dato" value="{{ dato }}">
-            <input type="hidden" name="tid" value="{{ i }}">
-            <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-            <button type="submit" class="slot-btn" style="background-color: crimson;">
-              {{ booking }}
-            </button>
-          </form>
-        {% else %}
-          <button class="slot-btn" style="background-color: crimson;" disabled>
-            {{ booking }}
-          </button>
-        {% endif %}
-      {% else %}
-        <form method="POST" action="/book" style="display:inline;">
-          <input type="hidden" name="dato" value="{{ dato }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn" style="margin: auto;">Ledig</button>
-        </form>
-      {% endif %}
+     {% if booking %}
+  {% if booking == 'service' %}
+    <button class="slot-btn" style="background-color: gold; color: black;" disabled>
+      {{ booking }}
+    </button>
+  {% elif booking == bruger %}
+    <form method="POST" action="/slet" style="display:inline;">
+      <input type="hidden" name="dato" value="{{ dato }}">
+      <input type="hidden" name="tid" value="{{ i }}">
+      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+      <button type="submit" class="slot-btn" style="background-color: crimson; margin: auto;">
+        {{ booking }}
+      </button>
+    </form>
+  {% else %}
+    <button class="slot-btn" style="background-color: crimson; margin: auto;" disabled>
+      {{ booking }}
+    </button>
+  {% endif %}
+{% else %}
+  <form method="POST" action="/book" style="display:inline;">
+    <input type="hidden" name="dato" value="{{ dato }}">
+    <input type="hidden" name="tid" value="{{ i }}">
+    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+    <button type="submit" class="slot-btn" style="margin: auto;">Ledig</button>
+  </form>
+{% endif %}
     {% endfor %}
   {% endfor %}
 </div>
