@@ -28,7 +28,7 @@ body {
 /* Knapper i topmenu */
 .toppanel-knap {
     background-color: rgba(255, 255, 255, 0.2);
-    color: White !important;
+    color: black !important;
     border: none;
     padding: 10px 15px;
     border-radius: 8px;

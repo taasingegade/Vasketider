@@ -59,7 +59,7 @@
       {% set booking = bookinger.get((dato, i)) %}
 
      {% if booking %}
-  <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+  <div style="display: flex; justify-content: center; align-items: center;">
     {% if booking == 'service' %}
       <button class="slot-btn" style="background-color: gold; color: black;">{{ booking }}</button>
     {% elif booking == bruger %}
@@ -74,7 +74,7 @@
     {% endif %}
   </div>
 {% else %}
-  <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+  <div style="display: flex; justify-content: center; align-items: center;">
     <form method="POST" action="/book">
       <input type="hidden" name="dato" value="{{ dato }}">
       <input type="hidden" name="tid" value="{{ i }}">
