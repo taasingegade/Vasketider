@@ -303,7 +303,7 @@ def opdater_dropdownvisning():
     for (adresse,) in adresser:
         felt = f"vis_{adresse}"
         vis = felt in request.form
-        cur.execute("UPDATE adresse_visning SET vis_på_login = %s WHERE adresse = %s", (vis, adresse))
+        cur.execute("UPDATE adresse_visning SET vis_paa_login = %s WHERE adresse = %s", (vis, adresse))
 
     conn.commit()
     conn.close()
