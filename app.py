@@ -841,20 +841,24 @@ def iot_toggle():
 def direkte():
     dato_obj = datetime.today()
     dato = dato_obj.strftime('%Y-%m-%d')
-    tider = ['07–11', '11–15', '15–19', '19–23']
+    
+    # Vasketider fra databasen
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    tider_raw = cur.fetchall()
+    tider = [(str(r[0]), r[1]) for r in tider_raw]  # [('0', '07–11'), ...]
+
     fejl = ""
 
     if request.method == 'POST':
-        tid = request.form.get("tid")
+        slot = request.form.get("tid")
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Tjek om tiden allerede er booket
-        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s", (dato, tid))
+        # Tjek om tiden er booket
+        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s", (dato, slot))
         eksisterende = cur.fetchone()
         if eksisterende:
-            fejl = f"Tiden {tid} er allerede booket af {eksisterende[0]}"
+            fejl = f"Tiden er allerede booket af {eksisterende[0]}"
         else:
             # Tjek hvor mange tider 'direkte' har
             cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
@@ -863,15 +867,11 @@ def direkte():
                 fejl = "Direkte har allerede booket 2 tider i dag"
             else:
                 cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                            ('direkte', dato, tid))
+                            ('direkte', dato, slot))
                 conn.commit()
 
-        conn.close()
-
-    # Hent bookinger igen (uanset POST/GET)
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT tid, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
+    # Hent bookinger igen
+    cur.execute("SELECT slot_index, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
     bookede = dict(cur.fetchall())
     conn.close()
 
