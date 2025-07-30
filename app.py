@@ -279,6 +279,7 @@ def admin():
         kommentar=kommentar,
         booking_log=booking_log,
         tider=tider  # ✅ Send med til admin.html
+        adresser=adresser,
     )
 @app.route("/opdater_dropdownvisning", methods=["POST"])
 def opdater_dropdownvisning():
@@ -506,12 +507,12 @@ def slet_booking():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s AND tid = %s",
+    cur.execute("DELETE FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s AND slot_index = %s",
                 (brugernavn, dato_iso, tid))
      
     # Før conn.close()
     cur.execute("""
-    INSERT INTO booking_log (brugernavn, handling, dato, tid)
+    INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
     VALUES (%s, %s, %s, %s)
 """, (brugernavn, 'annulleret', dato_iso, tid))
     conn.commit()
