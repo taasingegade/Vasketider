@@ -278,7 +278,7 @@ def admin():
         bookinger=bookinger,
         kommentar=kommentar,
         booking_log=booking_log,
-        tider=tider  # ✅ Send med til admin.html
+        tider=tider,  # ✅ Send med til admin.html
         adresser=adresser,
     )
 @app.route("/opdater_dropdownvisning", methods=["POST"])
