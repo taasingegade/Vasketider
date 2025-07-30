@@ -51,25 +51,27 @@
   </style>
 </head>
 <body>
-{% if fejl %}
-  <div style="color:red; font-weight:bold; margin-bottom:10px;">
-    {{ fejl }}
-  </div>
-{% endif %}
-<h1>Vasketid – {{ dato }}</h1>
-{% for tid in tider %}
-  <form method="POST">
-    <input type="hidden" name="tid" value="{{ tid }}">
-    {% if tid in bookede %}
-      <button type="submit" class="booket" disabled>
-        {{ tid }} – {{ bookede[tid]|capitalize }}
-      </button>
-    {% else %}
-      <button type="submit" class="ledig">
-        {{ tid }} – Ledig
-      </button>
-    {% endif %}
-  </form>
-{% endfor %}
+  {% if fejl %}
+    <div style="color:red; font-weight:bold; margin-bottom:10px;">
+      {{ fejl }}
+    </div>
+  {% endif %}
+
+  <h1>Vasketid – {{ dato }}</h1>
+
+  {% for slot, label in tider %}
+    <form method="POST">
+      <input type="hidden" name="tid" value="{{ slot }}">
+      {% if slot in bookede %}
+        <button type="submit" class="booket" disabled>
+          {{ label }} – {{ bookede[slot]|capitalize }}
+        </button>
+      {% else %}
+        <button type="submit" class="ledig">
+          {{ label }} – Ledig
+        </button>
+      {% endif %}
+    </form>
+  {% endfor %}
 </body>
 </html>
