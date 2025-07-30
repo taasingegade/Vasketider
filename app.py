@@ -270,6 +270,13 @@ def admin():
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider = [r[1] for r in cur.fetchall()]
 
+    cur.execute("SELECT adresse, vis_paa_login FROM adresse_visning ORDER BY adresse")
+    adresser = cur.fetchall()
+
+    cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'vis_adresse_dropdown'")
+    row = cur.fetchone()
+    vis_dropdown = row and row[0] == 'true'
+
     conn.close()
 
     return render_template(
@@ -280,7 +287,9 @@ def admin():
         booking_log=booking_log,
         tider=tider,  # ✅ Send med til admin.html
         adresser=adresser,
+        vis_dropdown=vis_dropdown,
     )
+
 @app.route("/opdater_dropdownvisning", methods=["POST"])
 def opdater_dropdownvisning():
     if 'brugernavn' not in session or session['brugernavn'] != 'admin':
