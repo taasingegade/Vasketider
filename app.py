@@ -851,7 +851,7 @@ def direkte():
         cur = conn.cursor()
 
         # Tjek om tiden allerede er booket
-        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND tid = %s", (dato, tid))
+        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s", (dato, tid))
         eksisterende = cur.fetchone()
         if eksisterende:
             fejl = f"Tiden {tid} er allerede booket af {eksisterende[0]}"
@@ -862,7 +862,7 @@ def direkte():
             if antal >= 2:
                 fejl = "Direkte har allerede booket 2 tider i dag"
             else:
-                cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, tid) VALUES (%s, %s, %s)",
+                cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
                             ('direkte', dato, tid))
                 conn.commit()
 
