@@ -6,6 +6,7 @@ from flask_limiter.util import get_remote_address
 from fpdf import FPDF
 from flask import make_response
 import os
+import requests
 import smtplib
 import hashlib
 from email.mime.text import MIMEText
