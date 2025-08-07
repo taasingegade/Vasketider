@@ -90,17 +90,20 @@ def hent_miele_status_direkte():
         data = r.json()
         for key, device in data.items():
             val = device["state"]["status"]["value_raw"]
-            print("✅ Miele status value_raw:", val)
-            if val == 1:
-                return "off"
-            elif val == 2:
-                return "on"
-            elif val == 5:
-                return "running"
-            elif val == 8:
-                return "finished"
-            else:
-                return "ukendt"
+            print("✅ value_raw (dubug):", val)
+status_map = {
+    1: "off",
+    2: "on",
+    5: "running",
+    8: "finished",
+    10: "maintenance"  # Eksempel, tilføj efter du ser log
+}
+
+if val in status_map:
+    return status_map[val]
+else:
+    print("❓ Ukendt value_raw:", val)
+    return "ukendt"
     return "fejl"
 
 def send_email(modtager, emne, besked):
