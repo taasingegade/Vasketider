@@ -90,20 +90,17 @@ def hent_miele_status_direkte():
         data = r.json()
         for key, device in data.items():
             val = device["state"]["status"]["value_raw"]
-            print("✅ value_raw (dubug):", val)
-status_map = {
-    1: "off",
-    2: "on",
-    5: "running",
-    8: "finished",
-    10: "maintenance"  # Eksempel, tilføj efter du ser log
-}
+            print("🧪 value_raw:", val)
 
-if val in status_map:
-    return status_map[val]
-else:
-    print("❓ Ukendt value_raw:", val)
-    return "ukendt"
+            status_map = {
+                1: "off",
+                2: "on",
+                5: "running",
+                8: "finished",
+                10: "maintenance"
+            }
+
+            return status_map.get(val, "ukendt")
     return "fejl"
 
 def send_email(modtager, emne, besked):
