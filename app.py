@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
+from pytz import timezone
 from flask import make_response
 import os
 import requests
@@ -811,6 +812,7 @@ def index():
         bookinger[(dato_str, slot)] = b[0]
 
     miele_status = hent_miele_status_direkte()
+    print("▶️ Viser miele_status på index:", miele_status)
 
     return render_template(
         "index.html",
@@ -894,28 +896,27 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
-    dato_obj = datetime.today()
-    dato = dato_obj.strftime('%Y-%m-%d')
-    
-    # Vasketider fra databasen
+    nu = datetime.now(timezone("Europe/Copenhagen"))  # ← dansk tid
+    dato = nu.strftime('%Y-%m-%d')
+    vis_dato = nu.strftime('%d-%m-%Y')
+    klokkeslaet = nu.strftime('%H:%M')
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider_raw = cur.fetchall()
-    tider = [(str(r[0]), r[1]) for r in tider_raw]  # [('0', '07–11'), ...]
+    tider = [(str(r[0]), r[1]) for r in tider_raw]
 
     fejl = ""
 
     if request.method == 'POST':
         slot = request.form.get("tid")
 
-        # Tjek om tiden er booket
         cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s", (dato, slot))
         eksisterende = cur.fetchone()
         if eksisterende:
             fejl = f"Tiden er allerede booket af {eksisterende[0]}"
         else:
-            # Tjek hvor mange tider 'direkte' har
             cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
             antal = cur.fetchone()[0]
             if antal >= 2:
@@ -925,16 +926,20 @@ def direkte():
                             ('direkte', dato, slot))
                 conn.commit()
 
-    # Hent bookinger igen
     cur.execute("SELECT slot_index, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
     bookede = dict(cur.fetchall())
     conn.close()
 
-    klokkeslaet = datetime.now().strftime('%H:%M')
+    return render_template(
+        "direkte.html",
+        dato=vis_dato,
+        tider=tider,
+        bookede=bookede,
+        klokkeslaet=klokkeslaet,
+        fejl=fejl
+    )
 
-    return render_template("direkte.html", dato=dato_obj.strftime('%d-%m-%Y'), tider=tider, bookede=bookede, klokkeslaet=klokkeslaet,  fejl=fejl)
-
-    # statestik
+# statestik
 
 @app.route("/statistik")
 def statistik():
