@@ -62,8 +62,8 @@ def hent_access_token():
     url = "https://api.mcs3.miele.com/thirdparty/token"
     data = {
         "grant_type": "client_credentials",
-        "client_id": "3733eea1-d086-44ce-adc0-5bad93721bd8",
-        "client_secret": "CygSn7mTLea07Amnf7TvydjLUMILEtuk"
+        "client_id": "353c5658-bd08-45ca-a136-419dbb3a59fe",
+        "client_secret": "ufqdbptGXaB2wouamT02o929G2SaeVvb"
     }
     r = requests.post(url, data=data)
     print("🔑 TOKEN RESPONSE:", r.status_code, r.text)
