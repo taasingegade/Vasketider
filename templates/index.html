@@ -93,17 +93,22 @@
 </ul>        </div>
     </div>
 
-{% if miele_status == 'running' %}
-<!-- SVG-animation med tromle -->
-
-{% elif miele_status == 'finished' %}
-<!-- SVG eller besked om vask færdig -->
-
-{% elif miele_status == 'off' %}
-<p style="text-align:center; color:gray;">Vaskemaskinen er slukket</p>
-
-{% else %}
-<p style="text-align:center; color:red;">Miele status kunne ikke hentes</p>
+{% if miele_status %}
+  <div style="margin-top: 20px; text-align:center; color:white;">
+    <h3>Status: 
+      {% if miele_status == 'running' %}
+        <span style="color:lime;">Vaskemaskine i gang 🌀</span>
+      {% elif miele_status == 'finished' %}
+        <span style="color:orange;">Færdig ✅</span>
+      {% elif miele_status == 'off' %}
+        <span style="color:gray;">Slukket ⚫</span>
+      {% elif miele_status == 'on' %}
+        <span style="color:blue;">Tændt 🔵</span>
+      {% else %}
+        <span style="color:red;">Ukendt 🔴</span>
+      {% endif %}
+    </h3>
+  </div>
 {% endif %}
 </div>
 </div>
