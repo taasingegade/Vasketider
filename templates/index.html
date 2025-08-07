@@ -25,12 +25,7 @@
 <form method="get" action="/profil">
     <button class="toppanel-knap">Min profil</button>
 </form>
-        <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
-            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
-            <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>
-            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
-        </form>
-    {% if miele_status %}
+{% if miele_status %}
     <div style="background-color: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 10px; border: 1px solid white; color: white; align-self: center;">
     <h3>Status: 
       {% if miele_status == 'running' %}
@@ -47,6 +42,14 @@
         <span style="color:red;">Ukendt 🔴</span>
       {% endif %}
     </h3>
+  </div>
+{% endif %}
+        <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
+            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
+            <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>
+            <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
+        </form>
+       </h3>
   </div>
 {% endif %}
     </div>
