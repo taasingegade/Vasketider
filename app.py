@@ -55,6 +55,55 @@ def latin1_sikker_tekst(tekst):
         .replace("å", "aa")
     )
 
+def hent_access_token():
+    url = "https://api.mcs3.miele.com/thirdparty/token"
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": "3733eea1-d086-44ce-adc0-5bad93721bd8",
+        "client_secret": "CygSn7mTLea07Amnf7TvydjLUMILEtuk"
+    }
+    r = requests.post(url, data=data)
+    if r.status_code == 200:
+        return r.json().get("access_token")
+    print("Fejl ved token:", r.text)
+    return None
+
+def hent_miele_status_direkte():
+    token = hent_access_token()
+    if not token:
+        return "fejl"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json"
+    }
+
+    url = "https://api.mcs3.miele.com/v1/devices"
+
+    try:
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            data = r.json()
+            for key, device in data.items():
+                value = device["state"]["status"]["value_raw"]
+                # Oversæt til tekst
+                if value == 1:
+                    return "off"
+                elif value == 2:
+                    return "on"
+                elif value == 5:
+                    return "running"
+                elif value == 8:
+                    return "finished"
+                else:
+                    return "ukendt"
+        else:
+            print("Fejl ved statuskald:", r.text)
+            return "fejl"
+    except Exception as e:
+        print("Fejl ved forespørgsel:", e)
+        return "fejl"
+
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
     adgangskode = os.environ.get("Gmail_adgangskode")
@@ -758,6 +807,8 @@ def index():
         slot = int(b[2])
         bookinger[(dato_str, slot)] = b[0]
 
+    miele_status = hent_miele_status_direkte()
+
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
@@ -769,7 +820,8 @@ def index():
         bruger=brugernavn,
         start_dato=start_dato,
         timedelta=timedelta,
-        iot=iot
+        iot=iot,
+        miele_status=miele_status
     )
 
     # kommentar og dokumenter
@@ -875,7 +927,9 @@ def direkte():
     bookede = dict(cur.fetchall())
     conn.close()
 
-    return render_template("direkte.html", dato=dato_obj.strftime('%d-%m-%Y'), tider=tider, bookede=bookede, fejl=fejl)
+    klokkeslaet = datetime.now().strftime('%H:%M')
+
+    return render_template("direkte.html", dato=dato_obj.strftime('%d-%m-%Y'), tider=tider, bookede=bookede, klokkeslaet=klokkeslaet,  fejl=fejl)
 
     # statestik
 
