@@ -807,7 +807,7 @@ def index():
         bookinger[(dato_str, slot)] = b[0]
 
     miele_status = hent_miele_status_direkte()
-print("🔁 Miele-status sendt til template:", miele_status)
+    print("🔁 Miele-status sendt til template:", miele_status)
 
     return render_template(
         "index.html",

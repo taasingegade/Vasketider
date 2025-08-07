@@ -88,16 +88,25 @@ body {
 /* Responsiv visning */
 @media (max-width: 768px) {
     .calendar {
-        overflow-x: auto;
-    }
-
-    .slot-btn {
-        font-size: 14px;
-        padding: 10px;
+        display: block; /* gør hver tid til en blok */
+        width: 100%;
+        overflow-x: hidden;
     }
 
     .calendar div {
-        font-size: 12px;
+        display: block;
+        width: 100%;
+        font-size: 16px;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .slot-btn {
+        width: 100%;
+        font-size: 18px;
+        padding: 14px;
+        box-sizing: border-box;
+        margin-top: 5px;
     }
 }
 
