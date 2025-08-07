@@ -67,6 +67,7 @@ def hent_access_token():
     if r.status_code == 200:
         return r.json().get("access_token")
     print("Fejl ved token:", r.text)
+    print("Access token response:", r.status_code, r.text)
     return None
 
 def hent_miele_status_direkte():
@@ -100,6 +101,7 @@ def hent_miele_status_direkte():
                     return "ukendt"
         else:
             print("Fejl ved statuskald:", r.text)
+            print("📡 STATUS REQUEST:", r.status_code, r.text)
             return "fejl"
     except Exception as e:
         print("Fejl ved forespørgsel:", e)
