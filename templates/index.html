@@ -104,6 +104,8 @@
         <span style="color:gray;">Slukket ⚫</span>
       {% elif miele_status == 'on' %}
         <span style="color:blue;">Tændt 🔵</span>
+      {% elif miele_status == 'fejl' %}
+      <span style="color:red;">Fejl ved forbindelse til Miele 🔴</span>
       {% else %}
         <span style="color:red;">Ukendt 🔴</span>
       {% endif %}
