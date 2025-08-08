@@ -57,50 +57,26 @@ def latin1_sikker_tekst(tekst):
         .replace("å", "aa")
     )
 
-def hent_access_token():
-    print("➡️ KALDER hent_access_token()")
-    url = "https://api.mcs3.miele.com/thirdparty/token"
-    data = {
-        "grant_type": "client_credentials",
-        "client_id": "353c5658-bd08-45ca-a136-419dbb3a59fe",
-        "client_secret": "ufqdbptGXaB2wouamT02o929G2SaeVvb"
-    }
-    r = requests.post(url, data=data)
-    print("🔑 TOKEN RESPONSE:", r.status_code, r.text)
-    if r.status_code == 200:
-        return r.json().get("access_token")
-    return None
-
-def hent_miele_status_direkte():
-    print("➡️ KALDER hent_miele_status_direkte()")
-    token = hent_access_token()
-    if not token:
-        print("❌ INTET TOKEN MODTAGET")
-        return "fejl"
+def hent_miele_status_home_assistant():
+    print("➡️ Henter Miele-status fra Home Assistant...")
+    url = "http://192.168.18.28:8123/api/states/binary_sensor.washing_machine_notification_active"  # ← Skift IP + sensor-navn
+    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyNWM1Y2ViNmE0ODU0YWU5YmQyMDY5ZTYwZjYwZGVkYSIsImlhdCI6MTc1NDY0NjkzNSwiZXhwIjoyMDcwMDA2OTM1fQ.XhKIijAxXp73jugsahOnUe80eHhFxyfI0DVmHnLc9MU"  # ← Skift til dit token
 
     headers = {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/json"
+        "Content-Type": "application/json"
     }
 
-    url = "https://api.mcs3.miele.com/v1/devices"
-    r = requests.get(url, headers=headers)
-    print("📡 STATUS RESPONSE:", r.status_code, r.text)
-    if r.status_code == 200:
-        data = r.json()
-        for key, device in data.items():
-            val = device["state"]["status"]["value_raw"]
-            print("🧪 value_raw:", val)
-
-            status_map = {
-                1: "off",
-                2: "on",
-                5: "running",
-                8: "finished",
-                10: "maintenance"
-            }
-
-            return status_map.get(val, "ukendt")
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            state = response.json().get("state")
+            print("💡 Status fra HA:", state)
+            return state
+        else:
+            print("❌ HA-fejl:", response.status_code, response.text)
+    except Exception as e:
+        print("❌ Forbindelsesfejl til HA:", e)
     return "fejl"
 
 def send_email(modtager, emne, besked):
@@ -806,7 +782,7 @@ def index():
         slot = int(b[2])
         bookinger[(dato_str, slot)] = b[0]
 
-    miele_status = hent_miele_status_direkte()
+    miele_status = hent_miele_status_home_assistant()
     print("🔁 Miele-status sendt til template:", miele_status)
 
     return render_template(
