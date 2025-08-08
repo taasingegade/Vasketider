@@ -59,7 +59,7 @@ def latin1_sikker_tekst(tekst):
 
 def hent_miele_status_home_assistant():
     print("➡️ Henter Miele-status fra Home Assistant...")
-    url = "http://192.168.18.28:8123/api/states/binary_sensor.washing_machine_notification_active"  # ← Skift IP + sensor-navn
+    url = "http://192.168.18.28:8123/api/states/sensor.washing_machine"  # ← Skift IP + sensor-navn
     token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyNWM1Y2ViNmE0ODU0YWU5YmQyMDY5ZTYwZjYwZGVkYSIsImlhdCI6MTc1NDY0NjkzNSwiZXhwIjoyMDcwMDA2OTM1fQ.XhKIijAxXp73jugsahOnUe80eHhFxyfI0DVmHnLc9MU"  # ← Skift til dit token
 
     headers = {
