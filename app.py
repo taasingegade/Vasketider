@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
-from pytz import timezone
+from pytz import timezone, UTC
 from flask import make_response
 import os
 import requests
@@ -167,44 +167,32 @@ def ha_webhook():
     try:
         data = request.get_json(force=True)
 
-        # Rå status fra HA
-        raw_status = str(data.get("status", "Ukendt")).strip().lower()
-        opdateret = data.get("opdateret", datetime.now())
+        # Hent værdier fra HA payload
+        raw_status = str(data.get("status", "Ukendt")).strip()
+        opdateret = data.get("opdateret", None)
 
-        # Konverter evt. streng til datetime
+        cph_tz = timezone("Europe/Copenhagen")
+
+        # Hvis 'opdateret' mangler eller ikke er datetime, prøv at konvertere
         if isinstance(opdateret, str):
             try:
+                # Først prøv ISO-format (fx 2025-08-09T21:05:12)
                 opdateret = datetime.fromisoformat(opdateret)
             except ValueError:
-                opdateret = datetime.now()
+                try:
+                    # Prøv dansk format (fx 09-08-2025 21:05:12)
+                    opdateret = datetime.strptime(opdateret, "%d-%m-%Y %H:%M")
+                except ValueError:
+                    # Hvis alt fejler → brug nuværende tidspunkt
+                    opdateret = datetime.now()
+        elif not isinstance(opdateret, datetime):
+            opdateret = datetime.now()
 
-        # Mapping fra HA's statusser til dansk visning
-        status_map = {
-            "off": "Slukket",
-            "idle": "Standby",
-            "in_use": "Kører",
-            "programmed": "Programmeret",
-            "program_ended": "Færdig",
-            "pause": "Pause",
-            "failure": "Fejl",
-            "not_connected": "Ikke forbundet",
-            "service": "Service",
-            "rinse_hold": "Skylle-stop",
-            "waiting_to_start": "Venter på start",
-            "supercooling": "Superkøling",
-            "superfreezing": "Superfrysning",
-            "supercooling_superfreezing": "Superkøling/frysning",
-            "superheating": "Superopvarmning",
-            "program_interrupted": "Program afbrudt",
-            "autocleaning": "Selvrens",
-            "unavailable": "Utilgængelig"
-        }
-
-        dansk_status = status_map.get(raw_status, "Ukendt")
-
-        # Gem i DB (overskriv sidste)
+        # Gem i databasen
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # Opret tabel hvis den ikke findes
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
@@ -212,16 +200,16 @@ def ha_webhook():
                 opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Vi beholder kun seneste status (1 række)
         cur.execute("DELETE FROM miele_status")
-        cur.execute(
-            "INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-            (dansk_status, opdateret)
-        )
+        cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
+                    (raw_status, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {dansk_status} (Opdateret: {opdateret})")
-        return jsonify({"status": "ok", "received": dansk_status, "opdateret": opdateret}), 200
+        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
+        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
