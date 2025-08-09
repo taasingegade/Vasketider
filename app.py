@@ -810,8 +810,8 @@ def index():
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'miele_status'")
-row = cur.fetchone()
-miele_status = row[0] if row else None
+    row = cur.fetchone()
+    miele_status = row[0] if row else None
 
     conn.close()
 
