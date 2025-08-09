@@ -163,26 +163,34 @@ def ha_webhook():
     return "OK", 200
 
 @app.route("/webhook/miele", methods=["POST"])
-@limiter.limit("30 per minute")
 def webhook_miele():
-    if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
-        return "Forbidden", 403
-
+    global miele_status_cache
     try:
-        data = request.get_json(force=True) or {}
-        raw_state = str(data.get("status", "")).strip()
-        if not raw_state:
-            return jsonify({"error": "no state provided"}), 400
+        data = request.get_json(force=True)
+
+        # Hent "status" fra HA payload
+        raw_status = str(data.get("status", "")).strip()
+        opdateret = data.get("opdateret", "")
+
+        if not raw_status:
+            raw_status = "Ukendt"
+
+        # Gem i cache (kan evt. også gemmes i DB her)
+        miele_status_cache = raw_status
 
         # Gem i DB
-        normalized = set_miele_status(raw_state)
-        print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
+            (raw_status, opdateret)
+        )
+        conn.commit()
+        conn.close()
 
-        # Opdater cache
-        global miele_status_cache
-        miele_status_cache = normalized
+        print(f"✅ Miele-status opdateret: {raw_status} (Opdateret: {opdateret})")
+        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
 
-        return jsonify({"status": "ok", "saved": normalized}), 200
     except Exception as e:
         print("❌ Fejl i webhook:", e)
         return jsonify({"error": str(e)}), 500
