@@ -149,14 +149,8 @@ def ha_webhook():
 
         # Hent værdier fra HA payload
         raw_status = str(data.get("status", "Ukendt")).strip()
-        opdateret = data.get("opdateret", datetime.now())
-
-        # Hvis 'opdateret' kommer som streng, konvertér til datetime
-        if isinstance(opdateret, str):
-            try:
-                opdateret = datetime.fromisoformat(opdateret)
-            except ValueError:
-                opdateret = datetime.now()
+        cph_tz = timezone("Europe/Copenhagen")
+        opdateret = datetime.now(cph_tz)
 
         # Gem i databasen
         conn = get_db_connection()
