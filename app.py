@@ -141,12 +141,24 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
+# Webhook fra Home Assistant
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    data = request.json  # eller request.form afhængigt af hvad HA sender
-    print("Modtaget fra Home Assistant:", data)
+    data = request.json
+    if not data:
+        return "No data", 400
 
-    # TODO: Behandl data her - fx opdater status i databasen
+    status = data.get("status", "Ukendt")
+    timestamp = datetime.now()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Overskriv den seneste status
+    cur.execute("DELETE FROM miele_status")
+    cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)", (status, timestamp))
+    conn.commit()
+    conn.close()
 
     return "OK", 200
 
@@ -829,9 +841,10 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    cur.execute("SELECT status FROM miele_status ORDER BY id DESC LIMIT 1")
-    row = cur.fetchone()
-    miele_status = row[0] if row else "ukendt"
+    cur.execute("SELECT status, opdateret FROM miele_status LIMIT 1")
+    miele_data = cur.fetchone()
+    miele_status = miele_data[0] if miele_data else "Ingen data"
+    miele_opdateret = miele_data[1] if miele_data else None
 
     conn.close()
 
@@ -854,7 +867,8 @@ def index():
         start_dato=start_dato,
         timedelta=timedelta,
         iot=iot,
-        miele_status=miele_status
+        miele_status=miele_status,
+        miele_opdateret=miele_opdateret
     )
 
     # kommentar og dokumenter

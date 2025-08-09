@@ -25,25 +25,12 @@
 <form method="get" action="/profil">
     <button class="toppanel-knap">Min profil</button>
 </form>
-{% if miele_status %}
-    <div style="background-color: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 10px; border: 1px solid white; color: white; align-self: center;">
-    <h3>Status: 
-      {% if miele_status == 'running' %}
-        <span style="color:lime;">Vaskemaskine i gang 🌀</span>
-      {% elif miele_status == 'finished' %}
-        <span style="color:orange;">Færdig ✅</span>
-      {% elif miele_status == 'off' %}
-        <span style="color:gray;">Slukket ⚫</span>
-      {% elif miele_status == 'on' %}
-        <span style="color:blue;">Tændt 🔵</span>
-      {% elif miele_status == 'fejl' %}
-      <span style="color:red;">Fejl ved forbindelse til Miele 🔴</span>
-      {% else %}
-        <span style="color:red;">Ukendt 🔴</span>
-      {% endif %}
-    </h3>
-  </div>
-{% endif %}
+<div style="margin-top:20px;">
+    <strong>Miele status:</strong> {{ miele_status }}
+    {% if miele_opdateret %}
+        <small>(Opdateret: {{ miele_opdateret }})</small>
+    {% endif %}
+</div>
         <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
             <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
             <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>
