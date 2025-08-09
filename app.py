@@ -60,30 +60,57 @@ def latin1_sikker_tekst(tekst):
     )
 
 def set_miele_status(status):
-    raw = (status or "").strip().lower()
+    """Oversæt Miele status fra HA til korte danske ord"""
+    s = (status or "").strip().lower().replace("_", " ")
 
-    # Normalisering
-    status_map = {
+    mapping = {
+        # Slukket / ikke i brug
         "off": "Slukket",
-        "idle": "Standby",
-        "in_use": "Kører",
-        "programmed": "Programmeret",
-        "program_ended": "Færdig",
-        "pause": "Pause",
-        "failure": "Fejl",
-        "not_connected": "Ikke forbundet",
-        "service": "Service",
-        "rinse_hold": "Skylle-stop",
-        "waiting_to_start": "Venter på start",
-        "supercooling": "Superkøling",
-        "superfreezing": "Superfrysning",
-        "supercooling_superfreezing": "Superkøling/frysning",
-        "superheating": "Superopvarmning",
-        "program_interrupted": "Program afbrudt",
+        "idle": "Klar",
+        "power off": "Slukket",
+        "standby": "Klar",
+        "not running": "Klar",
+        "not connected": "Ikke forbundet",
+
+        # I gang
+        "in use": "I gang",
+        "running": "I gang",
+        "washing": "I gang",
+        "main wash": "I gang",
         "autocleaning": "Selvrens",
-        "unavailable": "Utilgængelig"
+
+        # Færdig
+        "finished": "Færdig",
+        "finish": "Færdig",
+        "end": "Færdig",
+        "program ended": "Færdig",
+
+        # Pause / afbrudt
+        "pause": "Pause",
+        "program interrupted": "Afbrudt",
+
+        # Programmeret / klar til start
+        "programmed": "Klar til start",
+        "on": "Tændt",
+        "waiting to start": "Venter på start",
+
+        # Fejl
+        "unavailable": "Fejl",
+        "failure": "Fejl",
+        "error": "Fejl",
+        "fejl": "Fejl",
+
+        # Specielle funktioner
+        "rinse hold": "Skyl stop",
+        "service": "Service",
+        "supercooling": "Superkøling",
+        "superheating": "Superopvarmning",
+        "superfreezing": "Superfrysning",
+        "supercooling superfreezing": "Superkøling/frysning"
     }
-    norm = status_map.get(raw, "Ukendt")
+
+    # Vælg oversættelse, fallback til 'Ukendt'
+    norm = mapping.get(s, "Ukendt")
 
     # Gem i DB
     conn = get_db_connection()
@@ -91,18 +118,11 @@ def set_miele_status(status):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS miele_status (
             id SERIAL PRIMARY KEY,
-            raw_status TEXT,
             status TEXT,
-            opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cur.execute(
-        "DELETE FROM miele_status"
-    )
-    cur.execute(
-        "INSERT INTO miele_status (raw_status, status) VALUES (%s, %s)",
-        (raw, norm)
-    )
+    cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (norm,))
     conn.commit()
     conn.close()
 
