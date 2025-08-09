@@ -164,8 +164,9 @@ ryd_gamle_bookinger()
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
     try:
-        # Tving JSON-parse og tillad tom
-        data = request.get_json(force=True, silent=True) or {}
+        data = request.get_json(force=True)
+
+        # Rå status fra HA
         raw_status = str(data.get("status", "Ukendt")).strip()
         opdateret = data.get("opdateret", datetime.now())
 
@@ -173,9 +174,13 @@ def ha_webhook():
         if isinstance(opdateret, str):
             try:
                 opdateret = datetime.fromisoformat(opdateret)
-            except:
+            except ValueError:
                 opdateret = datetime.now()
 
+        # Oversæt status til dansk med set_miele_status()
+        norm_status = set_miele_status(raw_status)
+
+        # Gem i DB
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -187,16 +192,16 @@ def ha_webhook():
         """)
         cur.execute("DELETE FROM miele_status")
         cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-                    (raw_status, opdateret))
+                    (norm_status, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
-        return jsonify({"status": "ok"}), 200
+        print(f"✅ Miele-status gemt: {norm_status} (Opdateret: {opdateret})")
+        return jsonify({"status": "ok", "received": norm_status, "opdateret": opdateret}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
-        return jsonify({"error": str(e)}), 200  # stadig 200, så HA ikke fejler
+        return jsonify({"error": str(e)}), 500
 
     # login og logout
 
