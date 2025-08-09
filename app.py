@@ -143,20 +143,32 @@ ryd_gamle_bookinger()
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    """Modtager status fra Home Assistant og gemmer i DB"""
+    """Modtager status fra Home Assistant og logger ALT til debug"""
     try:
-        data = request.get_json(force=True)
+        print("📥 Modtaget request på /ha_webhook")
+        print("🔹 Headers:", dict(request.headers))
+        print("🔹 Body:", request.data.decode("utf-8", errors="ignore"))
 
-        # Hent værdier fra HA payload
+        data = request.get_json(force=True, silent=True) or {}
+
+        # Token check (men vi logger altid først)
+        token_header = request.headers.get("X-HA-Token", "")
+        if token_header != HA_WEBHOOK_SECRET:
+            print(f"❌ Token mismatch: '{token_header}' vs '{HA_WEBHOOK_SECRET}'")
+            return jsonify({"error": "Forbidden - wrong token"}), 403
+
         raw_status = str(data.get("status", "Ukendt")).strip()
-        cph_tz = timezone("Europe/Copenhagen")
-        opdateret = datetime.now(cph_tz)
+        opdateret = data.get("opdateret", datetime.now())
 
-        # Gem i databasen
+        # Konverter streng til datetime hvis nødvendigt
+        if isinstance(opdateret, str):
+            try:
+                opdateret = datetime.fromisoformat(opdateret)
+            except ValueError:
+                opdateret = datetime.now()
+
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # Opret tabel hvis den ikke findes
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
@@ -164,24 +176,18 @@ def ha_webhook():
                 opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-
-        # Vi beholder kun seneste status (1 række)
         cur.execute("DELETE FROM miele_status")
         cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
                     (raw_status, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
+        print(f"✅ Gemt status: {raw_status} ({opdateret})")
         return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
         return jsonify({"error": str(e)}), 500
-
-@app.before_request
-def _dbg_path():
-    print("REQ:", request.method, request.path)
 
     # login og logout
 
