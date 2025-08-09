@@ -141,58 +141,48 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
-# Webhook fra Home Assistant
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    data = request.json
-    if not data:
-        return "No data", 400
-
-    status = data.get("status", "Ukendt")
-    timestamp = datetime.now()
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    # Overskriv den seneste status
-    cur.execute("DELETE FROM miele_status")
-    cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)", (status, opdateret))
-    conn.commit()
-    conn.close()
-
-    return "OK", 200
-
-@app.route("/webhook/miele", methods=["POST"])
-def webhook_miele():
-    global miele_status_cache
+    """Modtager status fra Home Assistant og gemmer i DB"""
     try:
         data = request.get_json(force=True)
 
-        # Hent "status" fra HA payload
-        raw_status = str(data.get("status", "")).strip()
-        opdateret = data.get("opdateret", "")
+        # Hent værdier fra HA payload
+        raw_status = str(data.get("status", "Ukendt")).strip()
+        opdateret = data.get("opdateret", datetime.now())
 
-        if not raw_status:
-            raw_status = "Ukendt"
+        # Hvis 'opdateret' kommer som streng, konvertér til datetime
+        if isinstance(opdateret, str):
+            try:
+                opdateret = datetime.fromisoformat(opdateret)
+            except ValueError:
+                opdateret = datetime.now()
 
-        # Gem i cache (kan evt. også gemmes i DB her)
-        miele_status_cache = raw_status
-
-        # Gem i DB
+        # Gem i databasen
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-            (raw_status, opdateret)
-        )
+
+        # Opret tabel hvis den ikke findes
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS miele_status (
+                id SERIAL PRIMARY KEY,
+                status TEXT,
+                opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Vi beholder kun seneste status (1 række)
+        cur.execute("DELETE FROM miele_status")
+        cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
+                    (raw_status, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status opdateret: {raw_status} (Opdateret: {opdateret})")
+        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
         return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
 
     except Exception as e:
-        print("❌ Fejl i webhook:", e)
+        print("❌ Fejl i ha_webhook:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.before_request
@@ -843,10 +833,14 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    cur.execute("SELECT status, opdateret FROM miele_status ORDER BY id DESC LIMIT 1")
-    miele_data = cur.fetchone()
-    miele_status = miele_data[0] if miele_data else "Ingen data"
-    miele_opdateret = miele_data[1] if miele_data else None
+    cur.execute("SELECT status, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
+    row = cur.fetchone()
+    if row:
+        miele_status = row[0]
+        miele_opdateret = row[1]
+    else:
+        miele_status = "Ukendt"
+        miele_opdateret = None
 
     conn.close()
 
