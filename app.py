@@ -144,7 +144,7 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
-@app.route("/webhook/miele", methods=["POST"], endpoint="webhook_miele_db")
+@app.route("/webhook/miele", methods=["POST","GET"], endpoint="webhook_miele_db")
 @limiter.limit("30 per minute")
 def webhook_miele_db():
     if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
@@ -159,7 +159,7 @@ def webhook_miele_db():
     print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
     return jsonify({"status": "ok", "saved": normalized}), 200
 
-@app.route("/webhook/miele", methods=["POST"])
+@app.route("/webhook/miele", methods=["POST","GET"])
 def webhook_miele():
     global miele_status_cache
     try:
@@ -174,6 +174,10 @@ def webhook_miele():
     except Exception as e:
         print("❌ Fejl i webhook:", e)
         return jsonify({"error": str(e)}), 500
+
+@app.route("/ha_webhook_test", methods=["GET"])
+def ha_webhook_test():
+    return "ok", 200
 
     # login og logout
 
