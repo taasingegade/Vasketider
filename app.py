@@ -21,7 +21,7 @@ from io import BytesIO
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
 
-HA_WEBHOOK_SECRET = os.environ.get("HA_WEBHOOK_SECRET", "")
+HA_WEBHOOK_SECRET = os.environ.get("y6Jp4n2qT8bX1v0kZ3", "")
 
 UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -138,7 +138,7 @@ ryd_gamle_bookinger()
 @limiter.limit("30 per minute")
 def ha_webhook():
     # Sikkerhed: tjek delt hemmelighed i header
-    if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
+    if request.headers.get("X-HA-Token") != y6Jp4n2qT8bX1v0kZ3:
         return "Forbidden", 403
 
     data = request.get_json(silent=True) or {}
