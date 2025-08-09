@@ -61,37 +61,35 @@ def latin1_sikker_tekst(tekst):
 
 def set_miele_status(status):
     s = (status or "").strip().lower().replace("_", " ")
-    mapping = {
-        "off": "off",
-        "power off": "off",
-        "not running": "off",
-        "idle": "off",
 
-        "on": "on",
-        "programmed": "on",
-        "standby": "on",
-
-        "running": "running",
-        "in use": "running",
-        "washing": "running",
-        "main wash": "running",
-
-        "finished": "finished",
-        "finish": "finished",
-        "end": "finished",
-
-        "unavailable": "fejl",
-        "maintenance": "maintenance",
-    }
-    status_norm = mapping.get(s, "ukendt")
+    # brede match-regler først
+    if s.startswith("not running") or s in {"off", "idle", "power off", "standby"}:
+        norm = "off"
+    elif "wash" in s or s in {"running", "in use", "washing", "main wash"}:
+        norm = "running"
+    elif s in {"finished", "finish", "end"}:
+        norm = "finished"
+    elif s in {"programmed", "on"}:
+        norm = "on"
+    elif s in {"unavailable", "error", "fejl"}:
+        norm = "fejl"
+    else:
+        norm = "ukendt"
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS miele_status (id SERIAL PRIMARY KEY, status TEXT, tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (status_norm,))
+    # sikr tabel (ingen sletning)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS miele_status (
+            id SERIAL PRIMARY KEY,
+            status TEXT,
+            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (norm,))
     conn.commit()
     conn.close()
-    return status_norm
+    return norm
 
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
@@ -149,7 +147,6 @@ ryd_gamle_bookinger()
 @app.route("/webhook/miele", methods=["POST"], endpoint="webhook_miele_db")
 @limiter.limit("30 per minute")
 def webhook_miele_db():
-    # Samme sikkerhed som /ha_webhook
     if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
         return "Forbidden", 403
 
@@ -158,21 +155,8 @@ def webhook_miele_db():
     if not raw_state:
         return jsonify({"error": "no state provided"}), 400
 
- # Sørg for tabel + gem status
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS miele_status (
-            id SERIAL PRIMARY KEY,
-            status TEXT,
-            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    conn.close()
-
     normalized = set_miele_status(raw_state)
-    print(f"✅ /webhook/miele gemt: {normalized}")
+    print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
     return jsonify({"status": "ok", "saved": normalized}), 200
 
 @app.route("/webhook/miele", methods=["POST"])
