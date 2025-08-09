@@ -141,6 +141,15 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
+@app.route('/ha_webhook', methods=['POST'])
+def ha_webhook():
+    data = request.json  # eller request.form afhængigt af hvad HA sender
+    print("Modtaget fra Home Assistant:", data)
+
+    # TODO: Behandl data her - fx opdater status i databasen
+
+    return "OK", 200
+
 @app.route("/webhook/miele", methods=["POST"], endpoint="webhook_miele_db")
 @limiter.limit("30 per minute")
 def webhook_miele_db():
