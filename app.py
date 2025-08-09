@@ -156,39 +156,33 @@ def ha_webhook():
 
     # Overskriv den seneste status
     cur.execute("DELETE FROM miele_status")
-    cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)", (status, timestamp))
+    cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)", (status, opdateret))
     conn.commit()
     conn.close()
 
     return "OK", 200
 
-@app.route("/webhook/miele", methods=["POST"], endpoint="webhook_miele_db")
+@app.route("/webhook/miele", methods=["POST"])
 @limiter.limit("30 per minute")
-def webhook_miele_db():
+def webhook_miele():
     if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
         return "Forbidden", 403
 
-    data = request.get_json(silent=True) or {}
-    raw_state = str(data.get("state", "")).strip()
-    if not raw_state:
-        return jsonify({"error": "no state provided"}), 400
-
-    normalized = set_miele_status(raw_state)
-    print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
-    return jsonify({"status": "ok", "saved": normalized}), 200
-
-@app.route("/webhook/miele", methods=["POST"])
-def webhook_miele():
-    global miele_status_cache
     try:
-        data = request.get_json(force=True)
-        state = data.get("state")
-        if state:
-            miele_status_cache = state
-            print(f"✅ Miele-status opdateret via webhook: {state}")
-            return jsonify({"status": "ok", "received": state}), 200
-        else:
+        data = request.get_json(force=True) or {}
+        raw_state = str(data.get("status", "")).strip()
+        if not raw_state:
             return jsonify({"error": "no state provided"}), 400
+
+        # Gem i DB
+        normalized = set_miele_status(raw_state)
+        print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
+
+        # Opdater cache
+        global miele_status_cache
+        miele_status_cache = normalized
+
+        return jsonify({"status": "ok", "saved": normalized}), 200
     except Exception as e:
         print("❌ Fejl i webhook:", e)
         return jsonify({"error": str(e)}), 500
@@ -841,7 +835,7 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    cur.execute("SELECT status, opdateret FROM miele_status LIMIT 1")
+    cur.execute("SELECT status, opdateret FROM miele_status DESC LIMIT 1")
     miele_data = cur.fetchone()
     miele_status = miele_data[0] if miele_data else "Ingen data"
     miele_opdateret = miele_data[1] if miele_data else None
