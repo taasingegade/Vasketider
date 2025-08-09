@@ -61,7 +61,6 @@ def latin1_sikker_tekst(tekst):
 
 def set_miele_status(status):
     status = (status or "").strip().lower()
-    # Map til dine kendte labels
     mapping = {
         "off": "off",
         "on": "on",
@@ -77,9 +76,7 @@ def set_miele_status(status):
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE indstillinger SET vaerdi = %s WHERE navn = 'miele_status'", (status_norm,))
-    if cur.rowcount == 0:
-        cur.execute("INSERT INTO indstillinger (navn, vaerdi) VALUES ('miele_status', %s)", (status_norm,))
+    cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (status_norm,))
     conn.commit()
     conn.close()
     return status_norm
@@ -809,9 +806,9 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'miele_status'")
+    cur.execute("SELECT vaerdi FROM miele_status ORDER BY id DESC LIMIT 1")
     row = cur.fetchone()
-    miele_status = row[0] if row else None
+    miele_status = row[0] if row else "ukendt"
 
     conn.close()
 
