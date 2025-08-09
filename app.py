@@ -21,7 +21,7 @@ from io import BytesIO
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
 
-HA_WEBHOOK_SECRET = os.environ.get("HA_WEBHOOK_SECRET", "")
+HA_WEBHOOK_SECRET = os.environ.get("VASKETID_WEBHOOK_SECRET", "")
 
 UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'pdf'}
