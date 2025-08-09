@@ -61,24 +61,21 @@ def latin1_sikker_tekst(tekst):
 
 def set_miele_status(status):
     s = (status or "").strip().lower().replace("_", " ")
-
-    # brede match-regler først
-    if s.startswith("not running") or s in {"off", "idle", "power off", "standby"}:
+    if s.startswith("not running") or s in {"off","idle","power off","standby"}:
         norm = "off"
-    elif "wash" in s or s in {"running", "in use", "washing", "main wash"}:
+    elif "wash" in s or s in {"running","in use","washing","main wash"}:
         norm = "running"
-    elif s in {"finished", "finish", "end"}:
+    elif s in {"finished","finish","end"}:
         norm = "finished"
-    elif s in {"programmed", "on"}:
+    elif s in {"programmed","on"}:
         norm = "on"
-    elif s in {"unavailable", "error", "fejl"}:
+    elif s in {"unavailable","error","fejl"}:
         norm = "fejl"
     else:
         norm = "ukendt"
 
     conn = get_db_connection()
     cur = conn.cursor()
-    # sikr tabel (ingen sletning)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS miele_status (
             id SERIAL PRIMARY KEY,
@@ -144,7 +141,7 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
-@app.route("/webhook/miele", methods=["POST","GET"], endpoint="webhook_miele_db")
+@app.route("/webhook/miele", methods=["POST"], endpoint="webhook_miele_db")
 @limiter.limit("30 per minute")
 def webhook_miele_db():
     if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
@@ -159,7 +156,7 @@ def webhook_miele_db():
     print(f"✅ /webhook/miele gemt: rå='{raw_state}' → norm='{normalized}'")
     return jsonify({"status": "ok", "saved": normalized}), 200
 
-@app.route("/webhook/miele", methods=["POST","GET"])
+@app.route("/webhook/miele", methods=["POST"])
 def webhook_miele():
     global miele_status_cache
     try:
@@ -175,9 +172,9 @@ def webhook_miele():
         print("❌ Fejl i webhook:", e)
         return jsonify({"error": str(e)}), 500
 
-@app.route("/ha_webhook_test", methods=["GET"])
-def ha_webhook_test():
-    return "ok", 200
+@app.before_request
+def _dbg_path():
+    print("REQ:", request.method, request.path)
 
     # login og logout
 
