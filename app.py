@@ -167,32 +167,41 @@ def ha_webhook():
     try:
         data = request.get_json(force=True)
 
-        # Hent værdier fra HA payload
         raw_status = str(data.get("status", "Ukendt")).strip()
-        opdateret = data.get("opdateret", None)
+        opdateret = data.get("opdateret")
 
         cph_tz = timezone("Europe/Copenhagen")
 
-        # Hvis 'opdateret' mangler eller ikke er datetime, prøv at konvertere
+        opdateret_dt = None
+
+        # Prøv at parse tidspunktet
         if isinstance(opdateret, str):
             try:
-                # Først prøv ISO-format (fx 2025-08-09T21:05:12)
-                opdateret = datetime.fromisoformat(opdateret)
+                opdateret_dt = datetime.fromisoformat(opdateret)
             except ValueError:
-                try:
-                    # Prøv dansk format (fx 09-08-2025 21:05:12)
-                    opdateret = datetime.strptime(opdateret, "%d-%m-%Y %H:%M")
-                except ValueError:
-                    # Hvis alt fejler → brug nuværende tidspunkt
-                    opdateret = datetime.now()
-        elif not isinstance(opdateret, datetime):
-            opdateret = datetime.now()
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%d-%m-%Y %H:%M:%S"):
+                    try:
+                        opdateret_dt = datetime.strptime(opdateret, fmt)
+                        break
+                    except ValueError:
+                        continue
+        elif isinstance(opdateret, datetime):
+            opdateret_dt = opdateret
 
-        # Gem i databasen
+        # Hvis vi stadig ikke har en gyldig datetime → brug nu
+        if not opdateret_dt:
+            opdateret_dt = datetime.now()
+
+        # Hvis ingen timezone → antag UTC
+        if opdateret_dt.tzinfo is None:
+            opdateret_dt = UTC.localize(opdateret_dt)
+
+        # Konverter til dansk tid
+        opdateret_cph = opdateret_dt.astimezone(cph_tz)
+
+        # Gem i DB
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # Opret tabel hvis den ikke findes
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
@@ -200,16 +209,14 @@ def ha_webhook():
                 opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-
-        # Vi beholder kun seneste status (1 række)
         cur.execute("DELETE FROM miele_status")
         cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-                    (raw_status, opdateret))
+                    (raw_status, opdateret_cph))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
-        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
+        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret_cph})")
+        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret_cph}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
