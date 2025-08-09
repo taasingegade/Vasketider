@@ -835,7 +835,7 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    cur.execute("SELECT status, opdateret FROM miele_status DESC LIMIT 1")
+    cur.execute("SELECT status, opdateret FROM miele_status ORDER BY id DESC LIMIT 1")
     miele_data = cur.fetchone()
     miele_status = miele_data[0] if miele_data else "Ingen data"
     miele_opdateret = miele_data[1] if miele_data else None
