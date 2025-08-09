@@ -163,43 +163,19 @@ ryd_gamle_bookinger()
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    """Modtager status fra Home Assistant og gemmer i DB"""
     try:
-        data = request.get_json(force=True)
-
+        # Tving JSON-parse og tillad tom
+        data = request.get_json(force=True, silent=True) or {}
         raw_status = str(data.get("status", "Ukendt")).strip()
-        opdateret = data.get("opdateret")
+        opdateret = data.get("opdateret", datetime.now())
 
-        cph_tz = timezone("Europe/Copenhagen")
-
-        opdateret_dt = None
-
-        # Prøv at parse tidspunktet
+        # Konverter streng til datetime hvis nødvendigt
         if isinstance(opdateret, str):
             try:
-                opdateret_dt = datetime.fromisoformat(opdateret)
-            except ValueError:
-                for fmt in ("%Y-%m-%d %H:%M:%S", "%d-%m-%Y %H:%M:%S"):
-                    try:
-                        opdateret_dt = datetime.strptime(opdateret, fmt)
-                        break
-                    except ValueError:
-                        continue
-        elif isinstance(opdateret, datetime):
-            opdateret_dt = opdateret
+                opdateret = datetime.fromisoformat(opdateret)
+            except:
+                opdateret = datetime.now()
 
-        # Hvis vi stadig ikke har en gyldig datetime → brug nu
-        if not opdateret_dt:
-            opdateret_dt = datetime.now()
-
-        # Hvis ingen timezone → antag UTC
-        if opdateret_dt.tzinfo is None:
-            opdateret_dt = UTC.localize(opdateret_dt)
-
-        # Konverter til dansk tid
-        opdateret_cph = opdateret_dt.astimezone(cph_tz)
-
-        # Gem i DB
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -211,16 +187,16 @@ def ha_webhook():
         """)
         cur.execute("DELETE FROM miele_status")
         cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-                    (raw_status, opdateret_cph))
+                    (raw_status, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret_cph})")
-        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret_cph}), 200
+        print(f"✅ Miele-status gemt: {raw_status} (Opdateret: {opdateret})")
+        return jsonify({"status": "ok"}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 200  # stadig 200, så HA ikke fejler
 
     # login og logout
 
