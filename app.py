@@ -60,22 +60,34 @@ def latin1_sikker_tekst(tekst):
     )
 
 def set_miele_status(status):
-    status = (status or "").strip().lower()
+    s = (status or "").strip().lower().replace("_", " ")
     mapping = {
         "off": "off",
-        "on": "on",
-        "running": "running",
-        "washing": "running",
-        "finish": "finished",
-        "finished": "finished",
+        "power off": "off",
+        "not running": "off",
         "idle": "off",
+
+        "on": "on",
+        "programmed": "on",
+        "standby": "on",
+
+        "running": "running",
+        "in use": "running",
+        "washing": "running",
+        "main wash": "running",
+
+        "finished": "finished",
+        "finish": "finished",
+        "end": "finished",
+
         "unavailable": "fejl",
         "maintenance": "maintenance",
     }
-    status_norm = mapping.get(status, "ukendt")
+    status_norm = mapping.get(s, "ukendt")
 
     conn = get_db_connection()
     cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS miele_status (id SERIAL PRIMARY KEY, status TEXT, tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (status_norm,))
     conn.commit()
     conn.close()
@@ -134,17 +146,21 @@ ryd_gamle_bookinger()
 
 # Miele kontrol 
 
-@app.route("/ha_webhook", methods=["POST"])
+@app.route("/webhook/miele", methods=["POST"])
 @limiter.limit("30 per minute")
-def ha_webhook():
-    # Sikkerhed: tjek delt hemmelighed i header
+def webhook_miele():
+    # Samme sikkerhed som /ha_webhook
     if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
         return "Forbidden", 403
 
     data = request.get_json(silent=True) or {}
-    raw_state = str(data.get("state", ""))
-    normalized = set_miele_status(raw_state)
-    return f"ok:{normalized}", 200
+    raw_state = str(data.get("state", "")).strip()
+    if not raw_state:
+        return jsonify({"error": "no state provided"}), 400
+
+    normalized = set_miele_status(raw_state)  # <- gemmer i miele_status
+    print(f"✅ Miele-status gemt via /webhook/miele: {normalized}")
+    return jsonify({"status": "ok", "saved": normalized}), 200
 
 @app.route("/webhook/miele", methods=["POST"])
 def webhook_miele():
