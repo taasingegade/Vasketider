@@ -21,6 +21,8 @@ from io import BytesIO
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
 
+HA_WEBHOOK_SECRET = os.environ.get("HA_WEBHOOK_SECRET", "")
+
 UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -57,27 +59,30 @@ def latin1_sikker_tekst(tekst):
         .replace("å", "aa")
     )
 
-def hent_miele_status_home_assistant():
-    print("➡️ Henter Miele-status fra Home Assistant...")
-    url = "http://192.168.18.28:8123/api/states/sensor.washing_machine"  # ← Skift IP + sensor-navn
-    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyNWM1Y2ViNmE0ODU0YWU5YmQyMDY5ZTYwZjYwZGVkYSIsImlhdCI6MTc1NDY0NjkzNSwiZXhwIjoyMDcwMDA2OTM1fQ.XhKIijAxXp73jugsahOnUe80eHhFxyfI0DVmHnLc9MU"  # ← Skift til dit token
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+def set_miele_status(status):
+    status = (status or "").strip().lower()
+    # Map til dine kendte labels
+    mapping = {
+        "off": "off",
+        "on": "on",
+        "running": "running",
+        "washing": "running",
+        "finish": "finished",
+        "finished": "finished",
+        "idle": "off",
+        "unavailable": "fejl",
+        "maintenance": "maintenance",
     }
+    status_norm = mapping.get(status, "ukendt")
 
-    try:
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            state = response.json().get("state")
-            print("💡 Status fra HA:", state)
-            return state
-        else:
-            print("❌ HA-fejl:", response.status_code, response.text)
-    except Exception as e:
-        print("❌ Forbindelsesfejl til HA:", e)
-    return "fejl"
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE indstillinger SET vaerdi = %s WHERE navn = 'miele_status'", (status_norm,))
+    if cur.rowcount == 0:
+        cur.execute("INSERT INTO indstillinger (navn, vaerdi) VALUES ('miele_status', %s)", (status_norm,))
+    conn.commit()
+    conn.close()
+    return status_norm
 
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
@@ -129,6 +134,36 @@ def ryd_gamle_bookinger():
     conn.close()
 
 ryd_gamle_bookinger()
+
+# Miele kontrol 
+
+@app.route("/ha_webhook", methods=["POST"])
+@limiter.limit("30 per minute")
+def ha_webhook():
+    # Sikkerhed: tjek delt hemmelighed i header
+    if request.headers.get("X-HA-Token") != HA_WEBHOOK_SECRET:
+        return "Forbidden", 403
+
+    data = request.get_json(silent=True) or {}
+    raw_state = str(data.get("state", ""))
+    normalized = set_miele_status(raw_state)
+    return f"ok:{normalized}", 200
+
+@app.route("/webhook/miele", methods=["POST"])
+def webhook_miele():
+    global miele_status_cache
+    try:
+        data = request.get_json(force=True)
+        state = data.get("state")
+        if state:
+            miele_status_cache = state
+            print(f"✅ Miele-status opdateret via webhook: {state}")
+            return jsonify({"status": "ok", "received": state}), 200
+        else:
+            return jsonify({"error": "no state provided"}), 400
+    except Exception as e:
+        print("❌ Fejl i webhook:", e)
+        return jsonify({"error": str(e)}), 500
 
     # login og logout
 
@@ -774,6 +809,10 @@ def index():
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
+    cur.execute("SELECT status FROM miele_status ORDER BY id DESC LIMIT 1")
+    row = cur.fetchone()
+    miele_status = row[0] if row else "ukendt"
+
     conn.close()
 
     bookinger = {}
@@ -781,10 +820,8 @@ def index():
         dato_str = b[1].strftime('%d-%m-%Y')
         slot = int(b[2])
         bookinger[(dato_str, slot)] = b[0]
-
-    miele_status = hent_miele_status_home_assistant()
-    print("🔁 Miele-status sendt til template:", miele_status)
-
+    
+    global miele_status_cache
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
@@ -797,7 +834,7 @@ def index():
         start_dato=start_dato,
         timedelta=timedelta,
         iot=iot,
-        miele_status=miele_status
+        miele_status=miele_status_cache
     )
 
     # kommentar og dokumenter
