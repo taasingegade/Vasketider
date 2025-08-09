@@ -60,32 +60,52 @@ def latin1_sikker_tekst(tekst):
     )
 
 def set_miele_status(status):
-    s = (status or "").strip().lower().replace("_", " ")
-    if s.startswith("not running") or s in {"off","idle","power off","standby"}:
-        norm = "off"
-    elif "wash" in s or s in {"running","in use","washing","main wash"}:
-        norm = "running"
-    elif s in {"finished","finish","end"}:
-        norm = "finished"
-    elif s in {"programmed","on"}:
-        norm = "on"
-    elif s in {"unavailable","error","fejl"}:
-        norm = "fejl"
-    else:
-        norm = "ukendt"
+    raw = (status or "").strip().lower()
 
+    # Normalisering
+    status_map = {
+        "off": "Slukket",
+        "idle": "Standby",
+        "in_use": "Kører",
+        "programmed": "Programmeret",
+        "program_ended": "Færdig",
+        "pause": "Pause",
+        "failure": "Fejl",
+        "not_connected": "Ikke forbundet",
+        "service": "Service",
+        "rinse_hold": "Skylle-stop",
+        "waiting_to_start": "Venter på start",
+        "supercooling": "Superkøling",
+        "superfreezing": "Superfrysning",
+        "supercooling_superfreezing": "Superkøling/frysning",
+        "superheating": "Superopvarmning",
+        "program_interrupted": "Program afbrudt",
+        "autocleaning": "Selvrens",
+        "unavailable": "Utilgængelig"
+    }
+    norm = status_map.get(raw, "Ukendt")
+
+    # Gem i DB
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS miele_status (
             id SERIAL PRIMARY KEY,
+            raw_status TEXT,
             status TEXT,
-            tidspunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cur.execute("INSERT INTO miele_status (status) VALUES (%s)", (norm,))
+    cur.execute(
+        "DELETE FROM miele_status"
+    )
+    cur.execute(
+        "INSERT INTO miele_status (raw_status, status) VALUES (%s, %s)",
+        (raw, norm)
+    )
     conn.commit()
     conn.close()
+
     return norm
 
 def send_email(modtager, emne, besked):
@@ -143,30 +163,46 @@ ryd_gamle_bookinger()
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    """Modtager status fra Home Assistant og logger ALT til debug"""
+    """Modtager status fra Home Assistant og gemmer i DB"""
     try:
-        print("📥 Modtaget request på /ha_webhook")
-        print("🔹 Headers:", dict(request.headers))
-        print("🔹 Body:", request.data.decode("utf-8", errors="ignore"))
+        data = request.get_json(force=True)
 
-        data = request.get_json(force=True, silent=True) or {}
-
-        # Token check (men vi logger altid først)
-        token_header = request.headers.get("X-HA-Token", "")
-        if token_header != HA_WEBHOOK_SECRET:
-            print(f"❌ Token mismatch: '{token_header}' vs '{HA_WEBHOOK_SECRET}'")
-            return jsonify({"error": "Forbidden - wrong token"}), 403
-
-        raw_status = str(data.get("status", "Ukendt")).strip()
+        # Rå status fra HA
+        raw_status = str(data.get("status", "Ukendt")).strip().lower()
         opdateret = data.get("opdateret", datetime.now())
 
-        # Konverter streng til datetime hvis nødvendigt
+        # Konverter evt. streng til datetime
         if isinstance(opdateret, str):
             try:
                 opdateret = datetime.fromisoformat(opdateret)
             except ValueError:
                 opdateret = datetime.now()
 
+        # Mapping fra HA's statusser til dansk visning
+        status_map = {
+            "off": "Slukket",
+            "idle": "Standby",
+            "in_use": "Kører",
+            "programmed": "Programmeret",
+            "program_ended": "Færdig",
+            "pause": "Pause",
+            "failure": "Fejl",
+            "not_connected": "Ikke forbundet",
+            "service": "Service",
+            "rinse_hold": "Skylle-stop",
+            "waiting_to_start": "Venter på start",
+            "supercooling": "Superkøling",
+            "superfreezing": "Superfrysning",
+            "supercooling_superfreezing": "Superkøling/frysning",
+            "superheating": "Superopvarmning",
+            "program_interrupted": "Program afbrudt",
+            "autocleaning": "Selvrens",
+            "unavailable": "Utilgængelig"
+        }
+
+        dansk_status = status_map.get(raw_status, "Ukendt")
+
+        # Gem i DB (overskriv sidste)
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -177,13 +213,15 @@ def ha_webhook():
             )
         """)
         cur.execute("DELETE FROM miele_status")
-        cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-                    (raw_status, opdateret))
+        cur.execute(
+            "INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
+            (dansk_status, opdateret)
+        )
         conn.commit()
         conn.close()
 
-        print(f"✅ Gemt status: {raw_status} ({opdateret})")
-        return jsonify({"status": "ok", "received": raw_status, "opdateret": opdateret}), 200
+        print(f"✅ Miele-status gemt: {dansk_status} (Opdateret: {opdateret})")
+        return jsonify({"status": "ok", "received": dansk_status, "opdateret": opdateret}), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
@@ -826,16 +864,20 @@ def index():
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider = [r[1] for r in cur.fetchall()]
 
-    cur.execute("SELECT brugernavn, dato_rigtig, slot_index FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
-                (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
+    cur.execute("""
+        SELECT brugernavn, dato_rigtig, slot_index 
+        FROM bookinger 
+        WHERE dato_rigtig >= %s AND dato_rigtig <= %s
+    """, (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
     alle_14 = cur.fetchall()
 
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
+    # Hent seneste Miele-status
     cur.execute("SELECT status, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
     row = cur.fetchone()
-    if row:
+    if row and len(row) >= 2:
         miele_status = row[0]
         miele_opdateret = row[1]
     else:
@@ -844,13 +886,13 @@ def index():
 
     conn.close()
 
+    # Læg bookinger i dict
     bookinger = {}
     for b in alle_14:
         dato_str = b[1].strftime('%d-%m-%Y')
         slot = int(b[2])
         bookinger[(dato_str, slot)] = b[0]
-    
-    global miele_status_cache
+
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
