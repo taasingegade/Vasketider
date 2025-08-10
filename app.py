@@ -896,7 +896,7 @@ def index():
         miele_status = row[0]
         remaining_time = row[1]
         miele_opdateret = row[2]
-        if miele_status.lower() in ["i gang", "in use", "running"] and remaining_time:
+        if miele_status.lower() in ["i brug", "in use", "running"] and remaining_time:
             miele_status += f" – {remaining_time} tilbage"
     else:
         miele_status = "Ukendt"

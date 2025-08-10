@@ -27,6 +27,9 @@
 </form>
 <div style="margin-top:20px;">
     <strong>Miele status:</strong> {{ miele_status }}
+    {% if miele_remaining %}
+        ({{ miele_remaining }} tilbage)
+    {% endif %}
     {% if miele_opdateret %}
         <small>(Opdateret: {{ miele_opdateret }})</small>
     {% endif %}
