@@ -68,15 +68,15 @@ def set_miele_status(status):
         "off": "Slukket",
         "idle": "Klar",
         "power off": "Slukket",
-        "standby": "Klar",
-        "not running": "Klar",
+        "standby": "afventer",
+        "not running": "ikke Klar",
         "not connected": "Ikke forbundet",
 
         # I gang
-        "in use": "I gang",
-        "running": "I gang",
-        "washing": "I gang",
-        "main wash": "I gang",
+        "in use": "I brug",
+        "running": "kørende",
+        "washing": "vasker",
+        "main wash": "hovedvask",
         "autocleaning": "Selvrens",
 
         # Færdig
@@ -185,9 +185,13 @@ ryd_gamle_bookinger()
 def ha_webhook():
     try:
         data = request.get_json(force=True)
+        status = data.get("status", "Ukendt")
+        remaining_time = data.get("remaining_time", "")
+        opdateret = data.get("opdateret", datetime.now())
 
         # Rå status fra HA
         raw_status = str(data.get("status", "Ukendt")).strip()
+        remaining_time = str(data.get("remaining_time", "")).strip()  # f.eks. "0:45:00" eller ""
         opdateret = data.get("opdateret", datetime.now())
 
         # Konverter streng til datetime hvis nødvendigt
@@ -200,6 +204,15 @@ def ha_webhook():
         # Oversæt status til dansk med set_miele_status()
         norm_status = set_miele_status(raw_status)
 
+        # Hvis der er resttid → omregn til "xx min"
+        if remaining_time:
+            try:
+                h, m, s = map(int, remaining_time.split(":"))
+                total_min = h * 60 + m
+                remaining_time = f"{total_min} min"
+            except ValueError:
+                pass  # Hvis formatet ikke kan parses, bevar original streng
+
         # Gem i DB
         conn = get_db_connection()
         cur = conn.cursor()
@@ -207,17 +220,23 @@ def ha_webhook():
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
                 status TEXT,
-                opdateret TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                remaining_time TEXT,
+                opdateret TIMESTAMP
             )
         """)
         cur.execute("DELETE FROM miele_status")
-        cur.execute("INSERT INTO miele_status (status, opdateret) VALUES (%s, %s)",
-                    (norm_status, opdateret))
+        cur.execute("INSERT INTO miele_status (status, remaining_time, opdateret) VALUES (%s, %s, %s)",
+                    (norm_status, remaining_time, opdateret))
         conn.commit()
         conn.close()
 
-        print(f"✅ Miele-status gemt: {norm_status} (Opdateret: {opdateret})")
-        return jsonify({"status": "ok", "received": norm_status, "opdateret": opdateret}), 200
+        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret})")
+        return jsonify({
+            "status": "ok",
+            "received": norm_status,
+            "remaining_time": remaining_time,
+            "opdateret": opdateret
+        }), 200
 
     except Exception as e:
         print("❌ Fejl i ha_webhook:", e)
@@ -871,13 +890,17 @@ def index():
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
     # Hent seneste Miele-status
-    cur.execute("SELECT status, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
+    cur.execute("SELECT status, remaining_time, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
     row = cur.fetchone()
-    if row and len(row) >= 2:
+    if row:
         miele_status = row[0]
-        miele_opdateret = row[1]
+        remaining_time = row[1]
+        miele_opdateret = row[2]
+        if miele_status.lower() in ["i gang", "in use", "running"] and remaining_time:
+            miele_status += f" – {remaining_time} tilbage"
     else:
         miele_status = "Ukendt"
+        remaining_time = None
         miele_opdateret = None
 
     conn.close()
