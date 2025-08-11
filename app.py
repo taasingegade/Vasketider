@@ -925,7 +925,7 @@ def index():
         timedelta=timedelta,
         iot=iot,
         miele_status=miele_status,
-        miele_remaining=miele_remaining,
+        miele_remaining=remaining_time,
         miele_opdateret=miele_opdateret
     )
 
