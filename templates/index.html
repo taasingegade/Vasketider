@@ -25,15 +25,13 @@
 <form method="get" action="/profil">
     <button class="toppanel-knap">Min profil</button>
 </form>
-<div style="margin-top:20px;">
-    <strong>Vaskemaskine status:</strong> {{ miele_status }}
-    {% if miele_remaining %}
-        ({{ miele_remaining }} tilbage)
+<div class="status">
+    <span class="status-label">🧺 Status:</span>
+    <span class="status-value">{{ miele_status | capitalize }}</span>
+    {% if miele_remaining and miele_remaining != "0" %}
+        <span class="status-time">⏳ {{ miele_remaining }} tilbage</span>
     {% endif %}
-    {% if miele_opdateret %}
-        <small>(Opdateret: {{ miele_opdateret }})</small>
-    {% endif %}
-</div>
+    </div>
         <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
             <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
             <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>

@@ -231,3 +231,24 @@ input {
 .ledig-knap:hover {
   background-color: #218838 !important;  /* Mørkere grøn ved hover */
 }
+
+.status {
+    margin-top: 15px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.status-label {
+    font-weight: bold;
+}
+
+.status-time {
+    color: #ffcc00;
+}
