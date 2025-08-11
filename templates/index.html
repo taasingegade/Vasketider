@@ -26,7 +26,7 @@
     <button class="toppanel-knap">Min profil</button>
 </form>
 <div style="margin-top:20px;">
-    <strong>Miele status:</strong> {{ miele_status }}
+    <strong>Vaskemaskine status:</strong> {{ miele_status }}
     {% if miele_remaining %}
         ({{ miele_remaining }} tilbage)
     {% endif %}
@@ -43,9 +43,10 @@
     </div>
 
     <div class="wrapper">
+ <banner><h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2></banner>
 
     <div class="main">
-        <h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
+        
 {% if request.args.get("besked") %}
 <div id="popup-besked" style="position: relative; padding: 10px; background-color: rgba(0, 150, 0, 0.7); color: white; border-radius: 8px; font-weight: bold; margin-top: 10px; max-width: 300px;">
     {{ request.args.get("besked") }}
