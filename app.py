@@ -75,7 +75,7 @@ def set_miele_status(status):
         # I gang
         "in use": "I brug",
         "running": "kørende",
-        "washing": "vasker",
+        "washing": "vask",
         "main wash": "hovedvask",
         "autocleaning": "Selvrens",
 
@@ -925,6 +925,7 @@ def index():
         timedelta=timedelta,
         iot=iot,
         miele_status=miele_status,
+        miele_remaining=miele_remaining,
         miele_opdateret=miele_opdateret
     )
 
