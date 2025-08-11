@@ -67,7 +67,7 @@ def set_miele_status(status):
         # Slukket / ikke i brug
         "off": "Slukket",
         "idle": "Klar",
-        "power off": "Slukket",
+        "power off": "Strøm Slukket",
         "standby": "afventer",
         "not running": "ikke Klar",
         "not connected": "Ikke forbundet",
@@ -82,12 +82,12 @@ def set_miele_status(status):
         # Færdig
         "finished": "Færdig",
         "finish": "Færdig",
-        "end": "Færdig",
-        "program ended": "Færdig",
+        "end": "Slut",
+        "program ended": "Program Færdig",
 
         # Pause / afbrudt
         "pause": "Pause",
-        "program interrupted": "Afbrudt",
+        "program interrupted": "Program Afbrudt",
 
         # Programmeret / klar til start
         "programmed": "Klar til start",
@@ -95,7 +95,7 @@ def set_miele_status(status):
         "waiting to start": "Venter på start",
 
         # Fejl
-        "unavailable": "Fejl",
+        "unavailable": "Ikke tilgænglig",
         "failure": "Fejl",
         "error": "Fejl",
         "fejl": "Fejl",
