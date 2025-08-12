@@ -855,41 +855,70 @@ def index():
         return redirect('/login')
     brugernavn = session['brugernavn']
 
-    valgt_uge = request.args.get("uge")
-    idag = datetime.today()
+    idag_dt = datetime.today()
+    idag = idag_dt.date()
 
+    valgt_uge = request.args.get("uge")
     if valgt_uge:
         valgt_uge = int(valgt_uge)
         try:
-            start_dato = datetime.strptime(f"{idag.year} {valgt_uge} 1", "%G %V %u")
+            start_dato = datetime.strptime(f"{idag.year} {valgt_uge} 1", "%G %V %u").date()
         except ValueError:
             valgt_uge = 1
-            start_dato = datetime.strptime(f"{idag.year} 1 1", "%G %V %u")
+            start_dato = datetime.strptime(f"{idag.year} 1 1", "%G %V %u").date()
     else:
-        valgt_uge = idag.isocalendar().week
-        dag = idag.weekday()
-        start_dato = idag - timedelta(days=dag)
+        valgt_uge = idag_dt.isocalendar().week
+        start_dato = (idag_dt - timedelta(days=idag_dt.weekday())).date()
 
-    ugedage_dk = UGEDAGE_DK
+    ugedage_dk = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
     ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
 
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Vasketider
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
-    tider = [r[1] for r in cur.fetchall()]
+    tider_raw = cur.fetchall()
+    tider = [r[1] for r in tider_raw]
 
+    # Hele uge-visningen (mandag–søndag), også for dage der er gået
+    uge_start = start_dato
+    uge_slut = start_dato + timedelta(days=6)
     cur.execute("""
-        SELECT brugernavn, dato_rigtig, slot_index 
-        FROM bookinger 
-        WHERE dato_rigtig >= %s AND dato_rigtig <= %s
-    """, (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d')))
-    alle_14 = cur.fetchall()
+        SELECT dato_rigtig, slot_index, brugernavn
+        FROM bookinger
+        WHERE dato_rigtig BETWEEN %s AND %s
+        ORDER BY dato_rigtig, slot_index
+    """, (uge_start, uge_slut))
+    bookinger_uge = cur.fetchall()
 
+    # Alle bookede tider fra dags dato og 14 dage frem
+    frem_slut = idag + timedelta(days=14)
+    cur.execute("""
+        SELECT b.dato_rigtig, b.slot_index, b.brugernavn, v.tekst
+        FROM bookinger b
+        JOIN vasketider v ON v.slot_index = b.slot_index
+        WHERE b.dato_rigtig >= %s AND b.dato_rigtig <= %s
+        ORDER BY b.dato_rigtig, b.slot_index
+    """, (idag, frem_slut))
+    kommende = [
+        {
+            "dato_iso": r[0].strftime("%Y-%m-%d"),
+            "dato_dk":  r[0].strftime("%d-%m-%Y"),
+            "slot_index": r[1],
+            "brugernavn": r[2],
+            "slot_tekst": r[3],
+        }
+        for r in cur.fetchall()
+    ]
+
+    # Mapping til kalenderen
+    booked = {(row[0].strftime("%d-%m-%Y"), row[1]): row[2] for row in bookinger_uge}
+
+    # Miele status
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
     iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
 
-    # Hent seneste Miele-status
     cur.execute("SELECT status, remaining_time, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
     row = cur.fetchone()
     if row:
@@ -905,12 +934,12 @@ def index():
 
     conn.close()
 
-    # Læg bookinger i dict
+    # Læg hele ugens bookinger i dict til kalenderen
     bookinger = {}
-    for b in alle_14:
-        dato_str = b[1].strftime('%d-%m-%Y')
-        slot = int(b[2])
-        bookinger[(dato_str, slot)] = b[0]
+    for b in bookinger_uge:
+    dato_str = b[0].strftime('%d-%m-%Y')
+    slot = int(b[1])
+    bookinger[(dato_str, slot)] = b[2]
 
     return render_template(
         "index.html",
@@ -919,9 +948,12 @@ def index():
         tider=tider,
         valgt_uge=valgt_uge,
         bookinger=bookinger,
+        booked=booked,
+        idag_iso=idag_dt.strftime("%Y-%m-%d"),
+        kommende_bookinger=kommende,
         bookinger_14=bookinger,
         bruger=brugernavn,
-        start_dato=start_dato,
+        start_dato=start_dato.strftime("%Y-%m-%d"),
         timedelta=timedelta,
         iot=iot,
         miele_status=miele_status,

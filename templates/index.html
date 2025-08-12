@@ -96,8 +96,14 @@
 
         <hr>
         <h3>Alle bookede tider (næste 14 dage):</h3>
-<ul id="bookinger_14_ul">
-    <li>Henter bookinger...</li>
+<ul>
+{% if kommende_bookinger %}
+    {% for b in kommende_bookinger %}
+        <li><strong>{{ b.dato_dk }}</strong> – <strong>{{ b.slot_tekst }}</strong> → {{ b.brugernavn }}</li>
+    {% endfor %}
+{% else %}
+    <li>Ingen bookede tider de næste 14 dage.</li>
+{% endif %}
 </ul>        </div>
     </div>
 </div>
