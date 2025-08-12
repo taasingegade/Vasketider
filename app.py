@@ -937,9 +937,9 @@ def index():
     # Læg hele ugens bookinger i dict til kalenderen
     bookinger = {}
     for b in bookinger_uge:
-    dato_str = b[0].strftime('%d-%m-%Y')
-    slot = int(b[1])
-    bookinger[(dato_str, slot)] = b[2]
+        dato_str = b[0].strftime('%d-%m-%Y')
+        slot = int(b[1])
+        bookinger[(dato_str, slot)] = b[2]
 
     return render_template(
         "index.html",
