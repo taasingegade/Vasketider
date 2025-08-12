@@ -925,8 +925,18 @@ def index():
         miele_status = row[0]
         remaining_time = row[1]
         miele_opdateret = row[2]
-        if miele_status.lower() in ["i brug", "in use", "running"] and remaining_time:
-            miele_status += f" – {remaining_time} tilbage"
+        if miele_status.lower() in ["i brug", "in use", "running"] and remaining_time is not None:
+            try:
+                minutes = int(remaining_time)
+                hours = minutes // 60
+                mins = minutes % 60
+                if hours > 0:
+                    tids_str = f"{hours} time{'r' if hours > 1 else ''} og {mins} min."
+                else:
+                    tids_str = f"{mins} min."
+                miele_status += f" – {tids_str} tilbage"
+            except ValueError:
+                miele_status += f" – {remaining_time} tilbage"
     else:
         miele_status = "Ukendt"
         remaining_time = None
