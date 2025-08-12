@@ -28,9 +28,6 @@
 <div class="status">
     <span class="status-label">🧺 Status:</span>
     <span class="status-value">{{ miele_status | capitalize }}</span>
-    {% if miele_remaining and miele_remaining != "0" %}
-        <span class="status-time">⏳ {{ miele_remaining }} tilbage</span>
-    {% endif %}
     </div>
         <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
             <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
