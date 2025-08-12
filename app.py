@@ -897,7 +897,7 @@ def index():
     cur.execute("""
         SELECT b.dato_rigtig, b.slot_index, b.brugernavn, v.tekst
         FROM bookinger b
-        JOIN vasketider v ON v.slot_index = b.slot_index
+        JOIN vasketider v ON v.slot_index::text = b.slot_index
         WHERE b.dato_rigtig >= %s AND b.dato_rigtig <= %s
         ORDER BY b.dato_rigtig, b.slot_index
     """, (idag, frem_slut))
