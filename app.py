@@ -649,6 +649,11 @@ def book():
     if not brugernavn or not dato or not slot_index:
         return "Ugyldig anmodning", 400
 
+    try:
+        slot_index = int(slot_index)
+    except:
+        return "Ugyldigt slot_index", 400
+
     # normaliser dato til ISO til DB
     try:
         dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
@@ -658,34 +663,24 @@ def book():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # ✅ TJEK: er slottet allerede booket af nogen som helst?
-    cur.execute(
-        "SELECT 1 FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s LIMIT 1",
-        (dato_iso, slot_index)
-    )
-    if cur.fetchone():
-        conn.close()
-        # sender fejl tilbage til kalenderen
-        return redirect(f"/index?uge={valgt_uge}&fejl=Tiden+er+allerede+booket")
-
-    # Tjek om brugeren har booket 2 tider den dag
     cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
     antal = cur.fetchone()[0]
     if antal >= 2:
         conn.close()
         return redirect(f"/index?uge={valgt_uge}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
-    # Indsæt booking med slot_index
     cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
                 (brugernavn, dato_iso, slot_index))
 
-    # Log handling
     cur.execute("""
         INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
         VALUES (%s, %s, %s, %s)
     """, (brugernavn, 'booket', dato_iso, slot_index))
 
-    # Send notifikationer
+    cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
+    slot_tekst = cur.fetchone()
+    tekst = slot_tekst[0] if slot_tekst else f"Slot {slot_index}"
+
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
     brugerinfo = cur.fetchone()
     if brugerinfo:
