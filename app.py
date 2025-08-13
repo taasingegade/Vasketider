@@ -646,7 +646,7 @@ def book():
     slot_index = request.form.get("tid")  # stadig "tid" i formen, men indeholder tal
     valgt_uge = request.form.get("valgt_uge")
 
-    if not brugernavn or not dato or not slot_str:
+    if not brugernavn or not dato or not slot_index:
         return "Ugyldig anmodning", 400
 
     # normaliser dato til ISO til DB
@@ -661,7 +661,7 @@ def book():
     # ✅ TJEK: er slottet allerede booket af nogen som helst?
     cur.execute(
         "SELECT 1 FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s LIMIT 1",
-        (dato_iso, slot_str)
+        (dato_iso, slot_index)
     )
     if cur.fetchone():
         conn.close()
@@ -677,13 +677,13 @@ def book():
 
     # Indsæt booking med slot_index
     cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                (brugernavn, dato_iso, slot_str))
+                (brugernavn, dato_iso, slot_index))
 
     # Log handling
     cur.execute("""
         INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
         VALUES (%s, %s, %s, %s)
-    """, (brugernavn, 'booket', dato_iso, slot_str))
+    """, (brugernavn, 'booket', dato_iso, slot_index))
 
     # Send notifikationer
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
