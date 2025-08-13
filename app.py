@@ -6,6 +6,7 @@ from flask_limiter.util import get_remote_address
 from fpdf import FPDF
 from pytz import timezone, UTC
 from flask import make_response
+from psycopg2 import IntegrityError, OperationalError, DatabaseError
 import os
 import requests
 import smtplib
@@ -672,6 +673,12 @@ def book():
     cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
                 (brugernavn, dato_iso, slot_index))
 
+    # Forsøg at indsætte - database constraint vil forhindre duplikater
+    cur.execute("""
+        INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) 
+        VALUES (%s, %s, %s)
+    """, (brugernavn, dato_iso, slot_index))  
+
     cur.execute("""
         INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
         VALUES (%s, %s, %s, %s)
@@ -680,7 +687,7 @@ def book():
     cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
     slot_tekst = cur.fetchone()
     tekst = slot_tekst[0] if slot_tekst else f"Slot {slot_index}"
-
+     # Hent slot tekst og send notifikationer
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
     brugerinfo = cur.fetchone()
     if brugerinfo:
@@ -688,13 +695,29 @@ def book():
         send_email(email, "Vasketid bekræftet", f"Du har booket vasketid den {dato} i tidsrummet: {tekst}.")
         send_sms_twilio(sms, f"Vasketid booket {dato} kl. {tekst} – Vasketider.dk")
 
-    conn.commit()
-    conn.close()
-
     if not valgt_uge:
-        valgt_uge = datetime.today().isocalendar().week
-
+            valgt_uge = datetime.today().isocalendar().week
     return redirect(f"/index?uge={valgt_uge}&besked=Booking+bekræftet")
+
+except psycopg2.IntegrityError as e:
+    # Nu virker det fordi psycopg2 er importeret!
+    conn.rollback()
+    print(f"Integrity error: {e}")
+    return redirect(f"/index?uge={valgt_uge}&fejl=Tiden+er+allerede+booket")
+    
+except psycopg2.DatabaseError as e:
+    conn.rollback()
+    print(f"Database fejl: {e}")
+    return redirect(f"/index?uge={valgt_uge}&fejl=Database+fejl")
+    
+except Exception as e:
+    conn.rollback()
+    print(f"Generel fejl ved booking: {e}")
+    return redirect(f"/index?uge={valgt_uge}&fejl=Der+skete+en+fejl")
+    
+finally:
+    if conn:
+        conn.close()
 
 # Bruger
 
