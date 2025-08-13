@@ -10,6 +10,8 @@ import os
 import requests
 import smtplib
 import hashlib
+import threading
+import time
 from email.mime.text import MIMEText
 from twilio.rest import Client
 from werkzeug.utils import secure_filename
@@ -178,6 +180,66 @@ def ryd_gamle_bookinger():
     conn.close()
 
 ryd_gamle_bookinger()
+
+def reminder_loop():
+    kør_timer = [6, 10, 14, 18]  # klokkeslæt hvor den skal køre
+
+    while True:
+        try:
+            nu = datetime.now()
+
+            # Find næste køretid i dag eller i morgen
+            næste = None
+            for t in kør_timer:
+                if nu.hour < t or (nu.hour == t and nu.minute < 1):
+                    næste = datetime(nu.year, nu.month, nu.day, t, 0)
+                    break
+            if næste is None:
+                # Hvis ingen tid tilbage i dag, tag første tid i morgen
+                næste = datetime(nu.year, nu.month, nu.day, kør_timer[0], 0) + timedelta(days=1)
+
+            # Beregn ventetid i sekunder
+            vent_tid = (næste - nu).total_seconds()
+            print(f"⏳ Venter til {næste} ({vent_tid/60:.1f} minutter)")
+            time.sleep(vent_tid)
+
+            # Nu er det køretid → tjek bookinger
+            om_en_time = næste + timedelta(hours=1)
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+            tider = dict(cur.fetchall())
+
+            cur.execute("""
+                SELECT b.brugernavn, b.dato_rigtig, b.slot_index, u.email, u.sms
+                FROM bookinger b
+                JOIN brugere u ON b.brugernavn = u.brugernavn
+                WHERE b.dato_rigtig = %s
+            """, (om_en_time.date(),))
+
+            for navn, dato, slot, email, sms in cur.fetchall():
+                try:
+                    start_hour = int(tider.get(slot, "").split("–")[0])
+                except:
+                    continue
+
+                start_dt = datetime.combine(dato, datetime.min.time()) + timedelta(hours=start_hour)
+                if abs((start_dt - om_en_time).total_seconds()) < 60:
+                    besked = f"Din vasketid starter om 1 time ({tider.get(slot)})"
+                    if email:
+                        send_email(email, "Vasketid påmindelse", besked)
+                    if sms:
+                        send_sms_twilio(sms, besked)
+
+            conn.close()
+
+        except Exception as e:
+            print("Fejl i reminder_loop:", e)
+            time.sleep(60)  # fallback ved fejl
+
+# Start baggrundstråd når Flask starter
+threading.Thread(target=reminder_loop, daemon=True).start()
 
 # Miele kontrol 
 
@@ -355,12 +417,14 @@ Status: Brugeren er endnu ikke godkendt."""
 
     return render_template('login.html', fejl=fejl, besked=besked, adresser=adresser)
 
+# Login og Logud
+
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
     return redirect('/login')
 
-    # Admin
+# Admin
 
 @app.route('/admin')
 def admin():
@@ -539,7 +603,7 @@ def admin_delete_comment():
     conn.close()
     return redirect("/admin")
 
-    # Bookninger
+# Bookninger
 
 @app.route('/bookinger_json')
 def bookinger_json():
@@ -598,6 +662,16 @@ def book():
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # ✅ TJEK: er slottet allerede booket af nogen som helst?
+    cur.execute(
+        "SELECT 1 FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s LIMIT 1",
+        (dato_iso, slot_index)
+    )
+    if cur.fetchone():
+        conn.close()
+        # sender fejl tilbage til kalenderen
+        return redirect(f"/index?uge={valgt_uge}&fejl=Tiden+er+allerede+booket")
+
     # Tjek om brugeren har booket to tider den dag
     cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
     antal = cur.fetchone()[0]
@@ -635,6 +709,8 @@ def book():
         valgt_uge = datetime.today().isocalendar().week
 
     return redirect(f"/index?uge={valgt_uge}&besked=Booking+bekræftet")
+
+# Bruger
 
 @app.route("/slet", methods=["POST"])
 def slet_booking():
@@ -847,7 +923,7 @@ def skiftkode_post():
     conn.close()
     return redirect('/login?besked=Adgangskode+opdateret')
 
-    # index siden
+# UI Brugeren
 
 @app.route('/index')
 def index():

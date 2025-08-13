@@ -47,6 +47,12 @@
     {{ request.args.get("besked") }}
 </div>
 {% endif %}
+
+{% if request.args.get("fejl") %}
+<div id="popup-fejl" style="position: relative; padding: 10px; background-color: rgba(200, 0, 0, 0.8); color: white; border-radius: 8px; font-weight: bold; margin-top: 10px; max-width: 300px;">
+    {{ request.args.get("fejl") }}
+</div>
+{% endif %}
        <div class="calendar">
   <div></div>
  {% for dag in ugedage_dk %}
