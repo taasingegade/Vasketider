@@ -646,17 +646,13 @@ def book():
     slot_index = request.form.get("tid")  # stadig "tid" i formen, men indeholder tal
     valgt_uge = request.form.get("valgt_uge")
 
-    if not brugernavn or not dato or not slot_index:
+    if not brugernavn or not dato or not slot_str:
         return "Ugyldig anmodning", 400
 
-    try:
-        slot_index = int(slot_index)
-    except:
-        return "Ugyldigt slot_index", 400
-
+    # normaliser dato til ISO til DB
     try:
         dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
-    except:
+    except Exception:
         dato_iso = dato
 
     conn = get_db_connection()
@@ -672,7 +668,7 @@ def book():
         # sender fejl tilbage til kalenderen
         return redirect(f"/index?uge={valgt_uge}&fejl=Tiden+er+allerede+booket")
 
-    # Tjek om brugeren har booket to tider den dag
+    # Tjek om brugeren har booket 2 tider den dag
     cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
     antal = cur.fetchone()[0]
     if antal >= 2:
@@ -681,13 +677,21 @@ def book():
 
     # Indsæt booking med slot_index
     cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                (brugernavn, dato_iso, slot_index))
+                (brugernavn, dato_iso, slot_str))
 
     # Log handling
     cur.execute("""
         INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
         VALUES (%s, %s, %s, %s)
-    """, (brugernavn, 'booket', dato_iso, slot_index))
+    """, (brugernavn, 'booket', dato_iso, slot_str))
+
+    # find slot-tekst til besked (vasketider.slot_index er INT)
+    try:
+        cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (int(slot_str),))
+        r = cur.fetchone()
+        tekst = r[0] if r else f"Slot {slot_str}"
+    except Exception:
+        tekst = f"Slot {slot_str}"
 
     # Hent tekst fra vasketider
     cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
