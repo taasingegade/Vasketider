@@ -661,7 +661,7 @@ def book():
     # ✅ TJEK: er slottet allerede booket af nogen som helst?
     cur.execute(
         "SELECT 1 FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s LIMIT 1",
-        (dato_iso, slot_index)
+        (dato_iso, slot_str)
     )
     if cur.fetchone():
         conn.close()
@@ -684,19 +684,6 @@ def book():
         INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
         VALUES (%s, %s, %s, %s)
     """, (brugernavn, 'booket', dato_iso, slot_str))
-
-    # find slot-tekst til besked (vasketider.slot_index er INT)
-    try:
-        cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (int(slot_str),))
-        r = cur.fetchone()
-        tekst = r[0] if r else f"Slot {slot_str}"
-    except Exception:
-        tekst = f"Slot {slot_str}"
-
-    # Hent tekst fra vasketider
-    cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
-    slot_tekst = cur.fetchone()
-    tekst = slot_tekst[0] if slot_tekst else f"Slot {slot_index}"
 
     # Send notifikationer
     cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
