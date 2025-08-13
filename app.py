@@ -7,6 +7,7 @@ from fpdf import FPDF
 from pytz import timezone, UTC
 from flask import make_response
 from psycopg2 import IntegrityError, OperationalError, DatabaseError
+from flask import current_app
 import os
 import requests
 import smtplib
@@ -130,6 +131,14 @@ def set_miele_status(status):
     conn.close()
 
     return norm
+
+def uge_for(dato_iso, valgt_uge):
+    if valgt_uge and str(valgt_uge).isdigit():
+        return int(valgt_uge)
+    try:
+        return datetime.strptime(dato_iso, "%Y-%m-%d").isocalendar().week
+    except Exception:
+        return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
     afsender = "hornsbergmorten@gmail.com"
@@ -644,80 +653,123 @@ def bookinger_json():
 def book():
     brugernavn = session.get('brugernavn')
     dato = request.form.get("dato")
-    slot_index = request.form.get("tid")  # stadig "tid" i formen, men indeholder tal
+    slot_raw = request.form.get("tid")      # stadig "tid" i formen
     valgt_uge = request.form.get("valgt_uge")
+    uge_for_redirect = valgt_uge or datetime.today().isocalendar().week
 
-    if not brugernavn or not dato or not slot_index:
+    if not brugernavn or not dato or not slot_raw:
         return "Ugyldig anmodning", 400
 
     try:
-        slot_index = int(slot_index)
-    except:
+        slot_index = int(slot_raw)
+    except Exception:
         return "Ugyldigt slot_index", 400
 
-    # normaliser dato til ISO til DB
+    # normaliser dato til ISO
     try:
         dato_iso = datetime.strptime(dato, '%d-%m-%Y').strftime('%Y-%m-%d')
     except Exception:
         dato_iso = dato
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    try:
+        uge_for_redirect = (
+            int(valgt_uge)
+            if (valgt_uge and str(valgt_uge).isdigit())
+            else datetime.strptime(dato_iso, "%Y-%m-%d").isocalendar().week
+        )
+    except Exception:
+        uge_for_redirect = datetime.today().isocalendar().week
 
-    cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = %s AND dato_rigtig = %s", (brugernavn, dato_iso))
-    antal = cur.fetchone()[0]
-    if antal >= 2:
-        conn.close()
-        return redirect(f"/index?uge={valgt_uge}&fejl=Du+har+allerede+2+bookinger+denne+dag")
+    conn = None
+    cur = None
+    tekst = None
 
-    cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                (brugernavn, dato_iso, slot_index))
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    # Forsøg at indsætte - database constraint vil forhindre duplikater
-    cur.execute("""
-        INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) 
-        VALUES (%s, %s, %s)
-    """, (brugernavn, dato_iso, slot_index))  
+        # Max 2 bookinger pr. dag pr. bruger
+        cur.execute(
+            "SELECT COUNT(*) FROM bookinger WHERE brugernavn=%s AND dato_rigtig=%s",
+            (brugernavn, dato_iso)
+        )
+        if cur.fetchone()[0] >= 2:
+            return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
-    cur.execute("""
-        INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
-        VALUES (%s, %s, %s, %s)
-    """, (brugernavn, 'booket', dato_iso, slot_index))
+        # ÉN insert – undgå dobbelt-INSERT; lad DB håndhæve unikhed
+        cur.execute(
+            """
+            INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (dato_rigtig, slot_index) DO NOTHING
+            """,
+            (brugernavn, dato_iso, slot_index)
+        )
+        if cur.rowcount == 0:
+            # Konflikt = tiden var optaget
+            conn.rollback()
+            return redirect(f"/index?uge={uge_for_redirect}&fejl=Tiden+er+allerede+booket")
 
-    cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_index,))
-    slot_tekst = cur.fetchone()
-    tekst = slot_tekst[0] if slot_tekst else f"Slot {slot_index}"
-     # Hent slot tekst og send notifikationer
-    cur.execute("SELECT email, sms FROM brugere WHERE brugernavn = %s", (brugernavn,))
-    brugerinfo = cur.fetchone()
-    if brugerinfo:
-        email, sms = brugerinfo
-        send_email(email, "Vasketid bekræftet", f"Du har booket vasketid den {dato} i tidsrummet: {tekst}.")
-        send_sms_twilio(sms, f"Vasketid booket {dato} kl. {tekst} – Vasketider.dk")
+        # Log
+        cur.execute(
+            "INSERT INTO booking_log (brugernavn, handling, dato, slot_index) VALUES (%s, %s, %s, %s)",
+            (brugernavn, 'booket', dato_iso, slot_index)
+        )
 
-    if not valgt_uge:
-            valgt_uge = datetime.today().isocalendar().week
-    return redirect(f"/index?uge={valgt_uge}&besked=Booking+bekræftet")
+        # Slot-tekst til besked
+        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,))
+        r = cur.fetchone()
+        tekst = r[0] if r else f"Slot {slot_index}"
 
-except psycopg2.IntegrityError as e:
-    # Nu virker det fordi psycopg2 er importeret!
-    conn.rollback()
-    print(f"Integrity error: {e}")
-    return redirect(f"/index?uge={valgt_uge}&fejl=Tiden+er+allerede+booket")
-    
-except psycopg2.DatabaseError as e:
-    conn.rollback()
-    print(f"Database fejl: {e}")
-    return redirect(f"/index?uge={valgt_uge}&fejl=Database+fejl")
-    
-except Exception as e:
-    conn.rollback()
-    print(f"Generel fejl ved booking: {e}")
-    return redirect(f"/index?uge={valgt_uge}&fejl=Der+skete+en+fejl")
-    
-finally:
-    if conn:
-        conn.close()
+        # Commit før notifikationer/redirect
+        conn.commit()
+
+    except psycopg2.Error:
+        if conn:
+            try: conn.rollback()
+            except Exception: pass
+        current_app.logger.exception("DB-fejl ved booking")
+        return redirect(f"/index?uge={uge_for_redirect}&fejl=Database+fejl")
+
+    except Exception:
+        if conn:
+            try: conn.rollback()
+            except Exception: pass
+        current_app.logger.exception("Generel fejl ved booking")
+        return redirect(f"/index?uge={uge_for_redirect}&fejl=Der+skete+en+fejl")
+
+    finally:
+        if cur:
+            try: cur.close()
+            except Exception: pass
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+    # Notifikationer – må ikke vælte flowet
+    try:
+        with get_db_connection() as conn2:
+            with conn2.cursor() as cur2:
+                cur2.execute("SELECT email, sms FROM brugere WHERE brugernavn=%s", (brugernavn,))
+                brugerinfo = cur2.fetchone()
+
+        if brugerinfo:
+            email, sms = brugerinfo
+            if email:
+                try:
+                    send_email(email, "Vasketid bekræftet",
+                               f"Du har booket vasketid den {dato} i tidsrummet: {tekst}.")
+                except Exception:
+                    current_app.logger.exception("Fejl ved send_email")
+            if sms:
+                try:
+                    send_sms_twilio(sms, f"Vasketid booket {dato} – {tekst} – Vasketider.dk")
+                except Exception:
+                    current_app.logger.exception("Fejl ved send_sms_twilio")
+    except Exception:
+        current_app.logger.exception("Kunne ikke sende notifikationer")
+
+    return redirect(f"/index?uge={uge_for_redirect}&besked=Booking+bekræftet")
 
 # Bruger
 
