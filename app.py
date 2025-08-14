@@ -24,6 +24,9 @@ from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=int(os.getenv('REMEMBER_DAYS', '30')))
+app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
+app.config.setdefault('SESSION_COOKIE_SECURE', True)  # Render kører HTTPS
 
 HA_WEBHOOK_SECRET = os.environ.get("VASKETID_WEBHOOK_SECRET", "")
 
@@ -446,10 +449,19 @@ Status: Brugeren er endnu ikke godkendt."""
         conn.close()
 
         session['brugernavn'] = brugernavn
-        if brugernavn == 'admin':
-            return redirect('/admin')
+        
+        remember = request.form.get('remember') == '1'
+        session.permanent = remember
+
+        next_url = '/admin' if brugernavn == 'admin' else '/index'
+        resp = redirect(next_url)
+
+        if remember:
+            resp.set_cookie('remember_me', '1', max_age=60*60*24*30, samesite='Lax', secure=True)
         else:
-            return redirect('/index')
+            resp.delete_cookie('remember_me')
+
+        return resp
 
     # GET (vis login.html)
     conn = get_db_connection()

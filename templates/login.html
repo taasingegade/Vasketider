@@ -61,10 +61,60 @@
    <div style="display: flex; flex-direction: column; align-items: center;">
        <input type="text" name="brugernavn" placeholder="Brugernavn" required>
        <input type="password" name="kode" placeholder="Adgangskode" required>
+
+       <!-- Husk mig toggle -->
+        <label class="switch" style="margin-top:10px;">
+            <input type="checkbox" id="huskMig">
+            <span class="slider round"></span>
+        </label>
+        <span style="margin-top:5px;">Husk mig</span>
    </div>
 </form>
     </div>
 
     <footer>© Hornsberg Group</footer>
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const u = document.getElementById("brugernavn");
+        const p = document.getElementById("kode");
+        const chk = document.getElementById("huskMig");
+
+        // Load gemte data
+        const savedUser = localStorage.getItem("vasketid_user");
+        const savedPass = localStorage.getItem("vasketid_pass");
+        if (savedUser) {
+            u.value = savedUser;
+            if (savedUser.toLowerCase() !== "admin" && savedPass) {
+                p.value = savedPass;
+                chk.checked = true;
+            }
+        }
+
+        // Gem ved submit
+        document.getElementById("loginForm").addEventListener("submit", function () {
+            const userNow = (u.value || "").toLowerCase();
+            if (chk.checked) {
+                localStorage.setItem("vasketid_user", u.value);
+                if (userNow !== "admin") {
+                    localStorage.setItem("vasketid_pass", p.value);
+                } else {
+                    localStorage.removeItem("vasketid_pass");
+                }
+            } else {
+                localStorage.removeItem("vasketid_user");
+                localStorage.removeItem("vasketid_pass");
+            }
+        });
+
+        // Hvis admin → fjern password fra lagring
+        u.addEventListener("input", function () {
+            if ((u.value || "").toLowerCase() === "admin") {
+                chk.checked = false;
+                localStorage.removeItem("vasketid_pass");
+            }
+        });
+    });
+    </script>
 </body>
 </html>
