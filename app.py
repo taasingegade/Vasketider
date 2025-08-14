@@ -40,6 +40,8 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
+# Definer
+
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
@@ -203,9 +205,7 @@ def ryd_gamle_bookinger_job():
             print("❌ Fejl i ryd_gamle_bookinger_job:", e)
             time.sleep(60)
 
-# START baggrundstråde, men blokér ikke app-import:
-threading.Thread(target=reminder_loop, daemon=True).start()
-threading.Thread(target=ryd_gamle_bookinger_job, daemon=True).start()
+        threading.Thread(target=ryd_gamle_bookinger_job, daemon=True).start()
 
 def reminder_loop():
     from pytz import timezone
@@ -273,8 +273,11 @@ def reminder_loop():
             print("Fejl i reminder_loop:", e)
             time.sleep(60)
 
-# Miele kontrol 
+        threading.Thread(target=reminder_loop, daemon=True).start()
 
+# Route-dekorator
+
+# Miele UI
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
     try:
