@@ -59,8 +59,8 @@
 
         <form id="loginForm" method="post" action="/login">
    <div style="display: flex; flex-direction: column; align-items: center;">
-       <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-       <input type="password" name="kode" placeholder="Adgangskode" required>
+       <input type="text" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">>
+       <input type="password" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
 
        <!-- Husk mig toggle -->
         <label class="switch" style="margin-top:10px;">
@@ -91,8 +91,8 @@
             }
         }
 
-        // Gem ved submit
-        document.getElementById("loginForm").addEventListener("submit", function () {
+        // Gem ved submit (inkl. top-knappen der kalder submitLoginForm)
+        form.addEventListener("submit", function () {
             const userNow = (u.value || "").toLowerCase();
             if (chk.checked) {
                 localStorage.setItem("vasketid_user", u.value);
@@ -107,7 +107,7 @@
             }
         });
 
-        // Hvis admin → fjern password fra lagring
+        // Hvis man skriver "admin" → gem aldrig password
         u.addEventListener("input", function () {
             if ((u.value || "").toLowerCase() === "admin") {
                 chk.checked = false;
