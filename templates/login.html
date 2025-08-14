@@ -59,8 +59,8 @@
 
         <form id="loginForm" method="post" action="/login">
    <div style="display: flex; flex-direction: column; align-items: center;">
-       <input type="text" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
-       <input type="password" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
+       <input type="text" id="brugernavn" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
+<input type="password" id="kode" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
 
        <!-- Husk mig toggle -->
         <label class="switch" style="margin-top:10px;">
@@ -76,6 +76,7 @@
     
     <script>
     document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("loginForm");
         const u = document.getElementById("brugernavn");
         const p = document.getElementById("kode");
         const chk = document.getElementById("huskMig");
