@@ -362,6 +362,10 @@ def login():
     fejl = request.args.get("fejl", "")
     besked = request.args.get("besked", "")
 
+    # Allerede logget ind? Send til index
+    if request.method == 'GET' and 'brugernavn' in session:
+        return redirect('/index')
+
     if request.method == 'POST':
         brugernavn = request.form['brugernavn'].lower()
         kode = request.form['kode']
