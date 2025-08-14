@@ -182,18 +182,30 @@ def send_sms_twilio(modtager, besked):
     except Exception as e:
         print("Twilio fejl:", e)
 
-def ryd_gamle_bookinger():
+def ryd_gamle_bookinger_job():
+    from pytz import timezone
     TZ = timezone("Europe/Copenhagen")
-    idag = datetime.now(TZ).date()
-    start_af_uge = idag - timedelta(days=idag.weekday())  # mandag i indeværende uge
-    conn = get_db_connection()
-    cur = conn.cursor()
-    # Slet kun bookinger fra tidligere uger
-    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < %s", (start_af_uge,))
-    conn.commit()
-    conn.close()
+    while True:
+        nu = datetime.now(TZ)
+        # næste kørsel 03:00 i morgen (lokal tid)
+        næste = (nu + timedelta(days=1)).replace(hour=3, minute=0, second=0, microsecond=0)
+        time.sleep(max(1, int((næste - nu).total_seconds())))
 
-    ryd_gamle_bookinger()
+        try:
+            start_af_uge = datetime.now(TZ).date() - timedelta(days=datetime.now(TZ).weekday())
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM bookinger WHERE dato_rigtig < %s", (start_af_uge,))
+            conn.commit()
+            conn.close()
+            print("✅ Ryddede gamle bookinger (før uge-start)")
+        except Exception as e:
+            print("❌ Fejl i ryd_gamle_bookinger_job:", e)
+            time.sleep(60)
+
+# START baggrundstråde, men blokér ikke app-import:
+threading.Thread(target=reminder_loop, daemon=True).start()
+threading.Thread(target=ryd_gamle_bookinger_job, daemon=True).start()
 
 def reminder_loop():
     from pytz import timezone
