@@ -183,73 +183,83 @@ def send_sms_twilio(modtager, besked):
         print("Twilio fejl:", e)
 
 def ryd_gamle_bookinger():
+    TZ = timezone("Europe/Copenhagen")
+    idag = datetime.now(TZ).date()
+    start_af_uge = idag - timedelta(days=idag.weekday())  # mandag i indeværende uge
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < CURRENT_DATE - INTERVAL '1 day'")
+    # Slet kun bookinger fra tidligere uger
+    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < %s", (start_af_uge,))
     conn.commit()
     conn.close()
 
-ryd_gamle_bookinger()
+    ryd_gamle_bookinger()
 
 def reminder_loop():
-    kør_timer = [6, 10, 14, 18]  # klokkeslæt hvor den skal køre
+    from pytz import timezone
+    import re
 
+    TZ = timezone("Europe/Copenhagen")
+    KØR_TIMER = [6, 10, 14, 18]  # hvornår loopet skal køre
     while True:
         try:
-            nu = datetime.now()
+            nu = datetime.now(TZ)
 
-            # Find næste køretid i dag eller i morgen
-            næste = None
-            for t in kør_timer:
-                if nu.hour < t or (nu.hour == t and nu.minute < 1):
-                    næste = datetime(nu.year, nu.month, nu.day, t, 0)
-                    break
+            # find næste køretid i dag, ellers i morgen
+            dagens_kørsler = [nu.replace(hour=h, minute=0, second=0, microsecond=0) for h in KØR_TIMER]
+            næste = next((t for t in dagens_kørsler if t > nu), None)
             if næste is None:
-                # Hvis ingen tid tilbage i dag, tag første tid i morgen
-                næste = datetime(nu.year, nu.month, nu.day, kør_timer[0], 0) + timedelta(days=1)
+                i_morgen = nu + timedelta(days=1)
+                næste = i_morgen.replace(hour=KØR_TIMER[0], minute=0, second=0, microsecond=0)
 
-            # Beregn ventetid i sekunder
-            vent_tid = (næste - nu).total_seconds()
-            print(f"⏳ Venter til {næste} ({vent_tid/60:.1f} minutter)")
+            # sov indtil næste køretid
+            vent_tid = max(1, int((næste - nu).total_seconds()))
+            print(f"⏳ Venter til {næste} ({vent_tid/60:.1f} min)")
             time.sleep(vent_tid)
 
-            # Nu er det køretid → tjek bookinger
-            om_en_time = næste + timedelta(hours=1)
+            # ved køretid: påmind for slots der starter om 1 time
+            target_date = næste.date()                 # dato for påmindelser
+            target_start_hour = (næste + timedelta(hours=1)).hour  # 7, 11, 15, 19
+
             conn = get_db_connection()
             cur = conn.cursor()
 
+            # hent vasketider og find hvilke slot_index der starter på target_start_hour
             cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
-            tider = dict(cur.fetchall())
+            tider = dict(cur.fetchall())  # {0:'07–11',1:'11–15',...}
 
+            slots_der_starter = []
+            for idx, txt in tider.items():
+                m = re.search(r"(\d{1,2})\s*[–-]\s*(\d{1,2})", str(txt))
+                if m and int(m.group(1)) == target_start_hour:
+                    slots_der_starter.append(int(idx))
+
+            if not slots_der_starter:
+                conn.close()
+                continue
+
+            # hent bookinger for i dag i de relevante slots
             cur.execute("""
                 SELECT b.brugernavn, b.dato_rigtig, b.slot_index, u.email, u.sms
                 FROM bookinger b
-                JOIN brugere u ON b.brugernavn = u.brugernavn
-                WHERE b.dato_rigtig = %s
-            """, (om_en_time.date(),))
+                JOIN brugere u ON u.brugernavn = b.brugernavn
+                WHERE b.dato_rigtig = %s AND b.slot_index = ANY(%s)
+            """, (target_date, slots_der_starter))
 
-            for navn, dato, slot, email, sms in cur.fetchall():
-                try:
-                    start_hour = int(tider.get(slot, "").split("–")[0])
-                except:
-                    continue
-
-                start_dt = datetime.combine(dato, datetime.min.time()) + timedelta(hours=start_hour)
-                if abs((start_dt - om_en_time).total_seconds()) < 60:
-                    besked = f"Din vasketid starter om 1 time ({tider.get(slot)})"
-                    if email:
-                        send_email(email, "Vasketid påmindelse", besked)
-                    if sms:
-                        send_sms_twilio(sms, besked)
+            rækker = cur.fetchall()
+            for navn, dato, slot, email, sms in rækker:
+                label = tider.get(slot, f"Slot {slot}")
+                besked = f"Din vasketid starter om 1 time ({label})"
+                if email:
+                    send_email(email, "Vasketid påmindelse", besked)
+                if sms:
+                    send_sms_twilio(sms, besked)
 
             conn.close()
 
         except Exception as e:
             print("Fejl i reminder_loop:", e)
-            time.sleep(60)  # fallback ved fejl
-
-# Start baggrundstråd når Flask starter
-threading.Thread(target=reminder_loop, daemon=True).start()
+            time.sleep(60)
 
 # Miele kontrol 
 
@@ -620,6 +630,9 @@ def bookinger_json():
     conn = get_db_connection()
     cur = conn.cursor()
     idag = datetime.today()
+
+    start_af_uge = (idag - timedelta(days=idag.weekday())).date()
+    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < %s", (start_af_uge,))
 
     # Slet gamle bookinger
     cur.execute("DELETE FROM bookinger WHERE dato_rigtig < CURRENT_DATE")
