@@ -270,7 +270,7 @@ input {
 }
 
 .slider:after {
-  content: "0";
+  content: "O";
   color: black;
   position: absolute;
   right: 8px;
@@ -280,7 +280,7 @@ input {
 }
 
 input:checked + .slider:after {
-  content: "1";
+  content: "I";
   left: 8px;
   right: auto;
 }
