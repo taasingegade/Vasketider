@@ -1453,3 +1453,9 @@ def slet_bookinglog():
     conn.close()
 
     return redirect("/statistik")
+
+# Regler
+
+@app.route("/regler")
+def regler():
+    return render_template("regler.html")
