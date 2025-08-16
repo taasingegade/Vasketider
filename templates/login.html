@@ -36,6 +36,9 @@
         <form method="get" action="/opret">
             <button type="submit" class="toppanel-knap">Opret ny bruger</button>
         </form>
+        <form method="get" action="/regler">
+            <button type="submit" class="toppanel-knap">Regler</button>
+        </form>
 {% if session['brugernavn'] == 'admin' %}
 <form method="post" action="/opdater_adressevisning" style="margin: 0;">
   <select name="adresse" onchange="this.form.submit()" class="toppanel-knap" style="height: 38px; padding: 6px 12px; border-radius: 6px; border: none;">

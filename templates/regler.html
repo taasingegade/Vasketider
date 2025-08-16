@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Regler for Vasketider</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+  </script>
+</head>
+<body>
+  <div class="toppanel">
+    <form method="get" action="/index">
+      <button class="toppanel-knap">Tilbage</button>
+    </form>
+  </div>
+
+  <div class="wrapper">
+    <div class="main glassbox">
+      <h2 style="margin-top:0;">Regler for Vasketider</h2>
+
+      <ol>
+        <li><strong>Booking pr. dag:</strong> Hvert lejemål kan maksimalt booke <strong>2 tider pr. dag</strong> for at sikre fair adgang for alle.</li>
+        <li><strong>Bookingkrav:</strong> Du skal være oprettet som bruger eller benytte <em>direkte booking</em> ved maskinen. <strong>Ingen booking = ingen vasketid.</strong></li>
+        <li><strong>Overdragelse:</strong> Du må gerne frigive din tid (slet booking), så andre kan benytte den. Booking på vegne af andre er ikke tilladt, <strong>medmindre det er samme lejemål</strong>.</li>
+        <li><strong>Notifikationer:</strong> Du kan få SMS/e-mail ved <em>bookingbekræftelse</em> og <em>1 time før</em> din vasketid starter.</li>
+        <li><strong>Status på maskine:</strong> Systemet viser <em>aktuel status</em> (fx Klar, I brug, Færdig) og – når muligt – <strong>resterende tid af vasken</strong>.</li>
+        <li><strong>Afbud / frigiv tid:</strong> Kan du ikke nå tiden, <strong>slet bookingen</strong> hurtigst muligt så andre kan overtage.</li>
+        <li><strong>Serviceblokering:</strong> Tider markeret “service” kan ikke bookes.</li>
+        <li><strong>Login-sikkerhed:</strong> Gentagne fejllogin kan udløse spærring/administrativ kontrol.</li>
+        <li><strong>Kontaktdata til notifikationer:</strong> SMS/e-mail bruges <em>kun</em> til booking/påmindelser; brugeren har ansvar for at holde dem opdateret.</li>
+        <li><strong>Ansvar ved brug:</strong> Efterlad <strong>vaskemaskin, tørretumbler, vaskekælder og tørrerum rene og ryddelige</strong>. Fjern tøj rettidigt og meld fejl/skader straks.</li>
+        <li><strong>Privatliv & logning:</strong> Systemet logger bookinger og loginforsøg til drift/sikkerhed i henhold til privat GDPR lovgivning.</li>
+        <li><strong>Fair brug:</strong> Det er <strong>ikke tilladt</strong> at omgå regler (fx serie-booke for at blokere tider) eller booke for andre udenfor eget lejemål.</li>
+      </ol>
+
+      <div class="center-knap" style="margin-top:20px;">
+        <form method="get" action="/index">
+          <button class="toppanel-knap">Forstået</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer>© Hornsberg Group</footer>
+</body>
+</html>
