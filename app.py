@@ -1497,4 +1497,9 @@ def slet_bookinglog():
 
 @app.route("/regler")
 def regler():
-    return render_template("regler.html")
+    next_url = request.args.get("next", "/index")
+    return render_template("regler.html", next_url=next_url)
+
+@app.route("/regler/direkte")
+def regler_direkte():
+    return render_template("regler.html", next_url="/direkte")

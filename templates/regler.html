@@ -14,7 +14,7 @@
 </head>
 <body>
   <div class="toppanel">
-    <form method="get" action="/index">
+    <form method="get" action="{{ next_url }}">
       <button class="toppanel-knap">Tilbage</button>
     </form>
   </div>
@@ -43,7 +43,7 @@
       </ol>
 
       <div class="center-knap" style="margin-top:20px;">
-  <form method="get" action="{{ request.args.get('next','/index') }}">
+  <form method="get" action="{{ next_url }}">
     <button class="toppanel-knap">Læst og Forstået</button>
   </form>
 </div>
