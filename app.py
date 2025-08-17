@@ -209,66 +209,105 @@ def ryd_gamle_bookinger_job():
             time.sleep(60)
 
 def reminder_loop():
+    """
+    Kører kun i tidsvinduet 06–18 hver 2. time (06,08,10,12,14,16,18).
+    Ved hvert tick sender vi varsling for starttid = (tick + 1 time), så 06→07, 10→11, 14→15, 18→19.
+    Undgår dubletter via reminders_sent (dato, slot_index).
+    """
     tz = timezone("Europe/Copenhagen")
-    notify_times = {6: 0, 10: 1, 14: 2, 18: 3}  # kl.→ slot_index (varsling 1 time før)
-    run_hours = sorted(notify_times.keys())     # [6,10,14,18]
+
+    # Sikr markeringstabel
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reminders_sent (
+                id SERIAL PRIMARY KEY,
+                dato DATE NOT NULL,
+                slot_index INT NOT NULL,
+                sendt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (dato, slot_index)
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("⚠️ Kunne ikke sikre reminders_sent-tabellen:", e)
 
     while True:
         try:
-            nu = datetime.now(tz)
+            now = datetime.now(tz)
+            naeste = _naeste_tick_2t_window(now)  # næste 2-timers tick i 06–18 vinduet
+            vent = max(1, int((naeste - now).total_seconds()))
+            print(f"⏳ Venter til {naeste.strftime('%Y-%m-%d %H:%M')} (DK-tid)")
+            time.sleep(vent)
 
-            # find næste køretid i DK-tid
-            næste = None
-            for h in run_hours:
-                if (nu.hour < h) or (nu.hour == h and nu.minute < 1):
-                    næste = nu.replace(hour=h, minute=0, second=0, microsecond=0)
-                    break
-            if næste is None:
-                # i morgen kl. første run-hour
-                næste = (nu + timedelta(days=1)).replace(hour=run_hours[0], minute=0, second=0, microsecond=0)
-
-            # sov til næste tidspunkt
-            vent_tid = (næste - nu).total_seconds()
-            print(f"⏳ Venter til {næste.strftime('%Y-%m-%d %H:%M')} (DK-tid)")
-            time.sleep(max(1, vent_tid))
-
-            # vi er nået til køretid → varsling for det slot, der starter om 1 time
-            target_date = næste.date()              # dato i DK
-            target_slot = notify_times[næste.hour]  # 0/1/2/3
+            # Når vi rammer tick → varsling for start om 1 time
+            tick = naeste  # allerede lokal DK
+            target = tick + timedelta(hours=1)
+            target_date = target.date()
+            target_hour = target.hour
 
             conn = get_db_connection()
-            cur = conn.cursor()
+            start_hours = _hent_start_hours(conn)  # fx {7:0, 11:1, 15:2, 19:3}
+            if target_hour not in start_hours:
+                conn.close()
+                # gå direkte videre til næste tick
+                continue
 
-            # hent kontaktinfo for bookinger på target_date + target_slot
-            cur.execute("""
-                SELECT b.brugernavn, u.email, u.sms
-                FROM bookinger b
-                JOIN brugere u ON u.brugernavn = b.brugernavn
-                WHERE b.dato_rigtig = %s AND b.slot_index = %s
-            """, (target_date, target_slot))
-            modtagere = cur.fetchall()
+            target_slot = start_hours[target_hour]
 
-            # hent menneskelig tekst for slot_index (kun til beskedteksten)
-            cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (target_slot,))
-            row = cur.fetchone()
-            slot_tekst = (row[0] if row else {0:"07–11",1:"11–15",2:"15–19",3:"19–23"}[target_slot])
+            # Har vi allerede sendt for (dato, slot)?
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM reminders_sent WHERE dato=%s AND slot_index=%s",
+                            (target_date, target_slot))
+                already = cur.fetchone() is not None
+            if already:
+                conn.close()
+                continue
 
-            conn.close()
+            # Hent modtagere og slot-tekst
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT b.brugernavn, u.email, u.sms
+                    FROM bookinger b
+                    JOIN brugere u ON u.brugernavn = b.brugernavn
+                    WHERE b.dato_rigtig = %s AND b.slot_index = %s
+                """, (target_date, target_slot))
+                modtagere = cur.fetchall()
 
+                cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (target_slot,))
+                row = cur.fetchone()
+                slot_tekst = (row[0] if row else f"Slot {target_slot}")
+
+            # Send besked (eller markér 'sendt' hvis ingen modtagere så vi ikke spammer næste gang)
             if not modtagere:
-                print(f"ℹ️ Ingen bookinger {target_date} for slot {target_slot} ({slot_tekst})")
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO reminders_sent (dato, slot_index)
+                        VALUES (%s, %s) ON CONFLICT DO NOTHING
+                    """, (target_date, target_slot))
+                conn.commit()
+                conn.close()
                 continue
 
             besked = f"Din vasketid starter om 1 time ({slot_tekst})."
             for navn, email, sms in modtagere:
                 try:
-                    if email:
-                        send_email(email, "Vasketid påmindelse", besked)
-                    if sms:
-                        send_sms_twilio(sms, besked)
+                    if email: send_email(email, "Vasketid påmindelse", besked)
+                    if sms:   send_sms_twilio(sms, besked)
                     print(f"📣 Varslet {navn} for {target_date} {slot_tekst}")
                 except Exception as e:
                     print("⚠️ Fejl ved varsling:", e)
+
+            # Markér som sendt
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO reminders_sent (dato, slot_index)
+                    VALUES (%s, %s) ON CONFLICT DO NOTHING
+                """, (target_date, target_slot))
+            conn.commit()
+            conn.close()
 
         except Exception as e:
             print("❌ Fejl i reminder_loop:", e)

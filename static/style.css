@@ -311,3 +311,19 @@ input:checked + .slider:before {transform: translateX(20px);}
     font-size: 14px;
     color: white;
 }
+
+ol {
+  margin-left: 20px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+ol li {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.service {
+  background-color: rgba(255, 193, 7, 0.9) !important; /* gul */
+  color: black !important;
+}
