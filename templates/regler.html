@@ -43,10 +43,10 @@
       </ol>
 
       <div class="center-knap" style="margin-top:20px;">
-        <form method="get" action="/index">
-          <button class="toppanel-knap">Læst og Forstået</button>
-        </form>
-      </div>
+  <form method="get" action="{{ request.args.get('next','/index') }}">
+    <button class="toppanel-knap">Læst og Forstået</button>
+  </form>
+</div>
     </div>
   </div>
 
