@@ -226,6 +226,15 @@ def ryd_gamle_bookinger_job():
             print("❌ Fejl i ryd_gamle_bookinger_job:", e)
             time.sleep(60)
 
+def _naeste_tick_2t_window(now_local):
+    hours = [6, 8, 10, 12, 14, 16, 18]
+    base = now_local.replace(minute=0, second=0, microsecond=0)
+    for h in hours:
+        cand = base.replace(hour=h)
+        if cand > now_local:
+            return cand
+    return (base + timedelta(days=1)).replace(hour=hours[0])
+
 def reminder_loop():
     """
     Kører kun i tidsvinduet 06–18 hver 2. time (06,08,10,12,14,16,18).
