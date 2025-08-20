@@ -1402,6 +1402,17 @@ def statistik():
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Sørg for at 'statistik' findes (bruges til 'direktetid')
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS statistik (
+            dato DATE NOT NULL,
+            type TEXT NOT NULL,
+            antal INT DEFAULT 0,
+            PRIMARY KEY (dato, type)
+        )
+    """)  
+    conn.commit()
+
     # 📊 Top 10 brugere (inkl. 'direkte', men ekskl. 'service')
     cur.execute("""
         SELECT brugernavn, COUNT(*) AS antal
