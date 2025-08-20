@@ -6,3 +6,4 @@ pandas
 matplotlib
 flask-limiter
 fpdf
+gunicorn
