@@ -345,6 +345,10 @@ def start_background_jobs():
 
 start_background_jobs()
 
+@app.get("/_ping")
+def _ping():
+    return "ok", 200
+
 # Miele UI
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
@@ -1306,7 +1310,7 @@ def iot_toggle():
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
     # Kun den bruger, der er logget ind som 'direkte', må tilgå siden
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'direkte':
+    if session.get('brugernavn','').lower() not in ('direkte','admin'):
         return abort(403)
 
     nu = datetime.now(timezone("Europe/Copenhagen"))  # dansk tid
