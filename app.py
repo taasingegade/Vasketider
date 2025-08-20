@@ -1318,9 +1318,6 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
-    # Kun den bruger, der er logget ind som 'direkte', må tilgå siden
-    if session.get('brugernavn','').lower() not in ('direkte','admin'):
-        return abort(403)
 
     nu = datetime.now(timezone("Europe/Copenhagen"))  # dansk tid
     dato = nu.strftime('%Y-%m-%d')
