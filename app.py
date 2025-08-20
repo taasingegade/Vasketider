@@ -8,8 +8,11 @@ from pytz import timezone
 from flask import make_response
 from psycopg2 import IntegrityError
 from flask import current_app
+from functools import wraps
+from flask import abort
 import os
 import requests
+import secrets
 import smtplib
 import hashlib
 import threading
@@ -21,6 +24,7 @@ import base64
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
+import base64
 
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
@@ -67,6 +71,17 @@ def latin1_sikker_tekst(tekst):
         .replace("ø", "oe")
         .replace("å", "aa")
     )
+
+def is_admin() -> bool:
+    return session.get('brugernavn', '').lower() == 'admin'
+
+def kræv_direkte_login(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get("brugernavn") != "direkte":
+            return abort(403)
+        return f(*args, **kwargs)
+    return wrapper
 
 def set_miele_status(status):
     """Oversæt Miele status fra HA til korte danske ord"""
@@ -186,6 +201,9 @@ def send_sms_twilio(modtager, besked):
         print("SMS sendt:", message.sid)
     except Exception as e:
         print("Twilio fejl:", e)
+
+def hash_kode(plain: str) -> str:
+    return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
 
 def ryd_gamle_bookinger_job():
     from pytz import timezone
@@ -701,37 +719,54 @@ def admin_delete_comment():
     conn.close()
     return redirect("/admin")
 
+@app.route('/admin/reset_direkte', methods=['POST'])
+def reset_direkte():
+    if session.get('brugernavn','').lower() != 'admin':
+        abort(403)
+    nyt_pw = secrets.token_urlsafe(12)  # Admin ser dette én gang
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("UPDATE brugere SET kode=%s WHERE brugernavn='direkte'", (hash_kode(nyt_pw),))
+    conn.commit(); conn.close()
+    # Vis password til admin via flash/besked (eller redirect med querystring)
+    return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
+
 # Bookninger
 
 @app.route('/bookinger_json')
 def bookinger_json():
+    # Kun admin må hente statistik-feed
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    idag = datetime.today().date()
+
     conn = get_db_connection()
     cur = conn.cursor()
-    idag = datetime.today()
-
-    start_af_uge = (idag - timedelta(days=idag.weekday())).date()
-    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < %s", (start_af_uge,))
-
-    # Slet gamle bookinger
-    cur.execute("DELETE FROM bookinger WHERE dato_rigtig < CURRENT_DATE")
 
     # Hent tiderne (tekst) fra vasketider
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
-    tider = dict(cur.fetchall())  # {0: '07–11', 1: ..., 2: ...}
+    tider = dict(cur.fetchall())  # {0: '07–11', 1: '11–15', ...}
 
-    # Hent bookinger 14 dage frem
-    cur.execute(
-        "SELECT brugernavn, dato_rigtig, slot_index FROM bookinger WHERE dato_rigtig >= %s AND dato_rigtig <= %s",
-        (idag.strftime('%Y-%m-%d'), (idag + timedelta(days=14)).strftime('%Y-%m-%d'))
-    )
+    # Hent bookinger 14 dage frem (ingen DELETE her)
+    cur.execute("""
+        SELECT brugernavn, dato_rigtig, slot_index
+        FROM bookinger
+        WHERE dato_rigtig >= %s AND dato_rigtig <= %s
+        ORDER BY dato_rigtig ASC, slot_index ASC
+    """, (idag, idag + timedelta(days=14)))
     alle_14 = cur.fetchall()
-    conn.commit()
+
     conn.close()
 
     result = []
     for brugernavn, dato, slot_index in alle_14:
+        # behold dd-mm-YYYY så din JS-gruppering er uændret
         dato_str = dato.strftime('%d-%m-%Y')
-        tekst = tider[int(slot_index)] if int(slot_index) in tider else f"Slot {slot_index}"
+        # robust opslag af tidstekst
+        try:
+            tekst = tider[int(slot_index)]
+        except (KeyError, ValueError, TypeError):
+            tekst = f"Slot {slot_index}"
         result.append({
             "dato": dato_str,
             "tid": tekst,
@@ -1054,6 +1089,10 @@ def skiftkode_post():
     ny_kode1 = request.form['ny_kode1']
     ny_kode2 = request.form['ny_kode2']
 
+    # NYT: kun admin må ændre 'direkte'-kode
+    if brugernavn == 'direkte' and session.get('brugernavn','').lower() != 'admin':
+        return redirect('/skiftkode?fejl=Kun+admin+kan+ændre+kode+for+direkte')
+
     if ny_kode1 != ny_kode2:
         return redirect('/skiftkode?fejl=Kodeord+matcher+ikke')
 
@@ -1266,13 +1305,18 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
-    nu = datetime.now(timezone("Europe/Copenhagen"))  # ← dansk tid
+    # Kun den bruger, der er logget ind som 'direkte', må tilgå siden
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'direkte':
+        return abort(403)
+
+    nu = datetime.now(timezone("Europe/Copenhagen"))  # dansk tid
     dato = nu.strftime('%Y-%m-%d')
     vis_dato = nu.strftime('%d-%m-%Y')
     klokkeslaet = nu.strftime('%H:%M')
 
     conn = get_db_connection()
     cur = conn.cursor()
+
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider_raw = cur.fetchall()
     tider = [(str(r[0]), r[1]) for r in tider_raw]
@@ -1282,18 +1326,47 @@ def direkte():
     if request.method == 'POST':
         slot = request.form.get("tid")
 
-        cur.execute("SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s", (dato, slot))
+        # er tiden taget?
+        cur.execute(
+            "SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s",
+            (dato, slot)
+        )
         eksisterende = cur.fetchone()
         if eksisterende:
             fejl = f"Tiden er allerede booket af {eksisterende[0]}"
         else:
-            cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s", (dato,))
+            # max 2 tider pr. dag for 'direkte'
+            cur.execute(
+                "SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s",
+                (dato,)
+            )
             antal = cur.fetchone()[0]
             if antal >= 2:
                 fejl = "Direkte har allerede booket 2 tider i dag"
             else:
-                cur.execute("INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                            ('direkte', dato, slot))
+                # opret booking
+                cur.execute(
+                    "INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
+                    ('direkte', dato, slot)
+                )
+                
+                # SIKR tabel + primærnøgle til upsert (dato,type)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS statistik (
+                        dato DATE NOT NULL,
+                        type TEXT NOT NULL,
+                        antal INT DEFAULT 0,
+                        PRIMARY KEY (dato, type) 
+                    )
+                """) 
+                
+                # + statistik: tæller 'direktetid' op
+                cur.execute("""
+                    INSERT INTO statistik (dato, type, antal)
+                    VALUES (%s, 'direktetid', 1)
+                    ON CONFLICT (dato, type) DO UPDATE
+                    SET antal = statistik.antal + 1
+                """, (dato,))
                 conn.commit()
 
     cur.execute("SELECT slot_index, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
@@ -1313,18 +1386,13 @@ def direkte():
 
 @app.route("/statistik")
 def statistik():
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    from io import BytesIO
-    import base64
-
     if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
         return redirect('/login')
 
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # 📊 Top 10 brugere
+    # 📊 Top 10 brugere (inkl. 'direkte', men ekskl. 'service')
     cur.execute("""
         SELECT brugernavn, COUNT(*) AS antal
         FROM bookinger
@@ -1369,9 +1437,69 @@ def statistik():
     """)
     booking_log = cur.fetchall()
 
+    # ➕ DIREKTETID (statistik -> fallback: bookinger)
+    cur.execute("""
+        SELECT dato, antal
+        FROM statistik
+        WHERE type='direktetid'
+        ORDER BY dato DESC
+        LIMIT 30
+    """)
+    direkte_pr_dag = cur.fetchall()
+
+    if not direkte_pr_dag:
+        # Fallback: count direkte-bookinger pr. dag
+        cur.execute("""
+            SELECT dato_rigtig::date AS dato, COUNT(*) AS antal
+            FROM bookinger
+            WHERE brugernavn='direkte'
+            GROUP BY dato_rigtig::date
+            ORDER BY dato DESC
+            LIMIT 30
+        """)
+        direkte_pr_dag = cur.fetchall()
+
+    # Total direktetid
+    cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
+    total_direkte = cur.fetchone()[0] or 0
+    if total_direkte == 0:
+        cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn='direkte'")
+        total_direkte = cur.fetchone()[0] or 0
+
+    # Alle bookinger pr. dag (til andel/benchmark)
+    cur.execute("""
+        SELECT dato_rigtig::date AS dato, COUNT(*) AS antal
+        FROM bookinger
+        GROUP BY dato_rigtig::date
+        ORDER BY dato DESC
+        LIMIT 30
+    """)
+    alle_pr_dag = cur.fetchall()
+
     conn.close()
 
-    # 📈 Diagram
+    from datetime import date, datetime as dt
+
+    booking_log = [
+        (
+            lid, bnavn, handling,
+            d.strftime('%d-%m-%Y') if isinstance(d, (date, dt)) else (d or ''),
+            slot,
+            ts.strftime('%d-%m-%Y %H:%M:%S') if isinstance(ts, dt) else (ts or '')
+        )
+        for (lid, bnavn, handling, d, slot, ts) in (booking_log or [])
+    ]
+
+    # direkte_pr_dag: [(dato, antal)] -> [["YYYY-MM-DD", antal], ...] til JS
+    direkte_pr_dag = [
+        (
+            (d.strftime('%Y-%m-%d') if isinstance(d, (date, dt)) else str(d)),
+            int(a or 0)
+        )
+        for (d, a) in (direkte_pr_dag or [])
+    ]
+
+    # 📈 Diagram: Top 10 (uforandret)
     df = pd.DataFrame(rows, columns=["Brugernavn", "Bookinger"])
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.bar(df["Brugernavn"], df["Bookinger"], color="skyblue")
@@ -1390,10 +1518,13 @@ def statistik():
     return render_template(
         "statistik.html",
         diagram=image_html,
-        logins=logins,
-        bookinger=seneste_bookinger,
+        logins=logins or [],
+        bookinger=seneste_bookinger or [],
         booking_log=booking_log,
-        tider_dict=tider_dict
+        tider_dict=tider_dict or {},
+        direkte_pr_dag=direkte_pr_dag,
+        total_direkte=total_direkte or 0,
+        alle_pr_dag=alle_pr_dag or []
     )
 
 @app.route("/download_valg")

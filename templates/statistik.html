@@ -7,38 +7,19 @@
   <title>Statistik</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    .statistik-flex {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 30px;
-    }
-    .stat-col {
-      flex: 1;
-      min-width: 300px;
-    }
-    .diagram-container {
-      text-align: center;
-      margin-top: 40px;
-    }
-    canvas {
-      max-width: 600px;
-      margin: 20px auto;
-      display: block;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
-    }
-    th {
-      background-color: rgba(255,255,255,0.1);
-    }
-    button {
-      font-size: 0.9em;
+    .statistik-flex { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px; }
+    .stat-col { flex: 1; min-width: 300px; }
+    .diagram-container { text-align: center; margin-top: 40px; }
+    canvas { max-width: 600px; margin: 20px auto; display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px; border: 1px solid rgba(255,255,255,0.2); }
+    th { background-color: rgba(255,255,255,0.1); }
+    button { font-size: 0.9em; }
+    /* NYT: badge */
+    .badge {
+      display:inline-block; padding:8px 12px; border-radius:12px;
+      background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5);
+      font-weight:600; margin: 8px 0 0 0;
     }
   </style>
 </head>
@@ -61,6 +42,9 @@
   <div class="glassbox" style="max-width: 1000px; margin: 100px auto;">
     <h2>Statistik – Aktivitet & Loginforsøg</h2>
 
+    <!-- badge-linjen: brug default -->
+<div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
+
     <!-- Diagram -->
     <canvas id="bookingChart"></canvas>
 
@@ -68,7 +52,7 @@
       <!-- Bookinger -->
       <div class="stat-col">
         <h3>Bookinger</h3>
-        {% for booking in bookinger %}
+        {% for booking in (bookinger or []) %}
           <p>{{ booking.brugernavn }} har booket {{ booking.dato }} – {{ booking.tid }}</p>
         {% else %}
           <p>Ingen bookinger fundet.</p>
@@ -86,7 +70,7 @@
             <th>Status</th>
             <th>Tidspunkt + Slet</th>
           </tr>
-          {% for log in logins %}
+          {% for log in (logins or []) %}
           <tr {% if log[4] == "Fejl i login" %}style="background-color: #ffcccc;"{% endif %}>
             <td>{{ log[0] }}</td>
             <td>{{ log[1] }}</td>
@@ -106,67 +90,116 @@
         </table>
       </div>
     </div>
-<h3>Ændringslog for bookinger</h3>
-<table>
-  <tr>
-    <th>Bruger</th>
-    <th>Handling</th>
-    <th>Dato</th>
-    <th>Tid</th>
-    <th>Tidspunkt</th>
-    <th>Slet</th>
-  </tr>
-  {% for log in booking_log %}
-  <tr>
-    <td>{{ log[1] }}</td>
-    <td>{{ log[2] }}</td>
-    <td>{{ log[3].strftime('%d-%m-%Y') }}</td>
-    <td>{{ log[4] }}</td>
-    <td>{{ log[5].strftime('%d-%m-%Y %H:%M:%S') }}</td>
-    <td>
-      <form method="post" action="/slet_bookinglog" style="display:inline;">
-        <input type="hidden" name="log_id" value="{{ log[0] }}">
-        <button type="submit">Slet</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
-</table>  </div>
+
+    <h3>Ændringslog for bookinger</h3>
+    <table>
+      <tr>
+        <th>Bruger</th>
+        <th>Handling</th>
+        <th>Dato</th>
+        <th>Tid</th>
+        <th>Tidspunkt</th>
+        <th>Slet</th>
+      </tr>
+      {% for log in (booking_log or []) %}
+      <tr>
+        <td>{{ log[1] }}</td>
+        <td>{{ log[2] }}</td>
+        <td>{{ log[3] }}</td>
+        <td>{{ log[4] }}</td>
+        <td>{{ log[5] }}</td>
+        <td>
+          <form method="post" action="/slet_bookinglog" style="display:inline;">
+            <input type="hidden" name="log_id" value="{{ log[0] }}">
+            <button type="submit">Slet</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <!-- NYT: Direktetid pr. dag -->
+    <h3 style="margin-top:24px;">Direktetid pr. dag (seneste 30)</h3>
+    <table>
+      <tr><th>Dato</th><th>Direktetid (antal)</th></tr>
+      {% for d,a in (direkte_pr_dag or []) %}
+      <tr>
+        <td>{{ d }}</td>
+        <td>{{ a }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2">Ingen data.</td></tr>
+      {% endfor %}
+    </table>
+
+  </div>
 
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    fetch("/bookinger_json")
-      .then(res => res.json())
-      .then(data => {
-        const grupperet = {};
-        data.forEach(b => {
-          if (!grupperet[b.dato]) grupperet[b.dato] = 0;
-          grupperet[b.dato]++;
-        });
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Byg et sikkert JS-array fra Jinja (uden tojson på date-objekter)
+  const direkteRaw = {{ (direkte_pr_dag or [])|tojson }};
 
-        const labels = Object.keys(grupperet);
-        const antal = Object.values(grupperet);
+  // Map: YYYY-MM-DD -> DD-MM-YYYY for at matche /bookinger_json
+  const direkteMap = {};
+  direkteRaw.forEach(function(pair){
+    const iso = pair[0];           // "YYYY-MM-DD"
+    const n = pair[1];
+    const p = iso.split("-");
+    const ddmm = (p.length === 3) ? `${p[2]}-${p[1]}-${p[0]}` : iso;
+    direkteMap[ddmm] = n;
+  });
 
-        new Chart(document.getElementById("bookingChart"), {
-          type: "bar",
-          data: {
-            labels: labels,
-            datasets: [{
+  fetch("/bookinger_json")
+    .then(res => res.json())
+    .then(data => {
+      const grupperet = {};
+      data.forEach(b => {
+        if (!grupperet[b.dato]) grupperet[b.dato] = 0;
+        grupperet[b.dato]++;
+      });
+
+      const labels = Object.keys(grupperet);
+
+      // Kronologisk sortering af DD-MM-YYYY
+      labels.sort((a, b) => {
+        const [da, ma, ya] = a.split('-').map(Number);
+        const [db, mb, yb] = b.split('-').map(Number);
+        return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+      });
+
+      const antal = labels.map(l => grupperet[l]);
+      const direkteSerie = labels.map(l => (direkteMap[l] || 0));
+
+      new Chart(document.getElementById("bookingChart"), {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
               label: "Antal bookinger pr. dag",
               data: antal,
               backgroundColor: "rgba(54, 162, 235, 0.6)"
-            }]
-          },
-          options: {
-            scales: {
-              x: { ticks: { maxRotation: 90, minRotation: 45 } },
-              y: { beginAtZero: true }
+            },
+            {
+              label: "Direktetid pr. dag",
+              data: direkteSerie,
+              type: "line",
+              borderWidth: 2,
+              tension: 0.2,
+              yAxisID: 'y'
             }
+          ]
+        },
+        options: {
+          scales: {
+            x: { ticks: { maxRotation: 90, minRotation: 45 } },
+            y: { beginAtZero: true }
           }
-        });
+        }
       });
-  </script>
+    });
+</script>
 
   <footer>© Hornsberg Group</footer>
 </body>

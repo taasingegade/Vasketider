@@ -67,6 +67,14 @@
       <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
       <button type="submit">Opret</button>
     </form>
+  {% if request.args.get('direkte_pw') %}
+<div class="admin-note">Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code>
+<br>Brug det på /login med brugernavn <strong>direkte</strong>.</div>
+{% endif %}
+
+<form method="post" action="/admin/reset_direkte" onsubmit="return confirm('Generér nyt direkte-password?');">
+  <button type="submit">Nulstil “direkte”-password</button>
+</form>
   </div>
 
   <footer>© Hornsberg Group</footer>
