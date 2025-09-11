@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, redirect, session, jsonify, Response
 import psycopg2
 from datetime import datetime, timedelta
 from flask_limiter import Limiter
@@ -151,6 +151,16 @@ def set_miele_status(status):
     conn.close()
 
     return norm
+def _current_slot_index(now_dt):
+    """Returnér slot_index (0..3) for nu, baseret på faste tidsrum DK-tid."""
+    h = now_dt.hour
+    # 07–11 = 0, 11–15 = 1, 15–19 = 2, 19–23 = 3
+    if 7 <= h < 11:  return 0
+    if 11 <= h < 15: return 1
+    if 15 <= h < 19: return 2
+    if 19 <= h < 23: return 3
+    return None  # Uden for vasketider → ikke tilladt
+
 
 def uge_for(dato_iso, valgt_uge):
     if valgt_uge and str(valgt_uge).isdigit():
@@ -909,6 +919,71 @@ def book():
         current_app.logger.exception("Kunne ikke sende notifikationer")
 
     return redirect(f"/index?uge={uge_for_redirect}&besked=Booking+bekræftet")
+
+@app.get("/api/booking_allowed_now")
+def api_booking_allowed_now():
+    """
+    Sikkert endpoint til HA:
+      GET /api/booking_allowed_now
+      Header: X-Webhook-Secret: <VASKETID_WEBHOOK_SECRET>
+    Svar: { allowed: bool, slot_index: int|null, slot_text: str|"", booked_by: str|"" }
+    """
+    secret = request.headers.get("X-HA-Token", "")
+    if secret != HA_WEBHOOK_SECRET:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    tz = timezone("Europe/Copenhagen")
+    now = datetime.now(tz)
+    dato_iso = now.strftime("%Y-%m-%d")
+    slot_idx = _current_slot_index(now)
+
+    if slot_idx is None:
+        return jsonify({
+            "allowed": False,
+            "slot_index": None,
+            "slot_text": "",
+            "booked_by": "",
+            "reason": "Uden for vasketidsvinduer"
+        }), 200
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Hent pæn tekst (f.eks. "07–11") hvis sat i vasketider
+        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_idx,))
+        row = cur.fetchone()
+        slot_text = row[0] if row else f"Slot {slot_idx}"
+
+        # Er der en booking for i dag i det slot?
+        cur.execute("""
+            SELECT brugernavn FROM bookinger
+            WHERE dato_rigtig=%s AND slot_index=%s
+            LIMIT 1
+        """, (dato_iso, slot_idx))
+        r = cur.fetchone()
+        conn.close()
+
+        if r and r[0]:
+            return jsonify({
+                "allowed": True,
+                "slot_index": slot_idx,
+                "slot_text": slot_text,
+                "booked_by": r[0]
+            }), 200
+        else:
+            return jsonify({
+                "allowed": False,
+                "slot_index": slot_idx,
+                "slot_text": slot_text,
+                "booked_by": "",
+                "reason": "Ingen booking i aktivt tidsrum"
+            }), 200
+    except Exception as e:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return jsonify({"error": "DB-fejl", "detail": str(e)}), 500
 
 # Bruger
 
