@@ -34,6 +34,8 @@ app.config.setdefault('SESSION_COOKIE_SECURE', True)  # Render kører HTTPS
 
 HA_WEBHOOK_SECRET = os.environ.get("VASKETID_WEBHOOK_SECRET", "")
 
+SLOT_TO_START = {0: 7, 1: 11, 2: 15, 3: 19}
+
 UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
