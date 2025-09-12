@@ -161,6 +161,15 @@ def _current_slot_index(now_dt):
     if 19 <= h < 23: return 3
     return None  # Uden for vasketider → ikke tilladt
 
+def slot_start_end(dato_iso: str, slot_index: int):
+    """Returnér (start_dt, end_dt) i DK-tid for dato + slot (4 timer)."""
+    start_hour = SLOT_TO_START.get(int(slot_index))
+    if start_hour is None:
+        return None, None
+    start_naive = datetime.strptime(dato_iso, "%Y-%m-%d").replace(hour=start_hour, minute=0, second=0, microsecond=0)
+    start_dt = CPH.localize(start_naive)
+    end_dt = start_dt + timedelta(hours=4)
+    return start_dt, end_dt
 
 def uge_for(dato_iso, valgt_uge):
     if valgt_uge and str(valgt_uge).isdigit():
@@ -844,6 +853,43 @@ def book():
         )
         if cur.fetchone()[0] >= 2:
             return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
+
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        # ANTI “SKUB-FREM EFTER ANNULLERING” (back-to-back tilladt)
+        # 1) Hent brugerens tilbageværende (ikke-annullerede) bookinger for datoen
+        cur.execute("""
+            SELECT slot_index
+            FROM bookinger
+            WHERE brugernavn=%s AND dato_rigtig=%s
+            ORDER BY slot_index
+        """, (brugernavn, dato_iso))
+        eksisterende_slots = [int(r[0]) for r in cur.fetchall()]
+
+        # 2) Har brugeren annulleret noget for denne dato? (log føres i /slet)
+        cur.execute("""
+            SELECT 1
+            FROM booking_log
+            WHERE brugernavn=%s
+              AND handling='annulleret'
+              AND dato=%s
+            ORDER BY tidspunkt DESC
+            LIMIT 1
+        """, (brugernavn, dato_iso))
+        har_annulleret_for_dato = cur.fetchone() is not None
+
+        if har_annulleret_for_dato and eksisterende_slots:
+            # Find slut for seneste tilbageværende booking samme dag
+            _, seneste_slut = slot_start_end(dato_iso, max(eksisterende_slots))
+            # Start for den nye ønskede booking
+            ny_start, _ = slot_start_end(dato_iso, int(slot_index))
+
+            # Bloker hvis den nye starter efter ELLER lige efter (back-to-back) den sidste
+            if ny_start >= seneste_slut:
+                return redirect(
+                    f"/index?uge={uge_for_redirect}"
+                    f"&fejl=Du+kan+ikke+rykke+annulleret+tid+til+senere+for+at+forl%C3%A6nge+dagen."
+                    f"+Efter+annullering+m%C3%A5+du+kun+booke+samme+eller+tidligere+slot+den+dag."
+                )
 
         # ÉN insert – undgå dobbelt-INSERT; lad DB håndhæve unikhed
         cur.execute(
