@@ -969,12 +969,6 @@ def book():
 
 @app.get("/api/booking_allowed_now")
 def api_booking_allowed_now():
-    """
-    Sikkert endpoint til HA:
-      GET /api/booking_allowed_now
-      Header: X-Webhook-Secret: <VASKETID_WEBHOOK_SECRET>
-    Svar: { allowed: bool, slot_index: int|null, slot_text: str|"", booked_by: str|"" }
-    """
     secret = request.headers.get("X-HA-Token", "")
     if secret != HA_WEBHOOK_SECRET:
         return jsonify({"error": "Unauthorized"}), 401
@@ -996,15 +990,18 @@ def api_booking_allowed_now():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Hent pæn tekst (f.eks. "07–11") hvis sat i vasketider
-        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_idx,))
+
+        # vasketider.slot_index er INT hos dig → denne er fin:
+        cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_idx,))
         row = cur.fetchone()
         slot_text = row[0] if row else f"Slot {slot_idx}"
 
-        # Er der en booking for i dag i det slot?
+        # bookinger.slot_index er TEXT hos dig → CAST til INT i sammenligningen:
         cur.execute("""
-            SELECT brugernavn FROM bookinger
-            WHERE dato_rigtig=%s AND slot_index=%s
+            SELECT brugernavn
+            FROM bookinger
+            WHERE dato_rigtig = %s
+              AND slot_index::int = %s
             LIMIT 1
         """, (dato_iso, slot_idx))
         r = cur.fetchone()
@@ -1025,13 +1022,14 @@ def api_booking_allowed_now():
                 "booked_by": "",
                 "reason": "Ingen booking i aktivt tidsrum"
             }), 200
+
     except Exception as e:
         try:
             conn.close()
         except Exception:
             pass
+        # TIP: log evt. e til console
         return jsonify({"error": "DB-fejl", "detail": str(e)}), 500
-
 # Bruger
 
 @app.route("/slet", methods=["POST"])
