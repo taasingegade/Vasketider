@@ -857,41 +857,40 @@ def book():
             return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        # ANTI “SKUB-FREM EFTER ANNULLERING” (back-to-back tilladt)
-        # 1) Hent brugerens tilbageværende (ikke-annullerede) bookinger for datoen
-        cur.execute("""
-            SELECT slot_index
-            FROM bookinger
-            WHERE brugernavn=%s AND dato_rigtig=%s
-            ORDER BY slot_index
-        """, (brugernavn, dato_iso))
-        eksisterende_slots = [int(r[0]) for r in cur.fetchall()]
+        # ANTI “SKUB-FREM EFTER ANNULLERING” – KUN GÆLDENDE PÅ SELVE DAGEN
+        today_cph = datetime.now(CPH).strftime('%Y-%m-%d')
+        if dato_iso == today_cph:
+            # 1) Hent brugerens tilbageværende (ikke-annullerede) bookinger for datoen
+            cur.execute("""
+                SELECT slot_index
+                FROM bookinger
+                WHERE brugernavn=%s AND dato_rigtig=%s
+                ORDER BY slot_index
+            """, (brugernavn, dato_iso))
+            eksisterende_slots = [int(r[0]) for r in cur.fetchall()]
 
-        # 2) Har brugeren annulleret noget for denne dato? (log føres i /slet)
-        cur.execute("""
-            SELECT 1
-            FROM booking_log
-            WHERE brugernavn=%s
-              AND handling='annulleret'
-              AND dato=%s
-            ORDER BY tidspunkt DESC
-            LIMIT 1
-        """, (brugernavn, dato_iso))
-        har_annulleret_for_dato = cur.fetchone() is not None
+            # 2) Har brugeren annulleret noget for denne dato? (log føres i /slet)
+            cur.execute("""
+                SELECT 1
+                FROM booking_log
+                WHERE brugernavn=%s
+                  AND handling='annulleret'
+                  AND dato=%s
+                ORDER BY tidspunkt DESC
+                LIMIT 1
+            """, (brugernavn, dato_iso))
+            har_annulleret_for_dato = cur.fetchone() is not None
 
-        if har_annulleret_for_dato and eksisterende_slots:
-            # Find slut for seneste tilbageværende booking samme dag
-            _, seneste_slut = slot_start_end(dato_iso, max(eksisterende_slots))
-            # Start for den nye ønskede booking
-            ny_start, _ = slot_start_end(dato_iso, int(slot_index))
+            if har_annulleret_for_dato and eksisterende_slots:
+                _, seneste_slut = slot_start_end(dato_iso, max(eksisterende_slots))
+                ny_start, _ = slot_start_end(dato_iso, int(slot_index))
 
-            # Bloker hvis den nye starter efter ELLER lige efter (back-to-back) den sidste
-            if ny_start >= seneste_slut:
-                return redirect(
-                    f"/index?uge={uge_for_redirect}"
-                    f"&fejl=Du+kan+ikke+rykke+annulleret+tid+til+senere+for+at+forl%C3%A6nge+dagen."
-                    f"+Efter+annullering+m%C3%A5+du+kun+booke+samme+eller+tidligere+slot+den+dag."
-                )
+                if ny_start >= seneste_slut:
+                    return redirect(
+                        f"/index?uge={uge_for_redirect}"
+                        f"&fejl=Du+kan+ikke+rykke+annulleret+tid+til+senere+for+at+forl%C3%A6nge+dagen."
+                        f"+Efter+annullering+m%C3%A5+du+kun+booke+samme+eller+tidligere+slot+den+dag."
+                    )
 
         # ÉN insert – undgå dobbelt-INSERT; lad DB håndhæve unikhed
         cur.execute(
