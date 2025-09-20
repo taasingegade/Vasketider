@@ -431,6 +431,40 @@ def ha_webhook():
         conn.commit()
         conn.close()
 
+        # ------------------- NYT: log "kører"-aktivitet i historik -------------------
+        try:
+            from pytz import timezone
+            CPH_TZ = timezone("Europe/Copenhagen")
+            opdt = opdateret
+            if getattr(opdt, "tzinfo", None) is None:
+                opdt = CPH_TZ.localize(opdt)
+
+            # minimalt og konservativt "kører"-sæt (udvid evt. hvis nødvendigt)
+            KOERENDE = {"I brug", "kørende", "vask", "hovedvask"}
+
+            if norm_status in KOERENDE:
+                conn2 = get_db_connection()
+                cur2 = conn2.cursor()
+                cur2.execute("""
+                    CREATE TABLE IF NOT EXISTS miele_activity (
+                        id SERIAL PRIMARY KEY,
+                        ts TIMESTAMP NOT NULL,
+                        status TEXT NOT NULL
+                    )
+                """)
+                # (valgfrit) index – gør range-queries hurtige
+                cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
+                cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdt, norm_status))
+                conn2.commit()
+                conn2.close()
+        except Exception:
+            # vi må ikke vælte webhook'en pga. historik – fail-silent
+            try:
+                conn2.close()
+            except Exception:
+                pass
+        # ---------------------------------------------------------------------------
+        
         print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret})")
         return jsonify({
             "status": "ok",
