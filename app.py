@@ -1000,7 +1000,7 @@ def book():
             db_exec(cur, """
                 SELECT 1 FROM booking_log
                 WHERE brugernavn=%s AND handling='booket'
-                  AND dato=%s AND slot_index=%s
+                  AND dato=%s AND slot_index::int = %s
                 LIMIT 1
             """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_booket")
             havde_sidste_uge = cur.fetchone() is not None
@@ -1017,7 +1017,7 @@ def book():
                         SELECT tidspunkt
                         FROM booking_log
                         WHERE brugernavn=%s AND handling='annulleret'
-                          AND dato=%s AND slot_index=%s
+                          AND dato=%s AND slot_index::int = %s
                         ORDER BY tidspunkt DESC
                         LIMIT 1
                     """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_annulleret")
