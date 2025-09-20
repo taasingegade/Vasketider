@@ -56,6 +56,33 @@ limiter.init_app(app)
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
+# --- DB-init: sikr historiktabel til Miele-aktivitet ---
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS miele_activity (
+                id SERIAL PRIMARY KEY,
+                ts TIMESTAMP NOT NULL,
+                status TEXT NOT NULL
+            );
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
+        conn.commit()
+        conn.close()
+        print("✅ DB-init: miele_activity klar")
+    except Exception as e:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        print("⚠️ DB-init fejl (miele_activity):", e)
+
+# Kør init én gang ved opstart
+init_db()
+# --- /DB-init ---
+
 def tilladt_fil(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
