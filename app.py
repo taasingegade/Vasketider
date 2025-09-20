@@ -847,6 +847,9 @@ def bookinger_json():
 
 @app.route("/book", methods=["POST"])
 def book():
+    from pytz import timezone as _tz                 # ← NYT
+    CPH = _tz("Europe/Copenhagen")                   # ← NYT
+    
     brugernavn = session.get('brugernavn')
     dato = request.form.get("dato")
     slot_raw = request.form.get("tid")      # stadig "tid" i formen
@@ -928,6 +931,76 @@ def book():
                         f"+Efter+annullering+m%C3%A5+du+kun+booke+samme+eller+tidligere+slot+den+dag."
                     )
 
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        # NYT: NO-SHOW MED AKTIVITETSTJEK → BLOKÉR NÆSTE UGE SAMME SLOT
+        # Hvis brugeren havde samme ugedag/slot i sidste uge:
+        #   - IKKE annulleret inden slot-slut
+        #   - OG der var INGEN aktivitet i vinduet
+        # → blokér bookingen i denne uge for samme slot
+        try:
+            target_date = datetime.strptime(dato_iso, "%Y-%m-%d").date()
+            prev_date   = target_date - timedelta(days=7)
+            prev_date_iso = prev_date.strftime("%Y-%m-%d")
+
+            # Havde brugeren booket sidste uge samme dato/slot?
+            cur.execute("""
+                SELECT 1 FROM booking_log
+                WHERE brugernavn=%s AND handling='booket'
+                  AND dato=%s AND slot_index=%s
+                LIMIT 1
+            """, (brugernavn, prev_date_iso, slot_index))
+            havde_sidste_uge = cur.fetchone() is not None
+
+            if havde_sidste_uge:
+                # Slot-vinduet sidste uge (lokal DK-tid)
+                start_hour = SLOT_TO_START.get(int(slot_index))
+                if start_hour is not None:
+                    prev_start_dt = CPH.localize(datetime.strptime(prev_date_iso, "%Y-%m-%d").replace(
+                        hour=start_hour, minute=0, second=0, microsecond=0))
+                    prev_end_dt = prev_start_dt + timedelta(hours=4)
+
+                    # Blev der annulleret i tide?
+                    cur.execute("""
+                        SELECT tidspunkt
+                        FROM booking_log
+                        WHERE brugernavn=%s AND handling='annulleret'
+                          AND dato=%s AND slot_index=%s
+                        ORDER BY tidspunkt DESC
+                        LIMIT 1
+                    """, (brugernavn, prev_date_iso, slot_index))
+                    row = cur.fetchone()
+                    ann_ts = row[0] if row else None
+                    # normaliser evt. naive timestamps til DK
+                    if ann_ts and getattr(ann_ts, "tzinfo", None) is None:
+                        ann_ts = CPH.localize(ann_ts)
+
+                    annulleret_i_tide = (ann_ts is not None and ann_ts < prev_end_dt)
+
+                    # Var der aktivitet i vinduet?
+                    cur.execute("""
+                        SELECT 1 FROM miele_activity
+                        WHERE ts >= %s AND ts < %s
+                        LIMIT 1
+                    """, (prev_start_dt, prev_end_dt))
+                    aktivitet_fundet = cur.fetchone() is not None
+
+                    # No-show hvis: ikke annulleret i tide og ingen aktivitet
+                    if (not annulleret_i_tide) and (not aktivitet_fundet):
+                        # (Valgfrit) hent pæn tids-tekst til beskeden
+                        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,))
+                        r_txt = cur.fetchone()
+                        nice_slot = (r_txt[0] if r_txt else f"slot {slot_index}")
+
+                        return redirect(
+                            f"/index?uge={uge_for_redirect}"
+                            f"&fejl=Din+tid+i+sidste+uge+({prev_date.strftime('%d-%m-%Y')}+{nice_slot})+blev+hverken+brugt+eller+aflyst."
+                            f"+Derfor+kan+du+ikke+booke+samme+tid+i+denne+uge."
+                        )
+        except Exception:
+            # Fail-open: vi blokerer aldrig ved fejl i tjekket
+            pass
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        
         # ÉN insert – undgå dobbelt-INSERT; lad DB håndhæve unikhed
         cur.execute(
             """
