@@ -1666,21 +1666,88 @@ def statistik():
             antal INT DEFAULT 0,
             PRIMARY KEY (dato, type)
         )
-    """)  
+    """)
     conn.commit()
 
-    # 📊 Top 10 brugere (inkl. 'direkte', men ekskl. 'service')
+    # ====== KPI'er til vindue 1 ======
+    # Aktive bookinger (fra i dag og 14 dage frem)
     cur.execute("""
-        SELECT brugernavn, COUNT(*) AS antal
+        SELECT COUNT(*)
         FROM bookinger
-        WHERE brugernavn != 'service'
-        GROUP BY brugernavn
-        ORDER BY antal DESC
-        LIMIT 10
+        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
     """)
-    rows = cur.fetchall()
+    aktive_14 = cur.fetchone()[0] or 0
 
-    # 🛡️ Loginforsøg
+    # Unikke brugere i samme periode (ekskl. 'service')
+    cur.execute("""
+        SELECT COUNT(DISTINCT brugernavn)
+        FROM bookinger
+        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+          AND brugernavn <> 'service'
+    """)
+    unikke_brugere = cur.fetchone()[0] or 0
+
+    # Direkte-bookinger total (historik)
+    cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
+    total_direkte = cur.fetchone()[0] or 0
+    if total_direkte == 0:
+        cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn='direkte'")
+        total_direkte = cur.fetchone()[0] or 0
+
+    # Service-blokeringer i samme 14-dages horisont (slots reserveret som 'service')
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM bookinger
+        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+          AND brugernavn = 'service'
+    """)
+    service_blok = cur.fetchone()[0] or 0
+
+    kpi = {
+        'aktive_14': aktive_14,
+        'unikke_brugere': unikke_brugere,
+        'total_direkte': total_direkte,
+        'service_blok': service_blok
+    }
+
+    # ====== Fejl & blokeringer til vindue 2 ======
+    # Vi antager, at du logger disse som booking_log.handling med værdier:
+    # 'fejl:max2', 'fejl:seriebooking', 'fejl:blokering_manglende_vask'
+    def _count_handling(kode):
+        cur.execute("SELECT COUNT(*) FROM booking_log WHERE handling = %s", (kode,))
+        return cur.fetchone()[0] or 0
+
+    fejl_stats = {
+        'for_mange': _count_handling('fejl:max2'),
+        'serie': _count_handling('fejl:seriebooking'),
+        'ude_uden_afbud': _count_handling('fejl:blokering_manglende_vask'),
+    }
+
+    # ====== Systemstatus + loginforsøg (vindue 4) ======
+    # Seneste Miele-status
+    cur.execute("""
+        SELECT status, remaining_time, opdateret
+        FROM miele_status
+        ORDER BY opdateret DESC
+        LIMIT 1
+    """)
+    row = cur.fetchone()
+    if row:
+        miele_status = row[0]
+        miele_opdateret = row[2].strftime('%Y-%m-%d %H:%M:%S') if row[2] else '—'
+    else:
+        miele_status, miele_opdateret = 'Ukendt', '—'
+
+    # Antal status-logs (brug miele_activity hvis du har den, ellers fald tilbage)
+    try:
+        cur.execute("SELECT COUNT(*) FROM miele_activity")
+        miele_logs = cur.fetchone()[0] or 0
+    except Exception:
+        # fallback: antal rækker i miele_status
+        cur.execute("SELECT COUNT(*) FROM miele_status")
+        miele_logs = cur.fetchone()[0] or 0
+
+    # Loginforsøg (seneste 100)
     cur.execute("""
         SELECT brugernavn, ip, enhed, tidspunkt, status, id
         FROM login_log
@@ -1689,23 +1756,7 @@ def statistik():
     """)
     logins = cur.fetchall()
 
-    # 🧾 Seneste bookinger (vis tekst fra slot_index)
-    cur.execute("SELECT brugernavn, dato_rigtig, slot_index FROM bookinger ORDER BY dato_rigtig DESC LIMIT 20")
-    alle = cur.fetchall()
-
-    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
-    tider_dict = dict(cur.fetchall())
-
-    seneste_bookinger = [
-        {
-            "brugernavn": row[0],
-            "dato": row[1].strftime('%d-%m-%Y'),
-            "tid": tider_dict.get(row[2], f"Slot {row[2]}")
-        }
-        for row in alle
-    ]
-
-    # 🔁 Ændringslog (booking_log)
+    # ====== Ændringsbookninger (vindue 3) ======
     cur.execute("""
         SELECT id, brugernavn, handling, dato, slot_index, tidspunkt
         FROM booking_log
@@ -1714,7 +1765,7 @@ def statistik():
     """)
     booking_log = cur.fetchall()
 
-    # ➕ DIREKTETID (statistik -> fallback: bookinger)
+    # ====== Direktetid pr. dag (seneste 30 dage) tl grafen og tabel ======
     cur.execute("""
         SELECT dato, antal
         FROM statistik
@@ -1723,9 +1774,7 @@ def statistik():
         LIMIT 30
     """)
     direkte_pr_dag = cur.fetchall()
-
     if not direkte_pr_dag:
-        # Fallback: count direkte-bookinger pr. dag
         cur.execute("""
             SELECT dato_rigtig::date AS dato, COUNT(*) AS antal
             FROM bookinger
@@ -1736,27 +1785,10 @@ def statistik():
         """)
         direkte_pr_dag = cur.fetchall()
 
-    # Total direktetid
-    cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
-    total_direkte = cur.fetchone()[0] or 0
-    if total_direkte == 0:
-        cur.execute("SELECT COUNT(*) FROM bookinger WHERE brugernavn='direkte'")
-        total_direkte = cur.fetchone()[0] or 0
-
-    # Alle bookinger pr. dag (til andel/benchmark)
-    cur.execute("""
-        SELECT dato_rigtig::date AS dato, COUNT(*) AS antal
-        FROM bookinger
-        GROUP BY dato_rigtig::date
-        ORDER BY dato DESC
-        LIMIT 30
-    """)
-    alle_pr_dag = cur.fetchall()
-
-    conn.close()
-
+    # ====== Omformater data til templates ======
     from datetime import date, datetime as dt
 
+    # booking_log → strenge til tabellen
     booking_log = [
         (
             lid, bnavn, handling,
@@ -1767,7 +1799,7 @@ def statistik():
         for (lid, bnavn, handling, d, slot, ts) in (booking_log or [])
     ]
 
-    # direkte_pr_dag: [(dato, antal)] -> [["YYYY-MM-DD", antal], ...] til JS
+    # direkte_pr_dag → [["YYYY-MM-DD", antal], ...] (bruges af Chart.js og tabel)
     direkte_pr_dag = [
         (
             (d.strftime('%Y-%m-%d') if isinstance(d, (date, dt)) else str(d)),
@@ -1776,32 +1808,20 @@ def statistik():
         for (d, a) in (direkte_pr_dag or [])
     ]
 
-    # 📈 Diagram: Top 10 (uforandret)
-    df = pd.DataFrame(rows, columns=["Brugernavn", "Bookinger"])
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(df["Brugernavn"], df["Bookinger"], color="skyblue")
-    ax.set_title("Top 10 brugere med flest bookinger")
-    ax.set_xlabel("Brugernavn")
-    ax.set_ylabel("Antal bookinger")
-    plt.xticks(rotation=45)
-    buf = BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
-    buf.seek(0)
-    image_base64 = base64.b64encode(buf.read()).decode("utf-8")
-    buf.close()
-    image_html = f'<img src="data:image/png;base64,{image_base64}" alt="Statistikdiagram">'
+    conn.close()
 
+    # Render siden – ingen Python-genereret top10-graf længere
     return render_template(
         "statistik.html",
-        diagram=image_html,
+        kpi=kpi,
+        fejl_stats=fejl_stats,
+        miele_status=miele_status,
+        miele_opdateret=miele_opdateret,
+        miele_logs=miele_logs,
         logins=logins or [],
-        bookinger=seneste_bookinger or [],
         booking_log=booking_log,
-        tider_dict=tider_dict or {},
         direkte_pr_dag=direkte_pr_dag,
-        total_direkte=total_direkte or 0,
-        alle_pr_dag=alle_pr_dag or []
+        total_direkte=total_direkte or 0
     )
 
 @app.route("/download_valg")
