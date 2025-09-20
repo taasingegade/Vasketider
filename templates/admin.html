@@ -5,115 +5,177 @@
   <meta charset="UTF-8">
   <title>Adminpanel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .window {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 14px;
+      padding: 18px;
+      backdrop-filter: blur(6px);
+    }
+    .window h3 {
+      margin-top: 0;
+      font-size: 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    table { width:100%; border-collapse: collapse; font-size:14px; }
+    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .muted { opacity:.8; font-size:12px; }
+    /* Skjul hele admin på mobil */
+    .mobile-block {
+      display: none; position: fixed; inset:0; background: rgba(0,0,0,0.85);
+      color:#fff; z-index:2000; align-items:center; justify-content:center; text-align:center; padding:24px;
+    }
+    @media (max-width: 1000px) {
+      .toppanel, .main { display: none !important; }
+      .mobile-block { display: flex; }
+      body { overflow: hidden; }
+    }
+  </style>
 </head>
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
-  <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-
-    <form method="get" action="/vis_brugere">
-      <button class="toppanel-knap">Bruger</button>
-    </form>
-
-    <form method="get" action="/dokumenter">
-      <button class="toppanel-knap">Dokumenter</button>
-    </form>
-
-    <form method="get" action="/kommentar">
-      <button class="toppanel-knap">Kommentar</button>
-    </form>
-
-    <form method="get" action="/admin/skiftkode">
-      <button class="toppanel-knap">Skift kode</button>
-    </form>
-
-    <form method="get" action="/statistik">
-      <button class="toppanel-knap">Statistik</button>
-    </form>
-    
-    <form method="post" action="/iot_toggle">
-      <input type="hidden" name="iot_vaskemaskine" value="ja">
-      <button class="toppanel-knap">Tænd IoT</button>
-    </form>
-
-    <form method="post" action="/iot_toggle">
-      <input type="hidden" name="iot_vaskemaskine" value="nej">
-      <button class="toppanel-knap">Sluk IoT</button>
-    </form>
+  <!-- Mobil overlay -->
+  <div class="mobile-block">
+    <div>
+      <h2>🔐 Admin er kun til desktop</h2>
+      <p>Åbn siden på en større skærm for at administrere systemet.</p>
+      <form method="get" action="/index" style="margin-top:16px;">
+        <button class="toppanel-knap">Til kalender</button>
+      </form>
+    </div>
   </div>
 
-  <div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
+  <!-- Toppanel -->
+  <div class="toppanel">
+    <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
+    <form method="get" action="/vis_brugere"><button class="toppanel-knap">Bruger</button></form>
+    <form method="get" action="/dokumenter"><button class="toppanel-knap">Dokumenter</button></form>
+    <form method="get" action="/kommentar"><button class="toppanel-knap">Kommentar</button></form>
+    <form method="get" action="/admin/skiftkode"><button class="toppanel-knap">Skift kode</button></form>
+    <form method="get" action="/statistik"><button class="toppanel-knap">Statistik</button></form>
+    <form method="get" action="/download_valg"><button class="toppanel-knap">Download PDF</button></form>
+    <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Kalender</button></form>
+  </div>
+
+  <div class="main" style="max-width:1100px;">
     <h2>Adminpanel</h2>
+    <p class="muted">Fire vinduer med hurtige handlinger, adressevisning, vasketider/service og bookinger/kommentarer. (Skjult på mobil)</p>
 
-<h3>Adressevisning i login</h3>
-<form method="post" action="/opdater_dropdownvisning">
-  {% for adr in adresser %}
-    <label style="display:block; margin-bottom:5px;">
-      <input type="checkbox" name="vis_{{ adr[0] }}" {% if adr[1] %}checked{% endif %}>
-      {{ adr[0] }}
-    </label>
-  {% endfor %}
-  <button class="toppanel-knap" type="submit">Opdater</button>
-</form>
+    <div class="grid-4">
+      <!-- VINDUE 1: Hurtige handlinger / IoT -->
+      <div class="window">
+        <h3>⚡ Hurtige handlinger</h3>
+        <div class="row">
+          <form method="post" action="/iot_toggle">
+            <input type="hidden" name="iot_vaskemaskine" value="ja">
+            <button class="toppanel-knap">Tænd IoT</button>
+          </form>
+          <form method="post" action="/iot_toggle">
+            <input type="hidden" name="iot_vaskemaskine" value="nej">
+            <button class="toppanel-knap">Sluk IoT</button>
+          </form>
+        </div>
+        <p class="muted" style="margin-top:8px;">Styr Home Assistant/Miele integration.</p>
+      </div>
 
-    <!-- ✅ Redigerbare vasketider -->
-    <h3>Rediger vasketider</h3>
-    <form method="post" action="/admin/opdater_tider">
-      <table>
-        <tr>
-          <th>Slot</th>
-          <th>Vist tekst</th>
-        </tr>
-        {% for i in range(4) %}
-        <tr>
-          <td>Slot {{ i }}</td>
-          <td><input type="text" name="slot_{{ i }}" value="{{ tider[i] }}"></td>
-        </tr>
-        {% endfor %}
-      </table>
-      <button type="submit" class="toppanel-knap">Gem ændringer</button>
-    </form>
-
-    <hr>
-
-    <h3>Book tid som “service”</h3>
-    <form method="post" action="/admin/book_service">
-      Dato: <input type="date" name="dato" required>
-      Tid:
-      <select name="tid" required>
-        <option value="07–11">07–11</option>
-        <option value="11–15">11–15</option>
-        <option value="15–19">15–19</option>
-        <option value="19–23">19–23</option>
-      </select>
-      <button class="toppanel-knap" type="submit">Book som service</button>
-    </form>
-
-    <hr>
-
-    <h3>Bookinger</h3>
-    {% for booking in bookinger %}
-      <p>
-        {{ booking.dato }} – {{ booking.tid }} ({{ booking.brugernavn }})
-        <form method="post" action="/admin/delete_booking" style="display: inline;">
-          <input type="hidden" name="booking_id" value="{{ booking.id }}">
-          <button class="toppanel-knap">Slet</button>
+      <!-- VINDUE 2: Adressevisning i login -->
+      <div class="window">
+        <h3>🏷️ Adressevisning i login</h3>
+        <form method="post" action="/opdater_dropdownvisning">
+          {% for adr in adresser %}
+            <label style="display:block; margin-bottom:6px;">
+              <input type="checkbox" name="vis_{{ adr[0] }}" {% if adr[1] %}checked{% endif %}> {{ adr[0] }}
+            </label>
+          {% endfor %}
+          <button class="toppanel-knap" type="submit">Opdater</button>
         </form>
-      </p>
-    {% endfor %}
+      </div>
 
-    <h3>Kommentarer</h3>
-    {% for kom in kommentar %}
-      <p>
-        <strong>{{ kom.brugernavn }}</strong>: {{ kom.tekst }}
-        <form method="post" action="/admin/delete_comment" style="display:inline;">
-          <input type="hidden" name="kommentar_id" value="{{ kom.id }}">
-          <button class="toppanel-knap">Slet</button>
+      <!-- VINDUE 3: Vasketider + servicebooking -->
+      <div class="window">
+        <h3>🗓️ Vasketider & Service</h3>
+
+        <h4 style="margin:6px 0;">Rediger vasketider</h4>
+        <form method="post" action="/admin/opdater_tider">
+          <table>
+            <tr><th>Slot</th><th>Vist tekst</th></tr>
+            {% for i in range(4) %}
+            <tr>
+              <td>Slot {{ i }}</td>
+              <td><input type="text" name="slot_{{ i }}" value="{{ tider[i] }}"></td>
+            </tr>
+            {% endfor %}
+          </table>
+          <button type="submit" class="toppanel-knap" style="margin-top:8px;">Gem ændringer</button>
         </form>
-      </p>
-    {% endfor %}
+
+        <h4 style="margin:12px 0 6px;">Book “service”</h4>
+        <form method="post" action="/admin/book_service" class="row">
+          <input type="date" name="dato" required>
+          <select name="tid" required>
+            <option value="07–11">07–11</option>
+            <option value="11–15">11–15</option>
+            <option value="15–19">15–19</option>
+            <option value="19–23">19–23</option>
+          </select>
+          <button class="toppanel-knap" type="submit">Book service</button>
+        </form>
+      </div>
+
+      <!-- VINDUE 4: Bookinger & Kommentarer -->
+      <div class="window">
+        <h3>📒 Bookinger & Kommentarer</h3>
+
+        <h4 style="margin:6px 0;">Aktive bookinger</h4>
+        <table>
+          <tr><th>Dato</th><th>Slot</th><th>Bruger</th><th>Slet</th></tr>
+          {% for booking in bookinger %}
+          <tr>
+            <td>{{ booking.dato }}</td>
+            <td>{{ booking.tid }}</td>
+            <td>{{ booking.brugernavn }}</td>
+            <td>
+              <form method="post" action="/admin/delete_booking" style="display:inline;" onsubmit="return confirm('Slette booking #{{ booking.id }}?');">
+                <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                <button class="toppanel-knap">Slet</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">Ingen bookinger.</td></tr>
+          {% endfor %}
+        </table>
+
+        <h4 style="margin:12px 0 6px;">Kommentarer</h4>
+        <table>
+          <tr><th>Bruger</th><th>Kommentar</th><th>Slet</th></tr>
+          {% for kom in kommentar %}
+          <tr>
+            <td>{{ kom.brugernavn }}</td>
+            <td>{{ kom.tekst }}</td>
+            <td>
+              <form method="post" action="/admin/delete_comment" style="display:inline;">
+                <input type="hidden" name="kommentar_id" value="{{ kom.id }}">
+                <button class="toppanel-knap">Slet</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="muted">Ingen kommentarer.</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
   </div>
 
   <footer>© Hornsberg Group</footer>
