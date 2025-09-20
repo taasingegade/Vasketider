@@ -10,18 +10,33 @@
     <div class="main glassbox">
         <h2>Vælg statistik at hente som PDF</h2>
         <form method="post" action="/download_statistik_pdf" class="glassbox" style="max-width:600px">
-  <h3>Download logninger som PDF</h3>
+    <!-- Toppanel -->
+  <div class="toppanel">
+    <form method="post" action="/logout">
+      <button class="toppanel-knap">Log ud</button>
+    </form>
+    <form method="get" action="/admin">
+      <button class="toppanel-knap">Tilbage til Admin</button>
+    </form>
+  </div>
 
-  <label><input type="checkbox" name="alle" checked> Alle logtyper (booking + login)</label><br>
-  <label><input type="checkbox" name="booking_log"> Kun booking_log</label><br>
-  <label><input type="checkbox" name="login_log"> Kun login_log</label><br><br>
+  <!-- Indhold -->
+  <div style="margin-top:100px; max-width:800px; margin-left:auto; margin-right:auto;">
+    <form method="post" action="/download_statistik_pdf" class="glassbox" style="max-width:600px">
+      <h3>Download logninger som PDF</h3>
 
-  <strong>Datofilter (valgfrit):</strong><br>
-  Fra: <input type="date" name="fra_dato">
-  Til: <input type="date" name="til_dato"><br><br>
+      <label><input type="checkbox" name="alle" checked> Alle logtyper (booking + login)</label><br>
+      <label><input type="checkbox" name="booking_log"> Kun booking_log</label><br>
+      <label><input type="checkbox" name="login_log"> Kun login_log</label><br><br>
 
-  <button type="submit" class="toppanel-knap">Download PDF</button>
-</form>
-    </div>
+      <strong>Datofilter (valgfrit):</strong><br>
+      Fra: <input type="date" name="fra_dato">
+      Til: <input type="date" name="til_dato"><br><br>
+
+      <button type="submit" class="toppanel-knap">Download PDF</button>
+    </form>
+  </div>
+
+  <footer>© Hornsberg Group</footer>
 </body>
 </html>
