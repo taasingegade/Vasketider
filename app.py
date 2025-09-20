@@ -61,7 +61,7 @@ def init_db():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Historik for Miele-aktivitet
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_activity (
                 id SERIAL PRIMARY KEY,
@@ -71,7 +71,7 @@ def init_db():
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
 
-        # Unik tid pr. dag (kræves for ON CONFLICT)
+        # Unik index til booking (kræves for ON CONFLICT)
         cur.execute("""
             DO $$
             BEGIN
@@ -79,13 +79,11 @@ def init_db():
                 SELECT 1 FROM pg_indexes
                 WHERE schemaname='public' AND indexname='ux_bookinger_dato_slot'
               ) THEN
-                CREATE UNIQUE INDEX ux_bookinger_dato_slot
-                ON bookinger(dato_rigtig, slot_index);
+                CREATE UNIQUE INDEX ux_bookinger_dato_slot ON bookinger(dato_rigtig, slot_index);
               END IF;
             END$$;
         """)
 
-        # Hurtigere sortering på booking-log
         cur.execute("""
             CREATE INDEX IF NOT EXISTS ix_booking_log_time
             ON booking_log(tidspunkt DESC);
