@@ -1851,57 +1851,171 @@ def slet_loginforsøg():
 def download_statistik_pdf():
     from fpdf import FPDF
 
-    top10 = "top10" in request.form
-    antal_login = "antal_login" in request.form
-    seneste_login = "seneste_login" in request.form
+    # Formular-valg (fallback: hent ALT hvis intet er sat)
+    include_login = request.form.get("login_log") == "on"
+    include_booking = request.form.get("booking_log") == "on"
+    include_all = request.form.get("alle") == "on"
+    date_from = request.form.get("fra_dato", "").strip()   # valgfrit, format: YYYY-MM-DD
+    date_to   = request.form.get("til_dato", "").strip()   # valgfrit, format: YYYY-MM-DD
 
+    if include_all or (not include_login and not include_booking):
+        include_login = True
+        include_booking = True
+
+    # Hjælpere
+    def add_header(pdf, title):
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, latin1_sikker_tekst(title), ln=True)
+        pdf.set_font("Arial", "", 10)
+
+    def safe_multiline(pdf, text, h=6):
+        pdf.multi_cell(0, h, latin1_sikker_tekst(str(text)))
+
+    def maybe_new_page(pdf, room=10):
+        # Simpelt “page break” tjek
+        if pdf.get_y() > (pdf.h - 20 - room):
+            pdf.add_page()
+
+    # Byg simpel WHERE for datointerval
+    where_login = []
+    where_booking = []
+    params_login = []
+    params_booking = []
+
+    if date_from:
+        where_login.append("tidspunkt::date >= %s")
+        where_booking.append("tidspunkt::date >= %s")
+        params_login.append(date_from)
+        params_booking.append(date_from)
+    if date_to:
+        where_login.append("tidspunkt::date <= %s")
+        where_booking.append("tidspunkt::date <= %s")
+        params_login.append(date_to)
+        params_booking.append(date_to)
+
+    if where_login:
+        where_login_sql = "WHERE " + " AND ".join(where_login)
+    else:
+        where_login_sql = ""
+    if where_booking:
+        where_booking_sql = "WHERE " + " AND ".join(where_booking)
+    else:
+        where_booking_sql = ""
+
+    # Hent data
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # For statuslinje i toppen
+    genereret = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # PDF setup
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    pdf.set_auto_page_break(auto=False, margin=15)
+    pdf.set_font("Arial", size=10)
 
-    if top10:
-        cur.execute("""
-            SELECT brugernavn, COUNT(*) AS antal
-            FROM bookinger
-            WHERE brugernavn != 'service'
-            GROUP BY brugernavn
-            ORDER BY antal DESC
-            LIMIT 10
-        """)
-        top_rows = cur.fetchall()
-        pdf.cell(0, 10, "Top 10 brugere med flest bookinger:", ln=True)
-        for navn, antal in top_rows:
-            pdf.cell(0, 10, f"{navn}: {antal} bookinger", ln=True)
-        pdf.ln(5)
+    # Titel
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, latin1_sikker_tekst("Vasketider – Logudtræk"), ln=True)
+    pdf.set_font("Arial", "", 10)
+    pdf.cell(0, 8, latin1_sikker_tekst(f"Genereret: {genereret}"), ln=True)
+    if date_from or date_to:
+        pdf.cell(0, 8, latin1_sikker_tekst(f"Filter: {date_from or '—'} til {date_to or '—'}"), ln=True)
+    else:
+        pdf.cell(0, 8, latin1_sikker_tekst("Filter: Alle datoer"), ln=True)
+    pdf.ln(2)
 
-    if antal_login:
-        cur.execute("SELECT COUNT(*) FROM login_log")
-        total = cur.fetchone()[0]
-        pdf.cell(0, 10, f"Totalt antal loginforsøg: {total}", ln=True)
-        pdf.ln(5)
+    # ====== BOOKING_LOG (ændringsbookninger) ======
+    if include_booking:
+        add_header(pdf, "Ændringsbookninger (booking_log)")
+        # Tælling
+        cur.execute(f"SELECT COUNT(*) FROM booking_log {where_booking_sql}", params_booking)
+        total_booking = cur.fetchone()[0] or 0
+        pdf.cell(0, 6, latin1_sikker_tekst(f"Antal poster: {total_booking}"), ln=True)
+        pdf.ln(1)
 
-    if seneste_login:
-        cur.execute("""
-            SELECT brugernavn, ip, enhed, tidspunkt, status
-            FROM login_log
+        # Kolonneoverskrift
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(35, 6, "Tidspunkt", border=0)
+        pdf.cell(25, 6, "Bruger", border=0)
+        pdf.cell(40, 6, "Handling", border=0)
+        pdf.cell(30, 6, "Dato", border=0)
+        pdf.cell(15, 6, "Slot", border=0)
+        pdf.ln(6)
+        pdf.set_font("Arial", "", 10)
+
+        # Strøm igennem alle rækker (DESC for nyeste først)
+        cur.execute(f"""
+            SELECT tidspunkt, brugernavn, handling, dato, slot_index
+            FROM booking_log
+            {where_booking_sql}
             ORDER BY tidspunkt DESC
-            LIMIT 20
-        """)
-        rows = cur.fetchall()
-        pdf.cell(0, 10, "Seneste loginforsøg:", ln=True)
-        for r in rows:
-            tid = r[3].strftime('%d-%m-%Y %H:%M')
-            linje = f"{r[0]} | {r[1]} | {tid} | {r[4]}"
-            pdf.cell(0, 10, latin1_sikker_tekst(linje), ln=True)
+        """, params_booking)
+
+        for (ts, user, handling, d, slot) in cur.fetchall():
+            maybe_new_page(pdf, room=20)
+            ts_str = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ""
+            d_str = d.strftime('%Y-%m-%d') if d else ""
+            # korte celler (hold det kompakt)
+            pdf.cell(35, 6, latin1_sikker_tekst(ts_str))
+            pdf.cell(25, 6, latin1_sikker_tekst(user or ""))
+            pdf.cell(40, 6, latin1_sikker_tekst(handling or ""))
+            pdf.cell(30, 6, latin1_sikker_tekst(d_str))
+            pdf.cell(15, 6, latin1_sikker_tekst(str(slot) if slot is not None else ""))
+            pdf.ln(6)
+
+        pdf.ln(4)
+
+    # ====== LOGIN_LOG ======
+    if include_login:
+        add_header(pdf, "Loginforsøg (login_log)")
+        # Tælling
+        cur.execute(f"SELECT COUNT(*) FROM login_log {where_login_sql}", params_login)
+        total_login = cur.fetchone()[0] or 0
+        pdf.cell(0, 6, latin1_sikker_tekst(f"Antal poster: {total_login}"), ln=True)
+        pdf.ln(1)
+
+        # Kolonneoverskrift
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(35, 6, "Tidspunkt", border=0)
+        pdf.cell(25, 6, "Bruger", border=0)
+        pdf.cell(28, 6, "IP", border=0)
+        pdf.cell(20, 6, "Status", border=0)
+        pdf.cell(0, 6, "Enhed", border=0)
+        pdf.ln(6)
+        pdf.set_font("Arial", "", 10)
+
+        # Strøm igennem alle rækker (DESC)
+        cur.execute(f"""
+            SELECT tidspunkt, brugernavn, ip, status, enhed
+            FROM login_log
+            {where_login_sql}
+            ORDER BY tidspunkt DESC
+        """, params_login)
+
+        for (ts, user, ip, status, ua) in cur.fetchall():
+            maybe_new_page(pdf, room=24)
+            ts_str = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ""
+            # Først faste felter på én linje…
+            pdf.cell(35, 6, latin1_sikker_tekst(ts_str))
+            pdf.cell(25, 6, latin1_sikker_tekst(user or ""))
+            pdf.cell(28, 6, latin1_sikker_tekst(ip or ""))
+            pdf.cell(20, 6, latin1_sikker_tekst(status or ""))
+            pdf.ln(6)
+            # … så User-Agent på egen linje (multiline), indrykket
+            x = pdf.get_x(); y = pdf.get_y()
+            pdf.set_x(35 + 25 + 28 + 20 + 4)  # lille indrykning
+            safe_multiline(pdf, ua or "")
+            # lille luft mellem poster
+            pdf.ln(1)
 
     conn.close()
 
+    # Svar
     response = make_response(pdf.output(dest="S").encode("latin1"))
     response.headers["Content-Type"] = "application/pdf"
-    response.headers["Content-Disposition"] = "attachment; filename=statistik_valgt.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=statistik_logs.pdf"
     return response
 
 @app.route("/slet_bookinglog", methods=["POST"])
