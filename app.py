@@ -1607,7 +1607,7 @@ def direkte():
     fejl = ""
 
     if request.method == 'POST':
-        slot = request.form.get("tid")
+        slot = int(request.form.get("tid"))
 
         # er tiden taget?
         cur.execute(
