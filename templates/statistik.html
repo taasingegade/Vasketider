@@ -2,30 +2,88 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="UTF-8">
-  <title>Statistik</title>
+  <title>Statistik – Vasketider</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    .statistik-flex { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px; }
-    .stat-col { flex: 1; min-width: 300px; }
-    .diagram-container { text-align: center; margin-top: 40px; }
-    canvas { max-width: 600px; margin: 20px auto; display: block; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 6px; border: 1px solid rgba(255,255,255,0.2); }
-    th { background-color: rgba(255,255,255,0.1); }
-    button { font-size: 0.9em; }
-    /* NYT: badge */
+    /* 4 vinduer (2x2) – SKJUL på mobil */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .window {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 14px;
+      padding: 18px;
+      backdrop-filter: blur(6px);
+    }
+    .window h3 {
+      margin-top: 0;
+      font-size: 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .kpi { font-size: 15px; margin: 6px 0; }
+    .val { font-size: 22px; font-weight: bold; }
+    .muted { font-size: 12px; opacity: .75; }
+    table { width:100%; border-collapse: collapse; font-size:14px; }
+    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
     .badge {
       display:inline-block; padding:8px 12px; border-radius:12px;
       background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5);
       font-weight:600; margin: 8px 0 0 0;
     }
+    .kpi-row { display:flex; flex-wrap:wrap; gap:10px; }
+    .kpi-pill {
+      padding:6px 10px; border-radius:10px;
+      border:1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.10);
+      font-size:14px;
+    }
+    .chart-wrap { margin-top: 10px; }
+    canvas { width:100%; max-width: 100%; height: 280px; }
+
+    /* MOBIL-BLOKERING: under 1000px skjules indhold og vises overlay */
+    .mobile-block {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      color: #fff; z-index: 2000;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 24px;
+    }
+    @media (max-width: 1000px) {
+      .toppanel, .main { display: none !important; }
+      .mobile-block { display: flex; }
+      body { overflow: hidden; }
+    }
   </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+  </script>
 </head>
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
-  <!-- Toppanel -->
+  <!-- MOBIL-OVERLAY (skjuler hele siden på mobil) -->
+  <div class="mobile-block">
+    <div>
+      <h2>📈 Statistik er kun til desktop</h2>
+      <p>Åbn siden på en større skærm for at se statistik-vinduerne.</p>
+      <form method="get" action="/index" style="margin-top:16px;">
+        <button class="toppanel-knap">Tilbage til kalender</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Top-panel (desktop) -->
   <div class="toppanel">
     <form method="post" action="/logout">
       <button class="toppanel-knap">Log ud</button>
@@ -36,170 +94,154 @@
     <form method="get" action="/download_valg">
       <button class="toppanel-knap">Download PDF</button>
     </form>
+    <form method="get" action="/index" style="margin-left:auto;">
+      <button class="toppanel-knap">Til kalender</button>
+    </form>
   </div>
 
-  <!-- Indhold -->
-  <div class="glassbox" style="max-width: 1000px; margin: 100px auto;">
-    <h2>Statistik – Aktivitet & Loginforsøg</h2>
+  <div class="main" style="max-width:1100px;">
+    <h2>Statistik – Overblik</h2>
+    <p class="muted">Fire vinduer med nøgletal, fejl og seneste hændelser. (Skjult på mobil)</p>
+    <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
 
-    <!-- badge-linjen: brug default -->
-<div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
-
-    <!-- Diagram -->
-    <canvas id="bookingChart"></canvas>
-
-    <div class="statistik-flex" style="margin-left: 10px;">
-      <!-- Bookinger -->
-      <div class="stat-col">
-        <h3>Bookinger</h3>
-        {% for booking in (bookinger or []) %}
-          <p>{{ booking.brugernavn }} har booket {{ booking.dato }} – {{ booking.tid }}</p>
-        {% else %}
-          <p>Ingen bookinger fundet.</p>
-        {% endfor %}
+    <div class="grid-4">
+      <!-- VINDUE 1: Booking overblik -->
+      <div class="window">
+        <h3>📊 Booking overblik</h3>
+        <div class="kpi-row">
+          <div class="kpi-pill">Aktive bookinger (14 dage): <strong>{{ kpi.aktive_14|default(0) }}</strong></div>
+          <div class="kpi-pill">Unikke brugere: <strong>{{ kpi.unikke_brugere|default(0) }}</strong></div>
+          <div class="kpi-pill">Direkte-bookinger: <strong>{{ kpi.total_direkte|default(0) }}</strong></div>
+          <div class="kpi-pill">Service-blokeringer: <strong>{{ kpi.service_blok|default(0) }}</strong></div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="bookingChart"></canvas>
+        </div>
+        <p class="muted">Søjler: bookinger pr. dag. Linje: direktetid pr. dag.</p>
       </div>
 
-      <!-- Loginforsøg -->
-      <div class="stat-col" style="margin-right: 10px;">
-        <h3>Loginforsøg</h3>
+      <!-- VINDUE 2: Fejl & blokeringer -->
+      <div class="window">
+        <h3>🚫 Fejl & blokeringer</h3>
         <table>
+          <tr><th>Type</th><th>Antal</th></tr>
+          <tr><td>Forsøg på &gt; 2 tider pr. dag</td><td><strong>{{ fejl_stats.for_mange|default(0) }}</strong></td></tr>
+          <tr><td>Seriebooking forsøg (samme dag)</td><td><strong>{{ fejl_stats.serie|default(0) }}</strong></td></tr>
+          <tr><td>No-show spærringer (ugen efter)</td><td><strong>{{ fejl_stats.ude_uden_afbud|default(0) }}</strong></td></tr>
+        </table>
+        <p class="muted">Baseret på booking_log.resultat (fx <code>fejl:max2</code>, <code>fejl:seriebooking</code>, <code>fejl:blokering_manglende_vask</code>).</p>
+      </div>
+
+      <!-- VINDUE 3: Ændringsbookninger (booking_log) -->
+      <div class="window">
+        <h3>📝 Ændringsbookninger (seneste)</h3>
+        <table>
+          <tr><th>Bruger</th><th>Handling</th><th>Dato</th><th>Slot</th><th>Tidspunkt</th><th>Slet</th></tr>
+          {% for log in (booking_log or []) %}
           <tr>
-            <th>Bruger</th>
-            <th>IP</th>
-            <th>Enhed</th>
-            <th>Status</th>
-            <th>Tidspunkt + Slet</th>
-          </tr>
-          {% for log in (logins or []) %}
-          <tr {% if log[4] == "Fejl i login" %}style="background-color: #ffcccc;"{% endif %}>
-            <td>{{ log[0] }}</td>
             <td>{{ log[1] }}</td>
-            <td style="max-width: 300px; word-break: break-word;">{{ log[2] }}</td>
+            <td>{{ log[2] }}</td>
+            <td>{{ log[3] }}</td>
             <td>{{ log[4] }}</td>
+            <td>{{ log[5] }}</td>
             <td>
-              {{ log[3] }}
-              <form method="post" action="/slet_loginforsøg" style="display:inline;">
-                <input type="hidden" name="log_id" value="{{ log[5] }}">
+              <form method="post" action="/slet_bookinglog" style="display:inline;">
+                <input type="hidden" name="log_id" value="{{ log[0] }}">
                 <button type="submit">Slet</button>
               </form>
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="5">Ingen loginforsøg registreret.</td></tr>
+          <tr><td colspan="6" class="muted">Ingen ændringer registreret.</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <!-- VINDUE 4: Systemstatus -->
+      <div class="window">
+        <h3>⚙️ Systemstatus</h3>
+        <div class="kpi">Seneste Miele-status: <span class="val">{{ miele_status|default('Ukendt') }}</span></div>
+        <div class="kpi">Sidste opdatering: <span class="val">{{ miele_opdateret|default('—') }}</span></div>
+        <div class="kpi">Antal status-logs: <span class="val">{{ miele_logs|default(0) }}</span></div>
+
+        <h4 style="margin-top:14px;">Loginforsøg (seneste 100)</h4>
+        <table>
+          <tr><th>Bruger</th><th>IP</th><th>Enhed</th><th>Status</th><th>Tidspunkt + Slet</th></tr>
+          {% for lg in (logins or []) %}
+          <tr {% if lg[4] == "Fejl i login" %}style="background-color: rgba(220,53,69,.25);" {% endif %}>
+            <td>{{ lg[0] }}</td>
+            <td>{{ lg[1] }}</td>
+            <td style="max-width: 220px; word-break: break-word;">{{ lg[2] }}</td>
+            <td>{{ lg[4] }}</td>
+            <td>
+              {{ lg[3] }}
+              <form method="post" action="/slet_loginforsøg" style="display:inline;">
+                <input type="hidden" name="log_id" value="{{ lg[5] }}">
+                <button type="submit">Slet</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">Ingen loginforsøg registreret.</td></tr>
           {% endfor %}
         </table>
       </div>
     </div>
-
-    <h3>Ændringslog for bookinger</h3>
-    <table>
-      <tr>
-        <th>Bruger</th>
-        <th>Handling</th>
-        <th>Dato</th>
-        <th>Tid</th>
-        <th>Tidspunkt</th>
-        <th>Slet</th>
-      </tr>
-      {% for log in (booking_log or []) %}
-      <tr>
-        <td>{{ log[1] }}</td>
-        <td>{{ log[2] }}</td>
-        <td>{{ log[3] }}</td>
-        <td>{{ log[4] }}</td>
-        <td>{{ log[5] }}</td>
-        <td>
-          <form method="post" action="/slet_bookinglog" style="display:inline;">
-            <input type="hidden" name="log_id" value="{{ log[0] }}">
-            <button type="submit">Slet</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
-
-    <!-- NYT: Direktetid pr. dag -->
-    <h3 style="margin-top:24px;">Direktetid pr. dag (seneste 30)</h3>
-    <table>
-      <tr><th>Dato</th><th>Direktetid (antal)</th></tr>
-      {% for d,a in (direkte_pr_dag or []) %}
-      <tr>
-        <td>{{ d }}</td>
-        <td>{{ a }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="2">Ingen data.</td></tr>
-      {% endfor %}
-    </table>
-
   </div>
 
-  <!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // Byg et sikkert JS-array fra Jinja (uden tojson på date-objekter)
-  const direkteRaw = {{ (direkte_pr_dag or [])|tojson }};
-
-  // Map: YYYY-MM-DD -> DD-MM-YYYY for at matche /bookinger_json
-  const direkteMap = {};
-  direkteRaw.forEach(function(pair){
-    const iso = pair[0];           // "YYYY-MM-DD"
-    const n = pair[1];
-    const p = iso.split("-");
-    const ddmm = (p.length === 3) ? `${p[2]}-${p[1]}-${p[0]}` : iso;
-    direkteMap[ddmm] = n;
-  });
-
-  fetch("/bookinger_json")
-    .then(res => res.json())
-    .then(data => {
-      const grupperet = {};
-      data.forEach(b => {
-        if (!grupperet[b.dato]) grupperet[b.dato] = 0;
-        grupperet[b.dato]++;
-      });
-
-      const labels = Object.keys(grupperet);
-
-      // Kronologisk sortering af DD-MM-YYYY
-      labels.sort((a, b) => {
-        const [da, ma, ya] = a.split('-').map(Number);
-        const [db, mb, yb] = b.split('-').map(Number);
-        return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
-      });
-
-      const antal = labels.map(l => grupperet[l]);
-      const direkteSerie = labels.map(l => (direkteMap[l] || 0));
-
-      new Chart(document.getElementById("bookingChart"), {
-        type: "bar",
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: "Antal bookinger pr. dag",
-              data: antal,
-              backgroundColor: "rgba(54, 162, 235, 0.6)"
-            },
-            {
-              label: "Direktetid pr. dag",
-              data: direkteSerie,
-              type: "line",
-              borderWidth: 2,
-              tension: 0.2,
-              yAxisID: 'y'
-            }
-          ]
-        },
-        options: {
-          scales: {
-            x: { ticks: { maxRotation: 90, minRotation: 45 } },
-            y: { beginAtZero: true }
-          }
-        }
-      });
+  <!-- Chart.js til Booking overblik -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Data til graf: Direktetid (server-side) + Bookinger (via /bookinger_json)
+    const direkteRaw = {{ (direkte_pr_dag or [])|tojson }};
+    const direkteMap = {};
+    direkteRaw.forEach(function(pair){
+      const iso = pair[0]; // "YYYY-MM-DD"
+      const n = pair[1];
+      const p = (iso || '').split("-");
+      const ddmm = (p.length === 3) ? `${p[2]}-${p[1]}-${p[0]}` : iso;
+      direkteMap[ddmm] = n;
     });
-</script>
+
+    fetch("/bookinger_json")
+      .then(res => res.json())
+      .then(data => {
+        const grupperet = {};
+        data.forEach(b => {
+          if (!grupperet[b.dato]) grupperet[b.dato] = 0;
+          grupperet[b.dato]++;
+        });
+
+        const labels = Object.keys(grupperet);
+        labels.sort((a, b) => {
+          const [da, ma, ya] = a.split('-').map(Number);
+          const [db, mb, yb] = b.split('-').map(Number);
+          return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+        });
+
+        const antal = labels.map(l => grupperet[l]);
+        const direkteSerie = labels.map(l => (direkteMap[l] || 0));
+
+        new Chart(document.getElementById("bookingChart"), {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              { label: "Bookinger pr. dag", data: antal, backgroundColor: "rgba(54, 162, 235, 0.6)" },
+              { label: "Direktetid pr. dag", data: direkteSerie, type: "line", borderWidth: 2, tension: 0.2, yAxisID: 'y' }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { ticks: { maxRotation: 90, minRotation: 45 } },
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      });
+  </script>
 
   <footer>© Hornsberg Group</footer>
 </body>
