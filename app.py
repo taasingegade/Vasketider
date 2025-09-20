@@ -900,9 +900,6 @@ def bookinger_json():
 
 @app.route("/book", methods=["POST"])
 def book():
-    from pytz import timezone as _tz                 # ← NYT
-    CPH = _tz("Europe/Copenhagen")                   # ← NYT
-    
     brugernavn = session.get('brugernavn')
     dato = request.form.get("dato")
     slot_raw = request.form.get("tid")      # stadig "tid" i formen
@@ -937,35 +934,32 @@ def book():
     tekst = None
 
     try:
-    conn = get_db_connection()
-    conn.autocommit = False
-    cur = conn.cursor()
+        conn = get_db_connection()
+        conn.autocommit = False
+        cur = conn.cursor()
 
-    # 1) Max 2 bookinger
-    db_exec(cur,
-        "SELECT COUNT(*) FROM bookinger WHERE brugernavn=%s AND dato_rigtig=%s",
-        (brugernavn, dato_iso),
-        label="tæl_bookinger_dag"
-    )
-    if cur.fetchone()[0] >= 2:
-        conn.rollback()
-        return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
+        # 1) Max 2 bookinger pr. dag
+        db_exec(cur,
+            "SELECT COUNT(*) FROM bookinger WHERE brugernavn=%s AND dato_rigtig=%s",
+            (brugernavn, dato_iso),
+            label="tæl_bookinger_dag"
+        )
+        if cur.fetchone()[0] >= 2:
+            conn.rollback()
+            return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
-        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        # ANTI “SKUB-FREM EFTER ANNULLERING” – KUN GÆLDENDE PÅ SELVE DAGEN
+        # 2) Anti “skub-frem efter annullering” – KUN på selve dagen
         today_cph = datetime.now(CPH).strftime('%Y-%m-%d')
         if dato_iso == today_cph:
-            # 1) Hent brugerens tilbageværende (ikke-annullerede) bookinger for datoen
-            cur.execute("""
+            db_exec(cur, """
                 SELECT slot_index
                 FROM bookinger
                 WHERE brugernavn=%s AND dato_rigtig=%s
                 ORDER BY slot_index
-            """, (brugernavn, dato_iso))
+            """, (brugernavn, dato_iso), label="eksisterende_slots")
             eksisterende_slots = [int(r[0]) for r in cur.fetchall()]
 
-            # 2) Har brugeren annulleret noget for denne dato? (log føres i /slet)
-            cur.execute("""
+            db_exec(cur, """
                 SELECT 1
                 FROM booking_log
                 WHERE brugernavn=%s
@@ -973,42 +967,36 @@ def book():
                   AND dato=%s
                 ORDER BY tidspunkt DESC
                 LIMIT 1
-            """, (brugernavn, dato_iso))
+            """, (brugernavn, dato_iso), label="har_annulleret_for_dato")
             har_annulleret_for_dato = cur.fetchone() is not None
 
             if har_annulleret_for_dato and eksisterende_slots:
                 _, seneste_slut = slot_start_end(dato_iso, max(eksisterende_slots))
                 ny_start, _ = slot_start_end(dato_iso, int(slot_index))
-
                 if ny_start >= seneste_slut:
+                    conn.rollback()
                     return redirect(
                         f"/index?uge={uge_for_redirect}"
                         f"&fejl=Du+kan+ikke+rykke+annulleret+tid+til+senere+for+at+forl%C3%A6nge+dagen."
                         f"+Efter+annullering+m%C3%A5+du+kun+booke+samme+eller+tidligere+slot+den+dag."
                     )
 
-        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        # NYT: NO-SHOW MED AKTIVITETSTJEK → BLOKÉR NÆSTE UGE SAMME SLOT
-        # Hvis brugeren havde samme ugedag/slot i sidste uge:
-        #   - IKKE annulleret inden slot-slut
-        #   - OG der var INGEN aktivitet i vinduet
-        # → blokér bookingen i denne uge for samme slot
+        # 3) No-show check (sidste uge samme dato/slot → blokér denne uges samme slot hvis ingen aktivitet og ikke aflyst i tide)
         try:
             target_date = datetime.strptime(dato_iso, "%Y-%m-%d").date()
             prev_date   = target_date - timedelta(days=7)
             prev_date_iso = prev_date.strftime("%Y-%m-%d")
 
             # Havde brugeren booket sidste uge samme dato/slot?
-            cur.execute("""
+            db_exec(cur, """
                 SELECT 1 FROM booking_log
                 WHERE brugernavn=%s AND handling='booket'
                   AND dato=%s AND slot_index=%s
                 LIMIT 1
-            """, (brugernavn, prev_date_iso, slot_index))
+            """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_booket")
             havde_sidste_uge = cur.fetchone() is not None
 
             if havde_sidste_uge:
-                # Slot-vinduet sidste uge (lokal DK-tid)
                 start_hour = SLOT_TO_START.get(int(slot_index))
                 if start_hour is not None:
                     prev_start_dt = CPH.localize(datetime.strptime(prev_date_iso, "%Y-%m-%d").replace(
@@ -1016,96 +1004,87 @@ def book():
                     prev_end_dt = prev_start_dt + timedelta(hours=4)
 
                     # Blev der annulleret i tide?
-                    cur.execute("""
+                    db_exec(cur, """
                         SELECT tidspunkt
                         FROM booking_log
                         WHERE brugernavn=%s AND handling='annulleret'
                           AND dato=%s AND slot_index=%s
                         ORDER BY tidspunkt DESC
                         LIMIT 1
-                    """, (brugernavn, prev_date_iso, slot_index))
+                    """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_annulleret")
                     row = cur.fetchone()
                     ann_ts = row[0] if row else None
-                    # normaliser evt. naive timestamps til DK
                     if ann_ts and getattr(ann_ts, "tzinfo", None) is None:
                         ann_ts = CPH.localize(ann_ts)
-
                     annulleret_i_tide = (ann_ts is not None and ann_ts < prev_end_dt)
 
                     # Var der aktivitet i vinduet?
-                    cur.execute("""
+                    db_exec(cur, """
                         SELECT 1 FROM miele_activity
                         WHERE ts >= %s AND ts < %s
                         LIMIT 1
-                    """, (prev_start_dt, prev_end_dt))
+                    """, (prev_start_dt, prev_end_dt), label="sidste_uge_aktivitet")
                     aktivitet_fundet = cur.fetchone() is not None
 
-                    # No-show hvis: ikke annulleret i tide og ingen aktivitet
                     if (not annulleret_i_tide) and (not aktivitet_fundet):
-                        # (Valgfrit) hent pæn tids-tekst til beskeden
-                        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,))
+                        db_exec(cur, "SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,), label="slot_tekst")
                         r_txt = cur.fetchone()
                         nice_slot = (r_txt[0] if r_txt else f"slot {slot_index}")
-
+                        conn.rollback()
                         return redirect(
                             f"/index?uge={uge_for_redirect}"
                             f"&fejl=Din+tid+i+sidste+uge+({prev_date.strftime('%d-%m-%Y')}+{nice_slot})+blev+hverken+brugt+eller+aflyst."
                             f"+Derfor+kan+du+ikke+booke+samme+tid+i+denne+uge."
                         )
         except Exception:
-            # Fail-open: vi blokerer aldrig ved fejl i tjekket
+            # Fail-open: bloker aldrig på fejl i tjekket
             pass
-        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        
-        # ÉN insert – undgå dobbelt-INSERT; lad DB håndhæve unikhed
-        cur.execute(
-            """
+
+        # 4) Selve bookingen
+        db_exec(cur, """
             INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index)
             VALUES (%s, %s, %s)
             ON CONFLICT (dato_rigtig, slot_index) DO NOTHING
-            """,
-            (brugernavn, dato_iso, slot_index)
-        )
+        """, (brugernavn, dato_iso, slot_index), label="insert_booking")
+
         if cur.rowcount == 0:
-            # Konflikt = tiden var optaget
             conn.rollback()
             return redirect(f"/index?uge={uge_for_redirect}&fejl=Tiden+er+allerede+booket")
 
-        # Log
-        cur.execute(
-            "INSERT INTO booking_log (brugernavn, handling, dato, slot_index) VALUES (%s, %s, %s, %s)",
-            (brugernavn, 'booket', dato_iso, slot_index)
-        )
+        # 5) Log kun hvis booking lykkedes
+        db_exec(cur, """
+            INSERT INTO booking_log (brugernavn, handling, dato, slot_index)
+            VALUES (%s, %s, %s, %s)
+        """, (brugernavn, 'booket', dato_iso, slot_index), label="insert_booking_log")
 
-        # Slot-tekst til besked
-        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,))
+        # 6) Slot-tekst til besked
+        db_exec(cur, "SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,), label="vælg_slot_tekst")
         r = cur.fetchone()
         tekst = r[0] if r else f"Slot {slot_index}"
 
-        # Commit før notifikationer/redirect
         conn.commit()
 
     except psycopg2.Error:
         if conn:
             try: conn.rollback()
-            except Exception: pass
+            except: pass
         current_app.logger.exception("DB-fejl ved booking")
         return redirect(f"/index?uge={uge_for_redirect}&fejl=Database+fejl")
 
     except Exception:
         if conn:
             try: conn.rollback()
-            except Exception: pass
+            except: pass
         current_app.logger.exception("Generel fejl ved booking")
         return redirect(f"/index?uge={uge_for_redirect}&fejl=Der+skete+en+fejl")
 
     finally:
         if cur:
             try: cur.close()
-            except Exception: pass
+            except: pass
         if conn:
             try: conn.close()
-            except Exception: pass
+            except: pass
 
     # Notifikationer – må ikke vælte flowet
     try:
