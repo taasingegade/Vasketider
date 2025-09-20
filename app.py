@@ -97,6 +97,15 @@ def init_db():
         except: pass
         print("⚠️ DB-init fejl:", e)
 
+# --- DB-init: sikr historiktabel til Miele-aktivitet ---
+def init_db():
+    ...
+    print("✅ DB-init færdig")
+
+# KØR INIT ÉN GANG VED OPSTART  ←← tilføj dette kald
+init_db()
+# --- /DB-init ---
+
 def tilladt_fil(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -1441,7 +1450,7 @@ def index():
     cur.execute("""
         SELECT b.dato_rigtig, b.slot_index, b.brugernavn, v.tekst
         FROM bookinger b
-        JOIN vasketider v ON v.slot_index::text = b.slot_index
+        JOIN vasketider v ON v.slot_index = b.slot_index
         WHERE b.dato_rigtig >= %s AND b.dato_rigtig <= %s
         ORDER BY b.dato_rigtig, b.slot_index
     """, (idag, frem_slut))
