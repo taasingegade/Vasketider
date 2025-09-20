@@ -290,6 +290,18 @@ def ryd_gamle_bookinger_job():
             print("❌ Fejl i ryd_gamle_bookinger_job:", e)
             time.sleep(60)
 
+def db_exec(cur, sql, params=None, label=""):
+    """Kør SQL og log præcist hvor det fejler, hvis noget går galt."""
+    try:
+        cur.execute(sql, params or ())
+    except psycopg2.Error as e:
+        current_app.logger.error(
+            "DB-fejl ved %s: %s | %s | params=%r",
+            label or "SQL",
+            getattr(e, 'pgcode', ''), getattr(e, 'pgerror', ''), params
+        )
+        raise
+
 def _naeste_tick_2t_window(now_local):
     hours = [6, 8, 10, 12, 14, 16, 18]
     base = now_local.replace(minute=0, second=0, microsecond=0)
@@ -925,16 +937,19 @@ def book():
     tekst = None
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+    conn = get_db_connection()
+    conn.autocommit = False
+    cur = conn.cursor()
 
-        # Max 2 bookinger pr. dag pr. bruger
-        cur.execute(
-            "SELECT COUNT(*) FROM bookinger WHERE brugernavn=%s AND dato_rigtig=%s",
-            (brugernavn, dato_iso)
-        )
-        if cur.fetchone()[0] >= 2:
-            return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
+    # 1) Max 2 bookinger
+    db_exec(cur,
+        "SELECT COUNT(*) FROM bookinger WHERE brugernavn=%s AND dato_rigtig=%s",
+        (brugernavn, dato_iso),
+        label="tæl_bookinger_dag"
+    )
+    if cur.fetchone()[0] >= 2:
+        conn.rollback()
+        return redirect(f"/index?uge={uge_for_redirect}&fejl=Du+har+allerede+2+bookinger+denne+dag")
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         # ANTI “SKUB-FREM EFTER ANNULLERING” – KUN GÆLDENDE PÅ SELVE DAGEN
