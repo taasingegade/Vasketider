@@ -1591,76 +1591,93 @@ def iot_toggle():
 
 @app.route('/direkte', methods=['GET', 'POST'])
 def direkte():
+    from pytz import timezone as _tz
+    TZ = _tz("Europe/Copenhagen")
 
-    nu = datetime.now(timezone("Europe/Copenhagen"))  # dansk tid
-    dato = nu.strftime('%Y-%m-%d')
-    vis_dato = nu.strftime('%d-%m-%Y')
+    nu = datetime.now(TZ)  # dansk tid
+    dato = nu.strftime('%Y-%m-%d')      # ISO (brug i DB-queries)
+    vis_dato = nu.strftime('%d-%m-%Y')  # til visning i UI
     klokkeslaet = nu.strftime('%H:%M')
 
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Hent definerede vasketider (bruges til select i template)
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider_raw = cur.fetchall()
-    tider = [(str(r[0]), r[1]) for r in tider_raw]
+    # Lav string-keys (så de matcher template som forventer str(slot_index))
+    tider = [(str(int(r[0])), r[1]) for r in tider_raw]
 
     fejl = ""
 
     if request.method == 'POST':
-        slot = int(request.form.get("tid"))
+        slot = request.form.get("tid")
+        # Vi forventer slot som string (fx "0","1","2","3"). Konverter ved behov.
+        try:
+            slot_int = int(slot)
+            slot_key = str(slot_int)
+        except Exception:
+            fejl = "Ugyldigt slot"
+            slot_key = None
 
-        # er tiden taget?
-        cur.execute(
-            "SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s",
-            (dato, slot)
-        )
-        eksisterende = cur.fetchone()
-        if eksisterende:
-            fejl = f"Tiden er allerede booket af {eksisterende[0]}"
-        else:
-            # max 2 tider pr. dag for 'direkte'
+        if slot_key:
+            # Er tiden taget?
             cur.execute(
-                "SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s",
-                (dato,)
+                "SELECT brugernavn FROM bookinger WHERE dato_rigtig = %s AND slot_index = %s",
+                (dato, slot_int)
             )
-            antal = cur.fetchone()[0]
-            if antal >= 2:
-                fejl = "Direkte har allerede booket 2 tider i dag"
+            eksisterende = cur.fetchone()
+            if eksisterende:
+                fejl = f"Tiden er allerede booket af {eksisterende[0]}"
             else:
-                # opret booking
+                # max 2 tider pr. dag for 'direkte'
                 cur.execute(
-                    "INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
-                    ('direkte', dato, slot)
+                    "SELECT COUNT(*) FROM bookinger WHERE brugernavn = 'direkte' AND dato_rigtig = %s",
+                    (dato,)
                 )
-                
-                # SIKR tabel + primærnøgle til upsert (dato,type)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS statistik (
-                        dato DATE NOT NULL,
-                        type TEXT NOT NULL,
-                        antal INT DEFAULT 0,
-                        PRIMARY KEY (dato, type) 
+                antal = cur.fetchone()[0]
+                if antal >= 2:
+                    fejl = "Direkte har allerede booket 2 tider i dag"
+                else:
+                    # opret booking
+                    cur.execute(
+                        "INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index) VALUES (%s, %s, %s)",
+                        ('direkte', dato, slot_int)
                     )
-                """) 
-                
-                # + statistik: tæller 'direktetid' op
-                cur.execute("""
-                    INSERT INTO statistik (dato, type, antal)
-                    VALUES (%s, 'direktetid', 1)
-                    ON CONFLICT (dato, type) DO UPDATE
-                    SET antal = statistik.antal + 1
-                """, (dato,))
-                conn.commit()
+                    # Opdater statistik (sikker tabel-creation hvis nødvendigt)
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS statistik (
+                            dato DATE NOT NULL,
+                            type TEXT NOT NULL,
+                            antal INT DEFAULT 0,
+                            PRIMARY KEY (dato, type)
+                        )
+                    """)
+                    cur.execute("""
+                        INSERT INTO statistik (dato, type, antal)
+                        VALUES (%s, 'direktetid', 1)
+                        ON CONFLICT (dato, type) DO UPDATE
+                        SET antal = statistik.antal + 1
+                    """, (dato,))
+                    conn.commit()
 
+    # Hent hvilke slots der er booket i dag
     cur.execute("SELECT slot_index, brugernavn FROM bookinger WHERE dato_rigtig = %s", (dato,))
-    bookede = dict(cur.fetchall())
+    rows = cur.fetchall()
+    # Debug (fjern senere): viser DB-rækker i server-log
+    current_app.logger.debug("DEBUG /direkte bookede rows: %r", rows)
+
+    # Byg mapping med STRING-nøgler så den matcher `tider`/template
+    bookede = { str(int(slot_index)): brugernavn for slot_index, brugernavn in rows }
+
+    cur.close()
     conn.close()
 
     return render_template(
         "direkte.html",
         dato=vis_dato,
-        tider=tider,
-        bookede=bookede,
+        tider=tider,        # liste af (slot_str, tekst)
+        bookede=bookede,    # dict med string keys: { "0": "navn", ... }
         klokkeslaet=klokkeslaet,
         fejl=fejl
     )
