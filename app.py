@@ -1002,7 +1002,7 @@ def book():
                 WHERE brugernavn=%s AND handling='booket'
                   AND dato=%s AND slot_index::int = %s
                 LIMIT 1
-            """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_booket")
+            """, (brugernavn, prev_date_iso, int(slot_index)), label="sidste_uge_booket")
             havde_sidste_uge = cur.fetchone() is not None
 
             if havde_sidste_uge:
@@ -1020,7 +1020,7 @@ def book():
                           AND dato=%s AND slot_index::int = %s
                         ORDER BY tidspunkt DESC
                         LIMIT 1
-                    """, (brugernavn, prev_date_iso, slot_index), label="sidste_uge_annulleret")
+                    """, (brugernavn, prev_date_iso, int(slot_index)), label="sidste_uge_annulleret")
                     row = cur.fetchone()
                     ann_ts = row[0] if row else None
                     if ann_ts and getattr(ann_ts, "tzinfo", None) is None:
