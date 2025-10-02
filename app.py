@@ -1334,13 +1334,13 @@ def book_full():
 
     except Exception as e:
         conn.rollback()
+        current_app.logger.exception("BOOK FEJL")   # ← logger hele stacktrace
         try:
-            log_booking_attempt(cur, brugernavn, dato, tid, "afvist:ukendt")
+            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:ukendt:{e}")
             conn.commit()
         except:
             pass
-        # redirect med ?fejl=
-        return redirect(url_for("index", uge=valgt_uge, fejl="Der opstod en fejl under booking."))
+        return redirect(url_for("index", uge=valgt_uge, fejl=f"DB-fejl: {str(e)}"))
     finally:
         cur.close(); conn.close()
 
