@@ -77,7 +77,8 @@
       <button class="slot-btn" style="background-color: gold; color: black;">{{ booking }}</button>
     {% elif booking == bruger %}
       <form method="POST" action="/slet">
-        <input type="hidden" name="dato" value="{{ dato }}">
+        {% set d = dato.split('-') %}
+        <input type="hidden" name="dato" value="{{ d[2] }}-{{ '%02d'|format(d[1]|int) }}-{{ '%02d'|format(d[0]|int) }}">
         <input type="hidden" name="tid" value="{{ i }}">
         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
         <button type="submit" class="slot-btn" style="background-color: crimson;">{{ booking }}</button>
@@ -89,7 +90,8 @@
 {% else %}
   <div style="display: flex; justify-content: center; align-items: center;">
     <form method="POST" action="/book">
-      <input type="hidden" name="dato" value="{{ dato }}">
+      {% set d = dato.split('-') %}
+      <input type="hidden" name="dato" value="{{ d[2] }}-{{ '%02d'|format(d[1]|int) }}-{{ '%02d'|format(d[0]|int) }}">
       <input type="hidden" name="tid" value="{{ i }}">
       <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
       <button type="submit" class="slot-btn ledig-knap">Ledig</button>

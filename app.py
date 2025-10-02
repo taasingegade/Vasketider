@@ -1266,7 +1266,17 @@ def book_full():
         return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
-    dato = request.form["dato"]            # "YYYY-MM-DD"
+    raw_dato = request.form.get("dato", "").strip()
+
+    def normalize_date(s: str):
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
+            try:
+               # returnér et date-objekt; psycopg håndterer DATE kolonner fint med date-objekter
+               return datetime.strptime(s, fmt).date()
+            except ValueError:
+                pass
+        raise ValueError(f"Ugyldigt datoformat: {s}")
+    dato = normalize_date(raw_dato)   # -> datetime.date (ISO)
     tid  = int(request.form["tid"])        # 0..3
     valgt_uge = request.form.get("valgt_uge","")
 
