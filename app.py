@@ -89,6 +89,20 @@ def init_db():
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
 
+        # booking_log (ændringslog for bookinger)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS booking_log (
+                id SERIAL PRIMARY KEY,
+                brugernavn TEXT,
+                handling TEXT,              -- fx 'create', 'auto_remove', 'complete', 'fejl:max2' mv.
+                dato DATE,
+                slot_index INT,
+                booking_type TEXT,
+                resultat TEXT,
+                tidspunkt TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
         cur.execute("""
             CREATE INDEX IF NOT EXISTS ix_booking_log_time
             ON booking_log(tidspunkt DESC);
