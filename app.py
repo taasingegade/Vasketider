@@ -487,7 +487,7 @@ def log_login_privacy(cur, req, brugernavn: str, status: str):
         ip, enhed,
         ua_browser, ua_os, ua_device,
         ip_hash, ip_country, ip_region, ip_city, ip_org, ip_is_datacenter
-      ) VALUES ( %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )
+      ) VALUES ( %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )
     """, (
       brugernavn, status,
       ip_raw, ua_raw,
@@ -1257,13 +1257,13 @@ def book_full():
     if "brugernavn" not in session:
         # Ikke logget ind
         conn = get_db_connection(); cur = conn.cursor()
-        # hvis du vil logge forsøg uden login, kan brugernavn = "" eller "ukendt"
         try:
             log_booking_attempt(cur, "", request.form.get("dato",""), int(request.form.get("tid", -1)), "afvist:ikke_logget_ind")
             conn.commit()
         finally:
             cur.close(); conn.close()
-        return redirect(url_for("login"))
+        # vis fejl i UI via querystring
+        return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
     dato = request.form["dato"]            # "YYYY-MM-DD"
@@ -1272,11 +1272,7 @@ def book_full():
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # --- Valideringer (eksempler; tilpas til dine regler) ---
         # 1) Er slot optaget?
-        # Optaget hvis:
-        #  - der findes en 'full' booking, eller
-        #  - begge halvdele (early + late) er allerede besat (brugernavn IS NOT NULL)
         cur.execute("""
             SELECT
               SUM(CASE WHEN COALESCE(sub_slot,'full')='full' THEN 1 ELSE 0 END) AS fulls,
@@ -1289,10 +1285,10 @@ def book_full():
         if fulls > 0 or (early_taken > 0 and late_taken > 0):
             log_booking_attempt(cur, brugernavn, dato, tid, "afvist:taget")
             conn.commit()
-            flash("Tiden er optaget.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
+            # redirect med ?fejl=
+            return redirect(url_for("index", uge=valgt_uge, fejl="Tiden er allerede optaget."))
 
-        # 2) Evt. max-regler (pr. dag/uge). Eksempel max 2 pr. dag:
+        # 2) Max-regler (eksempel max 2 pr. dag)
         cur.execute("""
             SELECT COUNT(*) FROM bookinger
             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
@@ -1300,10 +1296,10 @@ def book_full():
         if (cur.fetchone()[0] or 0) >= 2:
             log_booking_attempt(cur, brugernavn, dato, tid, "afvist:max2")
             conn.commit()
-            flash("Du har allerede 2 bookinger den dag.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
+            # redirect med ?fejl=
+            return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # --- Opret fuld booking med evt. aktiveringsvindue (30 min) ---
+        # --- Opret fuld booking med aktiveringsvindue (30 min) ---
         slot_start, slot_end = slot_interval(dato, tid)
         activation_required = True
         activation_deadline = slot_start + timedelta(minutes=30)
@@ -1322,15 +1318,20 @@ def book_full():
         log_booking_attempt(cur, brugernavn, dato, tid, "success")
         conn.commit()
 
-        # EFTER conn.commit() hvor bookingen lykkes:
+        # EFTER commit: evt. kæde-registrering (best effort)
         try:
             with get_db_connection() as _c:
                 registrer_kæde_hvis_nødvendigt(_c, dato_iso=dato, bruger_slot=tid, brugernavn=brugernavn)
         except Exception:
             current_app.logger.exception("Kæde-registrering fejlede (ignoreret)")
 
-        flash("Tid booket. Start maskinen inden 30 min, ellers frigives tiden automatisk.", "success")
-        return redirect(url_for("index", uge=valgt_uge))
+        # redirect med ?besked=
+        return redirect(url_for(
+            "index",
+            uge=valgt_uge,
+            besked="Tid booket. Start maskinen inden 30 min, ellers frigives tiden automatisk."
+        ))
+
     except Exception as e:
         conn.rollback()
         try:
@@ -1338,8 +1339,8 @@ def book_full():
             conn.commit()
         except:
             pass
-        flash("Der opstod en fejl under booking.", "error")
-        return redirect(url_for("index", uge=valgt_uge))
+        # redirect med ?fejl=
+        return redirect(url_for("index", uge=valgt_uge, fejl="Der opstod en fejl under booking."))
     finally:
         cur.close(); conn.close()
 
