@@ -1829,7 +1829,7 @@ def index():
 
     # Ugedage labels og dato-objekter
     ugedage_dk = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
-    ugedage_dato = [start_dato + timedelta(days=i) for i in range(7)]   # ← date-objekter
+    ugedage_dato = [start_dato + timedelta(days=i) for i in range(7)]
 
     conn = get_db_connection()
     cur = conn.cursor()
