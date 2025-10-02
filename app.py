@@ -24,11 +24,6 @@ except Exception:
 from flask import current_app
 from functools import wraps
 from flask import abort
-import geoip2.database
-try:
-    geo_reader = geoip2.database.Reader("geo/GeoLite2-City.mmdb")
-except FileNotFoundError:
-    geo_reader = None
 import os
 import secrets
 import pytz
@@ -210,7 +205,8 @@ def _hent_start_hours(conn):
     return mapping
 
 def hash_ip(ip: str) -> str:
-    return hashlib.sha256((IP_SALT + "|" + (ip or "")).encode()).hexdigest()
+    import hashlib
+    return hashlib.sha256((ip or "").encode("utf-8")).hexdigest()
 
 def parse_ua(user_agent: str):
     ua = ua_parse(user_agent or "")
@@ -479,34 +475,38 @@ def lazy_cleanup(conn, now_utc=None):
 
 # ==== END ADD ====
 
-def log_login_privacy(cur, req, brugernavn: str, status: str):
-    ip_raw = get_client_ip(req)
-    ua_raw = req.headers.get("User-Agent", "")
-    _ua  = parse_ua(ua_raw)
-    _geo = {"country": "", "region": "", "city": "", "org": "", "is_dc": False}
-    if geo_reader:
-        try:
-            resp = geo_reader.city(ip_raw)
-            _geo["country"] = resp.country.name or ""
-            _geo["region"]  = resp.subdivisions.most_specific.name or ""
-            _geo["city"]    = resp.city.name or ""
-            # org kræver GeoLite2-ISP, så den bliver tom her
-            _geo["org"]     = ""
-        except Exception as e:
-            current_app.logger.warning(f"GeoIP lookup fejlede: {e}")
+def log_login_privacy(cur, request, brugernavn: str, status: str):
+    ip_raw = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    ua_raw = request.headers.get("User-Agent", "")
+    ua = ua_parse(ua_raw or "")
 
+    _ua = {
+        "browser": f"{ua.browser.family} {ua.browser.version_string}".strip(),
+        "os": f"{ua.os.family} {ua.os.version_string}".strip(),
+        "device": (ua.device.family or "Unknown").strip(),
+    }
+
+    # GEO ER FJERNET → vi sætter tomme defaults
+    ip_country = ""
+    ip_region = ""
+    ip_city = ""
+    ip_org = ""
+    ip_is_dc = False
+
+    # Vær sikker på at SQL og værdier matcher 1:1 (ingen geo-lookup!)
     cur.execute("""
-      INSERT INTO login_log (
-        brugernavn, tidspunkt, status,
-        ip, enhed,
-        ua_browser, ua_os, ua_device,
-        ip_hash, ip_country, ip_region, ip_city, ip_org, ip_is_datacenter
-      ) VALUES ( %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )
+        INSERT INTO login_log (
+            brugernavn, tidspunkt, status,
+            ip, enhed,
+            ua_browser, ua_os, ua_device,
+            ip_hash, ip_country, ip_region, ip_city, ip_org, ip_is_datacenter
+        )
+        VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
-      brugernavn, status,
-      ip_raw, ua_raw,
-      _ua["browser"], _ua["os"], _ua["device"],
-      hash_ip(ip_raw), _geo["country"], _geo["region"], _geo["city"], _geo["org"], _geo["is_dc"]
+        brugernavn, status,
+        ip_raw, ua_raw,
+        _ua["browser"], _ua["os"], _ua["device"],
+        hash_ip(ip_raw), ip_country, ip_region, ip_city, ip_org, ip_is_dc
     ))
 
 def tilladt_fil(filename):
