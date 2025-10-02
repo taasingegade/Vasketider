@@ -25,6 +25,10 @@ from flask import current_app
 from functools import wraps
 from flask import abort
 import geoip2.database
+try:
+    geo_reader = geoip2.database.Reader("geo/GeoLite2-City.mmdb")
+except FileNotFoundError:
+    geo_reader = None
 import os
 import secrets
 import pytz
@@ -479,7 +483,17 @@ def log_login_privacy(cur, req, brugernavn: str, status: str):
     ip_raw = get_client_ip(req)
     ua_raw = req.headers.get("User-Agent", "")
     _ua  = parse_ua(ua_raw)
-    _geo = local_geo(ip_raw)
+    _geo = {"country": "", "region": "", "city": "", "org": "", "is_dc": False}
+    if geo_reader:
+        try:
+            resp = geo_reader.city(ip_raw)
+            _geo["country"] = resp.country.name or ""
+            _geo["region"]  = resp.subdivisions.most_specific.name or ""
+            _geo["city"]    = resp.city.name or ""
+            # org kræver GeoLite2-ISP, så den bliver tom her
+            _geo["org"]     = ""
+        except Exception as e:
+            current_app.logger.warning(f"GeoIP lookup fejlede: {e}")
 
     cur.execute("""
       INSERT INTO login_log (
