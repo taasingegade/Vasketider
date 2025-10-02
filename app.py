@@ -487,7 +487,7 @@ def log_login_privacy(cur, req, brugernavn: str, status: str):
         ip, enhed,
         ua_browser, ua_os, ua_device,
         ip_hash, ip_country, ip_region, ip_city, ip_org, ip_is_datacenter
-      ) VALUES ( %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )
+      ) VALUES ( %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )
     """, (
       brugernavn, status,
       ip_raw, ua_raw,
