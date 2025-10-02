@@ -94,6 +94,50 @@ def init_db():
             ON booking_log(tidspunkt DESC);
         """)
 
+        # --- SCHEMA PATCHES (sikrer kolonner din kode bruger) ---
+        # bookinger
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")      # 'full'|'direkte'|'split_before'|'split_after' etc.
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")          # 'early'|'late' eller NULL
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
+
+        # booking_attempts (bruges flere steder)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS booking_attempts (
+                id SERIAL PRIMARY KEY,
+                ts TIMESTAMP DEFAULT NOW(),
+                brugernavn TEXT,
+                dato DATE,
+                slot INT,
+                status TEXT
+            )
+        """)
+
+        # login_log (så ip_hash m.fl. findes)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS login_log (
+                id SERIAL PRIMARY KEY,
+                brugernavn TEXT,
+                tidspunkt TIMESTAMP DEFAULT NOW(),
+                status TEXT,
+                ip TEXT,
+                enhed TEXT,
+                ua_browser TEXT,
+                ua_os TEXT,
+                ua_device TEXT,
+                ip_hash TEXT,
+                ip_country TEXT,
+                ip_region TEXT,
+                ip_city TEXT,
+                ip_org TEXT,
+                ip_is_datacenter BOOLEAN DEFAULT FALSE
+            )
+        """)
         conn.commit()
         conn.close()
         print("✅ DB-init færdig")
