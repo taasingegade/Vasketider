@@ -2234,22 +2234,27 @@ def statistik():
     """)
     conn.commit()
 
-    # Login-liste (30 dage) i det format som statistik.html forventer
+# Login-liste (30 dage) i det format som statistik.html forventer
     cur.execute("""
        SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
-       brugernavn, status,
-       COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
-       COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false)
+              brugernavn, status,
+              COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
+              COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
+              CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
+              CASE WHEN LOWER(status) = 'ok' THEN 1 ELSE 0 END AS indikator_ok
        FROM login_log
        WHERE tidspunkt::date BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE
        ORDER BY tidspunkt DESC
     """)
-    logins_struct = [
-       {"tidspunkt":r[0], "brugernavn":r[1], "status":r[2],
-       "ua_browser":r[3], "ua_os":r[4], "ua_device":r[5],
-       "ip_country":r[6], "ip_region":r[7], "ip_city":r[8], "ip_org":r[9], "ip_is_datacenter":bool(r[10])}
-    for r in cur.fetchall() or []
-]
+
+    logins_struct = [{
+       "tidspunkt": r[0], "brugernavn": r[1], "status": r[2],
+       "ua_browser": r[3], "ua_os": r[4], "ua_device": r[5],
+       "ip_country": r[6], "ip_region": r[7], "ip_city": r[8], "ip_org": r[9],
+       "ip_is_datacenter": bool(r[10]),
+       "indikator_label": r[11],
+       "indikator_ok": bool(r[12]),
+    } for r in (cur.fetchall() or [])]
 
     # Bookingforsøg pr. dag (30 dage)
     cur.execute("""

@@ -287,7 +287,7 @@
           </thead>
           <tbody>
             {% for e in (logins or []) %}
-              {% set ok = (e.status|lower == 'success' or e.status|lower == 'succes') %}
+              {% set ok = (e.status|lower == 'ok') %}
               <tr data-status="{{ 'succes' if ok else 'fejl' }}">
                 <td class="nowrap">{{ e.tidspunkt }}</td>
                 <td><span class="badge-dot"><span class="dot {{ 'ok' if ok else 'err' }}"></span>{{ e.brugernavn }}</span></td>
