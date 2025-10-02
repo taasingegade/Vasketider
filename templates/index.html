@@ -61,7 +61,7 @@
  {% for dag in ugedage_dk %}
   {% set dato = ugedage_dato[loop.index0] %}
   <div style="text-align: center;">
-    <strong>{{ dag }}</strong><br>d. {{ dato.split('-')[0] }}/{{ dato.split('-')[1]|int }}
+    <strong>{{ dag }}</strong><br>d. {{ dato.day }}/{{ dato.month }}
   </div>
 {% endfor %}
 

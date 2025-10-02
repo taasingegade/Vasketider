@@ -1280,17 +1280,9 @@ def book_full():
         return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
-    raw_dato = request.form.get("dato", "").strip()
+    raw_dato = request.form["dato"]  # ISO fra formen
+    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()  # -> datetime.date
 
-    def normalize_date(s: str):
-        for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
-            try:
-               # returnér et date-objekt; psycopg håndterer DATE kolonner fint med date-objekter
-               return datetime.strptime(s, fmt).date()
-            except ValueError:
-                pass
-        raise ValueError(f"Ugyldigt datoformat: {s}")
-    dato = normalize_date(raw_dato)   # -> datetime.date (ISO)
     tid  = int(request.form["tid"])        # 0..3
     valgt_uge = request.form.get("valgt_uge","")
 
@@ -1393,14 +1385,15 @@ def slet_booking():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    dato  = request.form["dato"]
+    raw_dato = request.form["dato"]
+    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # ISO -> date
     tid   = int(request.form["tid"])
     sub   = request.form.get("sub")        # None | 'early' | 'late'
     valgt_uge = request.form.get("valgt_uge","")
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        if sub in ("early","late"):
+        if sub in ("early", "late"):
             # Slet kun egen halvdel
             cur.execute("""
                 DELETE FROM bookinger
@@ -1409,33 +1402,33 @@ def slet_booking():
             """, (dato, tid, sub, brugernavn))
             deleted = cur.fetchone() is not None
 
+            # (valgfrit) ryd den anden halvdel hvis den var en tom placeholder
             if deleted:
-                # Valgfrit: Hvis den anden halvdel er placeholder (NULL), kan du også rydde den
                 cur.execute("""
                     DELETE FROM bookinger
                     WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND brugernavn IS NULL
-                """, (dato, tid, "late" if sub=="early" else "early"))
-                conn.commit()
-                flash("Din halve booking er aflyst.", "success")
+                """, (dato, tid, "late" if sub == "early" else "early"))
+
+            conn.commit()
+            if deleted:
+                return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
             else:
-                conn.commit()
-                flash("Ingen matchende halv-booking at aflyse.", "error")
+                return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende halv-booking at aflyse."))
 
         else:
             # Fuld booking
             cur.execute("""
                 DELETE FROM bookinger
-                WHERE dato_rigtig=%s AND slot_index=%s AND LOWER(brugernavn)=LOWER(%s) AND COALESCE(sub_slot,'full')='full'
+                WHERE dato_rigtig=%s AND slot_index=%s AND LOWER(brugernavn)=LOWER(%s)
+                  AND COALESCE(sub_slot,'full')='full'
                 RETURNING 1
             """, (dato, tid, brugernavn))
-            if cur.fetchone():
-                conn.commit()
-                flash("Din fulde booking er aflyst.", "success")
+            deleted = cur.fetchone() is not None
+            conn.commit()
+            if deleted:
+                return redirect(url_for("index", uge=valgt_uge, besked="Din fulde booking er aflyst."))
             else:
-                conn.commit()
-                flash("Ingen matchende fuld booking at aflyse.", "error")
-
-        return redirect(url_for("index", uge=valgt_uge))
+                return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende fuld booking at aflyse."))
     finally:
         cur.close(); conn.close()
 
@@ -1445,7 +1438,8 @@ def book_half():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    dato  = request.form["dato"]
+    raw_dato = request.form["dato"]
+    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # <- ISO til date-objekt
     tid   = int(request.form["tid"])
     sub   = request.form["sub"]            # 'early' eller 'late'
     valgt_uge = request.form.get("valgt_uge","")
@@ -1492,7 +1486,8 @@ def book_split():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    dato   = request.form["dato"]
+    raw_dato = request.form["dato"]
+    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # <- ISO til date-objekt
     tid    = int(request.form["tid"])
     choice = request.form["del"]            # 'early' eller 'late'
     valgt_uge = request.form.get("valgt_uge","")
