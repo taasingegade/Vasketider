@@ -27,7 +27,7 @@
     </script>
 </head>
 <body>
-    <!-- TOPPANEL MED LOGIN-KNAP -->
+
     <div class="toppanel" style="display: flex; gap: 10px;">
         <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
         <form method="get" action="/skiftkode">
@@ -54,7 +54,7 @@
     <div class="toppanel-ekg"></div>
     </div>
 
-    <!-- MAIN LOGINFELTER I CENTER -->
+    
     <div class="form-box glassbox">
         <h2 style="text-align: center;">Log ind</h2>
         {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
@@ -65,7 +65,7 @@
        <input type="text" id="brugernavn" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
 <input type="password" id="kode" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
 
-       <!-- Husk mig toggle -->
+      
         <label class="switch" style="margin-top:10px;">
             <input type="checkbox" id="huskMig" name="remember" value="1">
             <span class="slider round"></span>
@@ -84,7 +84,7 @@
         const p = document.getElementById("kode");
         const chk = document.getElementById("huskMig");
 
-        // Load gemte data
+       
         const savedUser = localStorage.getItem("vasketid_user");
         const savedPass = localStorage.getItem("vasketid_pass");
         if (savedUser) {
@@ -95,7 +95,7 @@
             }
         }
 
-        // Gem ved submit (inkl. top-knappen der kalder submitLoginForm)
+       
         form.addEventListener("submit", function () {
             const userNow = (u.value || "").toLowerCase();
             if (chk.checked) {
@@ -111,7 +111,7 @@
             }
         });
 
-        // Hvis man skriver "admin" → gem aldrig password
+       
         u.addEventListener("input", function () {
             if ((u.value || "").toLowerCase() === "admin") {
                 chk.checked = false;

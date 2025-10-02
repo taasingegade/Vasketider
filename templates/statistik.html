@@ -8,19 +8,14 @@
   <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    /* 4 vinduer (2x2) – SKJUL på mobil */
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 18px;
-      margin-top: 20px;
-    }
+    /* Basestil (bevarer dit glas-look) */
     .window {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.25);
       border-radius: 14px;
       padding: 18px;
       backdrop-filter: blur(6px);
+      min-height: 110px;
     }
     .window h3 {
       margin-top: 0;
@@ -29,8 +24,6 @@
       padding-bottom: 6px;
       margin-bottom: 10px;
     }
-    .kpi { font-size: 15px; margin: 6px 0; }
-    .val { font-size: 22px; font-weight: bold; }
     .muted { font-size: 12px; opacity: .75; }
     table { width:100%; border-collapse: collapse; font-size:14px; }
     th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
@@ -39,13 +32,40 @@
       background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5);
       font-weight:600; margin: 8px 0 0 0;
     }
-    .kpi-row { display:flex; flex-wrap:wrap; gap:10px; }
+    .kpi-row, .kpis { display:flex; flex-wrap:wrap; gap:10px; }
     .kpi-pill {
       padding:6px 10px; border-radius:10px;
       border:1px solid rgba(255,255,255,0.25);
       background: rgba(255,255,255,0.10);
       font-size:14px;
     }
+    .grid-4 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
+    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
+    .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
+
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:10px}
+    .tab-btn{
+      border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);color:#fff;
+      padding:8px 12px;border-radius:10px;cursor:pointer
+    }
+    .tab-btn.active{outline:2px solid rgba(106,160,255,.9)}
+
+    .page{display:none}
+    .page.active{display:block}
+
+    .score{font-variant-numeric:tabular-nums}
+    .score.red{color:#ff6b6b;font-weight:600}
+    .score.yellow{color:#ffd166}
+    .score.green{color:#62d394}
+    .pill{
+      display:inline-block;padding:4px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);font-size:12px
+    }
+    .badge-dot{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);padding:4px 8px;border-radius:8px}
+    .dot{width:8px;height:8px;border-radius:50%}
+    .dot.ok{background:#29a745}.dot.err{background:#e55353}.dot.warn{background:#ffb000}
+    .nowrap{white-space:nowrap}
+
     .chart-wrap { margin-top: 10px; }
     canvas { width:100%; max-width: 100%; height: 280px; }
 
@@ -76,7 +96,7 @@
   <div class="mobile-block">
     <div>
       <h2>📈 Statistik er kun til desktop</h2>
-      <p>Åbn siden på en større skærm for at se statistik-vinduerne.</p>
+      <p>Åbn siden på en desktop computer for at se statistik-vinduerne.</p>
       <form method="get" action="/index" style="margin-top:16px;">
         <button class="toppanel-knap">Tilbage til kalender</button>
       </form>
@@ -100,98 +120,271 @@
   </div>
 
   <div class="main" style="max-width:1100px;">
-    <h2>Statistik – Overblik</h2>
-    <p class="muted">Fire vinduer med nøgletal, fejl og seneste hændelser. (Skjult på mobil)</p>
-    <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
+    <h2>Statistik</h2>
+    <nav class="tabs" role="tablist" aria-label="Statistik faner">
+      <button class="tab-btn active" data-tab="page1" role="tab" aria-selected="true">Side 1 · Overblik</button>
+      <button class="tab-btn" data-tab="page2" role="tab" aria-selected="false">Side 2 · Brugsmønstre</button>
+      <button class="tab-btn" data-tab="page3" role="tab" aria-selected="false">Side 3 · Sikkerhed & regler</button>
+    </nav>
 
-    <div class="grid-4">
-      <!-- VINDUE 1: Booking overblik -->
-      <div class="window">
-        <h3>📊 Booking overblik</h3>
-        <div class="kpi-row">
-          <div class="kpi-pill">Aktive bookinger (14 dage): <strong>{{ kpi.aktive_14|default(0) }}</strong></div>
-          <div class="kpi-pill">Unikke brugere: <strong>{{ kpi.unikke_brugere|default(0) }}</strong></div>
-          <div class="kpi-pill">Direkte-bookinger: <strong>{{ kpi.total_direkte|default(0) }}</strong></div>
-          <div class="kpi-pill">Service-blokeringer: <strong>{{ kpi.service_blok|default(0) }}</strong></div>
+    <!-- ============== SIDE 1: OVERBLIK ============== -->
+    <section id="page1" class="page active" role="tabpanel" aria-labelledby="tab-page1">
+      <p class="muted">Overblik over nøgletal, ikke-brugte tider og kæder (Direkte → Bruger).</p>
+      <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
+
+      <div class="grid-2">
+        <!-- VINDUE: Booking overblik + Chart -->
+        <div class="window">
+          <h3>📊 Booking overblik (seneste 30 dage)</h3>
+          <div class="kpis">
+            <div class="kpi-pill">Bookinger i alt: <strong>{{ kpi.bookinger_30d|default(0) }}</strong></div>
+            <div class="kpi-pill">Ikke brugt: <strong>{{ kpi.ikke_brugt_30d|default(0) }}</strong></div>
+            <div class="kpi-pill">Udnyttelse: <strong>{{ kpi.udnyttelse_30d_pct|default(0) }}%</strong></div>
+            <div class="kpi-pill">Kæder (Direkte→Bruger): <strong>{{ kpi.kaeder_30d|default(0) }}</strong></div>
+            <div class="kpi-pill">Gns. kæde-score: <strong>{{ kpi.kaede_avg_score|default(0) }}</strong></div>
+          </div>
+          <div class="chart-wrap"><canvas id="bookingChart"></canvas></div>
+          <p class="muted">Søjler: bookinger pr. dag. Linje: direktetid pr. dag.</p>
         </div>
-        <div class="chart-wrap">
-          <canvas id="bookingChart"></canvas>
+
+        <!-- VINDUE: Ikke brugte bookinger -->
+        <div class="window">
+          <h3>🚫 Ikke brugte bookinger</h3>
+          <table>
+            <thead><tr><th>Dato</th><th>Slot</th><th>Bruger</th></tr></thead>
+            <tbody>
+              {% for r in (ikke_bruge_tabel or []) %}
+                <tr><td class="nowrap">{{ r.dato }}</td><td>{{ r.slot }}</td><td>{{ r.brugernavn }}</td></tr>
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen ikke-brugte bookinger i perioden.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <p class="muted">Søjler: bookinger pr. dag. Linje: direktetid pr. dag.</p>
-      </div>
 
-      <!-- VINDUE 2: Fejl & blokeringer -->
+        <!-- VINDUE: Kæder Direkte→Bruger -->
+        <div class="window">
+          <h3>🔗 Kæder: Direkte → Bruger (seneste 30)</h3>
+          <table>
+            <thead><tr><th>Dato</th><th>Direkte slot</th><th>Bruger slot</th><th>Bruger</th><th>Score</th></tr></thead>
+            <tbody>
+              {% for d, ds, bs, u, sc, note, ts in (kaeder or []) %}
+                {% set cls = 'green' if sc>=0 and sc<50 else ('yellow' if sc<80 else 'red') %}
+                <tr>
+                  <td class="nowrap">{{ d }}</td><td>{{ ds }}</td><td>{{ bs }}</td><td>{{ u }}</td>
+                  <td class="score {{ cls }}">{{ sc }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="muted">Ingen registrerede kæder.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="muted">Score = hvor tæt booking kom på slotskiftet (+bonus ved Miele-aktivitet).</p>
+        </div>
+
+        <!-- VINDUE: Seneste ændringsbookninger (bevarer dit gamle vindue 3) -->
+        <div class="window">
+          <h3>📝 Ændringsbookninger (seneste)</h3>
+          <table>
+            <thead><tr><th>Bruger</th><th>Handling</th><th>Dato</th><th>Slot</th><th>Tidspunkt</th><th>Slet</th></tr></thead>
+            <tbody>
+            {% for log in (booking_log or []) %}
+              <tr>
+                <td>{{ log[1] }}</td>
+                <td>{{ log[2] }}</td>
+                <td>{{ log[3] }}</td>
+                <td>{{ log[4] }}</td>
+                <td>{{ log[5] }}</td>
+                <td>
+                  <form method="post" action="/slet_bookinglog" style="display:inline;">
+                    <input type="hidden" name="log_id" value="{{ log[0] }}">
+                    <button type="submit">Slet</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="muted">Ingen ændringer registreret.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== SIDE 2: BRUGSMØNSTRE ============== -->
+    <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2">
+      <p class="muted">Udnyttelse pr. slot, ugedagsmønstre og brugermønstre.</p>
+      <div class="grid-3">
+        <div class="window">
+          <h3>⏱️ Udnyttelse pr. slot</h3>
+          <table>
+            <thead><tr><th>Slot</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
+            <tbody>
+              {% for r in (slot_overblik or []) %}
+                <tr><td>{{ r.slot }}</td><td>{{ r.brugte }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.udnyttelse_pct }}%</td></tr>
+              {% else %}
+                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="window">
+          <h3>📅 Ugedagsmønster</h3>
+          <table>
+            <thead><tr><th>Dag</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
+            <tbody>
+              {% for r in (weekday_overblik or []) %}
+                <tr><td>{{ r.dag }}</td><td>{{ r.brugte }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.udnyttelse_pct }}%</td></tr>
+              {% else %}
+                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="window">
+          <h3>👤 Brugermønstre (top 15 efter ikke-brugt-rate)</h3>
+          <table>
+            <thead><tr><th>Bruger</th><th>Bookinger</th><th>Ikke brugt</th><th>Rate</th></tr></thead>
+            <tbody>
+              {% for r in (bruger_moenstre or []) %}
+                <tr><td>{{ r.brugernavn }}</td><td>{{ r.bookinger }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.ikke_brugt_rate }}%</td></tr>
+              {% else %}
+                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== SIDE 3: SIKKERHED & REGLER ============== -->
+    <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3">
       <div class="window">
-        <h3>🚫 Fejl & blokeringer</h3>
-        <table>
-          <tr><th>Type</th><th>Antal</th></tr>
-          <tr><td>Forsøg på &gt; 2 tider pr. dag</td><td><strong>{{ fejl_stats.for_mange|default(0) }}</strong></td></tr>
-          <tr><td>Seriebooking forsøg (samme dag)</td><td><strong>{{ fejl_stats.serie|default(0) }}</strong></td></tr>
-          <tr><td>No-show spærringer (ugen efter)</td><td><strong>{{ fejl_stats.ude_uden_afbud|default(0) }}</strong></td></tr>
+        <h3>🔐 Login-aktivitet (indikatorer pr. event)</h3>
+        <div class="kpis">
+          <div class="kpi-pill">Login (30 dage): <strong>{{ (logins or [])|length }}</strong></div>
+        </div>
+        <div class="toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          <label class="muted" for="filterLogin">Filtrér</label>
+          <select id="filterLogin" class="toppanel-knap" style="padding:6px 10px;">
+            <option value="alle">Alle</option>
+            <option value="succes">Kun succes</option>
+            <option value="fejl">Kun fejl</option>
+          </select>
+        </div>
+        <table id="loginTable">
+          <thead>
+            <tr>
+              <th>Tidspunkt</th>
+              <th>Bruger</th>
+              <th>Status</th>
+              <th>Device/Browser/OS</th>
+              <th>Geo/ISP</th>
+              <th>Indikator</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in (logins or []) %}
+              {% set ok = (e.status|lower == 'success' or e.status|lower == 'succes') %}
+              <tr data-status="{{ 'succes' if ok else 'fejl' }}">
+                <td class="nowrap">{{ e.tidspunkt }}</td>
+                <td><span class="badge-dot"><span class="dot {{ 'ok' if ok else 'err' }}"></span>{{ e.brugernavn }}</span></td>
+                <td><span class="pill">{{ e.status }}</span></td>
+                <td>
+                  <span class="pill">{{ e.ua_device }}</span>
+                  <span class="pill">{{ e.ua_browser }}</span>
+                  <span class="pill">{{ e.ua_os }}</span>
+                </td>
+                <td>
+                  <span class="pill">{{ e.ip_country }}{% if e.ip_region %}, {{ e.ip_region }}{% endif %}</span>
+                  {% if e.ip_city %}<span class="pill">{{ e.ip_city }}</span>{% endif %}
+                  {% if e.ip_org %}<span class="pill">{{ e.ip_org }}</span>{% endif %}
+                  {% if e.ip_is_datacenter %}<span class="pill" style="border-color:#b55;color:#ffb4b4">Datacenter</span>{% endif %}
+                </td>
+                <td>{% if ok %}<span class="pill">Godkendt</span>{% else %}<span class="pill" style="border-color:#b55;color:#ffb4b4">Afvist</span>{% endif %}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="muted">Ingen login-events i perioden.</td></tr>
+            {% endfor %}
+          </tbody>
         </table>
-        <p class="muted">Baseret på booking_log.resultat (fx <code>fejl:max2</code>, <code>fejl:seriebooking</code>, <code>fejl:blokering_manglende_vask</code>).</p>
+        <p class="muted">Indikator = farvet prik + status-label pr. login-event, så man hurtigt ser <strong>hvem</strong> og <strong>hvordan</strong>.</p>
       </div>
 
-      <!-- VINDUE 3: Ændringsbookninger (booking_log) -->
-      <div class="window">
-        <h3>📝 Ændringsbookninger (seneste)</h3>
-        <table>
-          <tr><th>Bruger</th><th>Handling</th><th>Dato</th><th>Slot</th><th>Tidspunkt</th><th>Slet</th></tr>
-          {% for log in (booking_log or []) %}
-          <tr>
-            <td>{{ log[1] }}</td>
-            <td>{{ log[2] }}</td>
-            <td>{{ log[3] }}</td>
-            <td>{{ log[4] }}</td>
-            <td>{{ log[5] }}</td>
-            <td>
-              <form method="post" action="/slet_bookinglog" style="display:inline;">
-                <input type="hidden" name="log_id" value="{{ log[0] }}">
-                <button type="submit">Slet</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="6" class="muted">Ingen ændringer registreret.</td></tr>
-          {% endfor %}
-        </table>
+      <div class="grid-2">
+        <div class="window">
+          <h3>🧪 Bookingforsøg pr. dag (alle)</h3>
+          <p class="muted">Viser hvor mange gange en bruger har forsøgt at booke på samme dato (inkl. mislykkede/afviste).</p>
+          <table>
+            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
+            <tbody>
+              {% for r in (attempts_by_user_day or []) %}
+                <tr class="{{ 'highlight' if r.forsøg|int > 2 else '' }}">
+                  <td class="nowrap">{{ r.dato }}</td><td>{{ r.brugernavn }}</td><td>{{ r.forsøg }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen registrerede forsøg.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="window">
+          <h3>🚧 Forsøg &gt; 2 pr. dag (flagget)</h3>
+          <div class="kpis"><span class="badge-dot"><span class="dot warn"></span>Regel: maks. 2 forsøg/dag</span></div>
+          <table>
+            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
+            <tbody id="over2">
+              {% for r in (attempts_over_2 or []) %}
+                <tr><td class="nowrap">{{ r.dato }}</td><td><strong>{{ r.brugernavn }}</strong></td><td>{{ r.forsøg }}</td></tr>
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen brugere over grænsen i perioden.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="muted">Backend: <code>GROUP BY ts::date, brugernavn HAVING COUNT(*) &gt; 2</code>.</p>
+        </div>
       </div>
 
-      <!-- VINDUE 4: Systemstatus -->
-      <div class="window">
+      <!-- Bevar dit gamle "Systemstatus" vindue her, hvis du ønsker -->
+      <div class="window" style="margin-top:18px;">
         <h3>⚙️ Systemstatus</h3>
-        <div class="kpi">Seneste Miele-status: <span class="val">{{ miele_status|default('Ukendt') }}</span></div>
-        <div class="kpi">Sidste opdatering: <span class="val">{{ miele_opdateret|default('—') }}</span></div>
-        <div class="kpi">Antal status-logs: <span class="val">{{ miele_logs|default(0) }}</span></div>
-
-        <h4 style="margin-top:14px;">Loginforsøg (seneste 100)</h4>
-        <table>
-          <tr><th>Bruger</th><th>IP</th><th>Enhed</th><th>Status</th><th>Tidspunkt + Slet</th></tr>
-          {% for lg in (logins or []) %}
-          <tr {% if lg[4] == "Fejl i login" %}style="background-color: rgba(220,53,69,.25);" {% endif %}>
-            <td>{{ lg[0] }}</td>
-            <td>{{ lg[1] }}</td>
-            <td style="max-width: 220px; word-break: break-word;">{{ lg[2] }}</td>
-            <td>{{ lg[4] }}</td>
-            <td>
-              {{ lg[3] }}
-              <form method="post" action="/slet_loginforsøg" style="display:inline;">
-                <input type="hidden" name="log_id" value="{{ lg[5] }}">
-                <button type="submit">Slet</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="5" class="muted">Ingen loginforsøg registreret.</td></tr>
-          {% endfor %}
-        </table>
+        <div>Seneste Miele-status: <strong>{{ miele_status|default('Ukendt') }}</strong></div>
+        <div>Sidste opdatering: <strong>{{ miele_opdateret|default('—') }}</strong></div>
+        <div>Antal status-logs: <strong>{{ miele_logs|default(0) }}</strong></div>
       </div>
-    </div>
+    </section>
   </div>
 
   <!-- Chart.js til Booking overblik -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    // Tabs
+    const tabs = document.querySelectorAll('.tab-btn');
+    const pages = document.querySelectorAll('.page');
+    tabs.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        tabs.forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+        const id = btn.dataset.tab;
+        pages.forEach(p=>p.classList.toggle('active', p.id===id));
+      });
+    });
+
+    // Login filter (succes/fejl)
+    const filterSel = document.getElementById('filterLogin');
+    const loginTable = document.getElementById('loginTable');
+    if(filterSel && loginTable){
+      filterSel.addEventListener('change', ()=>{
+        const want = filterSel.value; // 'alle'|'succes'|'fejl'
+        loginTable.querySelectorAll('tbody tr').forEach(tr=>{
+          const s = tr.getAttribute('data-status') || 'succes';
+          tr.style.display = (want==='alle' || s===want) ? '' : 'none';
+        });
+      });
+    }
+
     // Data til graf: Direktetid (server-side) + Bookinger (via /bookinger_json)
     const direkteRaw = {{ (direkte_pr_dag or [])|tojson }};
     const direkteMap = {};

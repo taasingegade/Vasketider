@@ -1,4 +1,7 @@
 Flask
+geoip2==4.8.0
+user-agents==2.2.0
+ua-parser
 psycopg2-binary
 twilio
 pytz
@@ -6,3 +9,5 @@ pandas
 matplotlib
 flask-limiter
 fpdf
+requests
+werkzeug
