@@ -1,5 +1,12 @@
 from flask import Flask, render_template, request, redirect, session, jsonify, Response, url_for, g, flash
-import psycopg2
+try:
+    import psycopg  # psycopg v3
+    from psycopg.errors import Error as PGError
+    HAS_PG3 = True
+except ImportError:
+    import psycopg2 as psycopg  # fallback til v2 hvis lokalt
+    from psycopg2 import Error as PGError
+    HAS_PG3 = False
 from datetime import datetime, timedelta
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -7,7 +14,13 @@ from fpdf import FPDF
 from pytz import timezone
 from flask import make_response
 from user_agents import parse as ua_parse
-from psycopg2 import IntegrityError
+try:
+    from psycopg.errors import UniqueViolation as IntegrityError  # psycopg3
+except Exception:
+    try:
+        from psycopg2 import IntegrityError  # psycopg2
+    except Exception:
+        IntegrityError = Exception
 from flask import current_app
 from functools import wraps
 from flask import abort
@@ -73,7 +86,7 @@ limiter.init_app(app)
 # Definer starter en funktion i python
 
 def get_db_connection():
-    return psycopg2.connect(DATABASE_URL, sslmode='require')
+    return psycopg.connect(DATABASE_URL, sslmode='require')
 
 def init_db():
     try:
