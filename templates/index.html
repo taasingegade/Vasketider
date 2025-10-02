@@ -77,8 +77,8 @@
       <button class="slot-btn" style="background-color: gold; color: black;">{{ booking }}</button>
     {% elif booking == bruger %}
       <form method="POST" action="/slet">
-        {% set d = dato.split('-') %}
-        <input type="hidden" name="dato" value="{{ d[2] }}-{{ '%02d'|format(d[1]|int) }}-{{ '%02d'|format(d[0]|int) }}">
+        <!-- Dato sendes altid som YYYY-MM-DD -->
+        <input type="hidden" name="dato" value="{{ dato|strftime('%Y-%m-%d') }}">
         <input type="hidden" name="tid" value="{{ i }}">
         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
         <button type="submit" class="slot-btn" style="background-color: crimson;">{{ booking }}</button>
@@ -90,8 +90,8 @@
 {% else %}
   <div style="display: flex; justify-content: center; align-items: center;">
     <form method="POST" action="/book">
-      {% set d = dato.split('-') %}
-      <input type="hidden" name="dato" value="{{ d[2] }}-{{ '%02d'|format(d[1]|int) }}-{{ '%02d'|format(d[0]|int) }}">
+      <!-- Dato sendes altid som YYYY-MM-DD -->
+      <input type="hidden" name="dato" value="{{ dato|strftime('%Y-%m-%d') }}">
       <input type="hidden" name="tid" value="{{ i }}">
       <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
       <button type="submit" class="slot-btn ledig-knap">Ledig</button>
