@@ -78,7 +78,7 @@
     {% elif booking == bruger %}
       <form method="POST" action="/slet">
         <!-- Dato sendes altid som YYYY-MM-DD -->
-        <input type="hidden" name="dato" value="{{ dato|strftime('%Y-%m-%d') }}">
+        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
         <input type="hidden" name="tid" value="{{ i }}">
         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
         <button type="submit" class="slot-btn" style="background-color: crimson;">{{ booking }}</button>
@@ -91,7 +91,7 @@
   <div style="display: flex; justify-content: center; align-items: center;">
     <form method="POST" action="/book">
       <!-- Dato sendes altid som YYYY-MM-DD -->
-      <input type="hidden" name="dato" value="{{ dato|strftime('%Y-%m-%d') }}">
+      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
       <input type="hidden" name="tid" value="{{ i }}">
       <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
       <button type="submit" class="slot-btn ledig-knap">Ledig</button>
