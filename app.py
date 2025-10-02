@@ -7,7 +7,7 @@ except ImportError:
     import psycopg2 as psycopg  # fallback til v2 hvis lokalt
     from psycopg2 import Error as PGError
     HAS_PG3 = False
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -244,18 +244,38 @@ def get_indstilling(cur, navn: str, default: str=""):
 
 SLOT_WINDOWS = {0:(7,11), 1:(11,15), 2:(15,19), 3:(19,23)}
 
-def slot_interval(dato_iso: str, slot_index: int):
-    y,m,d = map(int, dato_iso.split("-"))
-    sh,eh = SLOT_WINDOWS[slot_index]
-    return (CPH.localize(datetime(y,m,d,sh,0,0)), CPH.localize(datetime(y,m,d,eh,0,0)))
+def slot_interval(dato_any, slot_index: int):
+    """
+    Returnér (start_dt, end_dt) i DK-tid for dato + slot (4 timer).
+    Accepterer både datetime.date/datetime og 'YYYY-MM-DD' string.
+    """
+    if isinstance(dato_any, (date, datetime)):
+        y, m, d = dato_any.year, dato_any.month, dato_any.day
+    else:
+        y, m, d = map(int, str(dato_any).split("-"))
+
+    sh, eh = SLOT_WINDOWS[int(slot_index)]
+    start_dt = CPH.localize(datetime(y, m, d, sh, 0, 0))
+    end_dt   = CPH.localize(datetime(y, m, d, eh, 0, 0))
+    return start_dt, end_dt
 
 def miele_var_aktiv_omkring(cur, t0, t1) -> bool:
     cur.execute("SELECT 1 FROM miele_activity WHERE ts BETWEEN %s AND %s LIMIT 1", (t0, t1))
     return cur.fetchone() is not None
 
-def registrer_kæde_hvis_nødvendigt(conn, dato_iso: str, bruger_slot: int, brugernavn: str):
+def registrer_kæde_hvis_nødvendigt(conn, dato_any, bruger_slot: int, brugernavn: str):
+    """
+    Accepterer både datetime.date og 'YYYY-MM-DD' string som dato.
+    """
     if brugernavn.lower() in ("direkte", "service"):
         return
+
+    # Sikr at vi altid har et date-objekt til SQL
+    if isinstance(dato_any, (date, datetime)):
+        dato_db = dato_any if isinstance(dato_any, date) else dato_any.date()
+    else:
+        dato_db = datetime.strptime(str(dato_any), "%Y-%m-%d").date()
+
     cur = conn.cursor()
     try:
         # indstillinger med defaults
@@ -274,12 +294,12 @@ def registrer_kæde_hvis_nødvendigt(conn, dato_iso: str, bruger_slot: int, brug
           SELECT 1 FROM bookinger
           WHERE dato_rigtig = %s AND slot_index = %s AND LOWER(brugernavn)='direkte'
           LIMIT 1
-        """, (dato_iso, prev_slot))
+        """, (dato_db, prev_slot))
         if not cur.fetchone():
             return
 
         # beregn slut af direkte-slot
-        _, direkte_slut = slot_start_end(dato_iso, prev_slot)
+        _, direkte_slut = slot_start_end(dato_db, prev_slot)
         nu = datetime.now(CPH)
         if nu > direkte_slut + timedelta(minutes=vindue_min):
             return
@@ -302,7 +322,7 @@ def registrer_kæde_hvis_nødvendigt(conn, dato_iso: str, bruger_slot: int, brug
         cur.execute("""
           INSERT INTO direkte_kæder (dato, direkte_slot, bruger_slot, bruger, score, note)
           VALUES (%s,%s,%s,%s,%s,%s)
-        """, (dato_iso, prev_slot, bruger_slot, brugernavn, score, note))
+        """, (dato_db, prev_slot, bruger_slot, brugernavn, score, note))
         conn.commit()
     finally:
         cur.close()
@@ -565,14 +585,22 @@ def _current_slot_index(now_dt):
     if 19 <= h < 23: return 3
     return None  # Uden for vasketider → ikke tilladt
 
-def slot_start_end(dato_iso: str, slot_index: int):
-    """Returnér (start_dt, end_dt) i DK-tid for dato + slot (4 timer)."""
+def slot_start_end(dato_any, slot_index: int):
+    """
+    Returnér (start_dt, end_dt) i DK-tid for dato + slot (4 timer).
+    Accepterer både datetime.date/datetime og 'YYYY-MM-DD' string.
+    """
+    if isinstance(dato_any, (date, datetime)):
+        y, m, d = dato_any.year, dato_any.month, dato_any.day
+    else:
+        y, m, d = map(int, str(dato_any).split("-"))
+
     start_hour = SLOT_TO_START.get(int(slot_index))
     if start_hour is None:
         return None, None
-    start_naive = datetime.strptime(dato_iso, "%Y-%m-%d").replace(hour=start_hour, minute=0, second=0, microsecond=0)
-    start_dt = CPH.localize(start_naive)
-    end_dt = start_dt + timedelta(hours=4)
+
+    start_dt = CPH.localize(datetime(y, m, d, start_hour, 0, 0))
+    end_dt   = start_dt + timedelta(hours=4)
     return start_dt, end_dt
 
 def uge_for(dato_iso, valgt_uge):
