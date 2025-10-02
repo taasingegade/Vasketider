@@ -1827,8 +1827,9 @@ def index():
         valgt_uge = idag_dt.isocalendar().week
         start_dato = (idag_dt - timedelta(days=idag_dt.weekday())).date()
 
+    # Ugedage labels og dato-objekter
     ugedage_dk = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
-    ugedage_dato = [(start_dato + timedelta(days=i)).strftime('%d-%m-%Y') for i in range(7)]
+    ugedage_dato = [start_dato + timedelta(days=i) for i in range(7)]   # ← date-objekter
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1838,7 +1839,7 @@ def index():
     tider_raw = cur.fetchall()
     tider = [r[1] for r in tider_raw]
 
-    # Hele uge-visningen (mandag–søndag), også for dage der er gået
+    # Hele ugevisningen
     uge_start = start_dato
     uge_slut = start_dato + timedelta(days=6)
     cur.execute("""
@@ -1849,7 +1850,7 @@ def index():
     """, (uge_start, uge_slut))
     bookinger_uge = cur.fetchall()
 
-    # Alle bookede tider fra dags dato og 14 dage frem
+    # Kommende bookinger (14 dage)
     frem_slut = idag + timedelta(days=14)
     cur.execute("""
         SELECT b.dato_rigtig, b.slot_index, b.brugernavn, v.tekst
@@ -1869,8 +1870,8 @@ def index():
         for r in cur.fetchall()
     ]
 
-    # Mapping til kalenderen
-    booked = {(row[0].strftime("%d-%m-%Y"), row[1]): row[2] for row in bookinger_uge}
+    # Mapping til kalenderen → nøgler er date-objekter
+    booked = {(row[0], int(row[1])): row[2] for row in bookinger_uge}
 
     # Miele status
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
@@ -1901,17 +1902,17 @@ def index():
 
     conn.close()
 
-    # Læg hele ugens bookinger i dict til kalenderen
+    # Ugens bookinger → også date-objekter
     bookinger = {}
     for b in bookinger_uge:
-        dato_str = b[0].strftime('%d-%m-%Y')
+        d = b[0]   # allerede date fra DB
         slot = int(b[1])
-        bookinger[(dato_str, slot)] = b[2]
+        bookinger[(d, slot)] = b[2]
 
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
-        ugedage_dato=ugedage_dato,
+        ugedage_dato=ugedage_dato,   # ← date-objekter
         tider=tider,
         valgt_uge=valgt_uge,
         bookinger=bookinger,
