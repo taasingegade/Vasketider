@@ -1867,16 +1867,30 @@ def index():
     tider_raw = cur.fetchall()
     tider = [r[1] for r in tider_raw]
 
-    # Hele ugevisningen
+    # Hele ugevisningen (inkl. sub_slot)
     uge_start = start_dato
     uge_slut = start_dato + timedelta(days=6)
     cur.execute("""
-        SELECT dato_rigtig, slot_index, brugernavn
+        SELECT dato_rigtig, slot_index, brugernavn, COALESCE(sub_slot,'full') AS sub
         FROM bookinger
         WHERE dato_rigtig BETWEEN %s AND %s
         ORDER BY dato_rigtig, slot_index
     """, (uge_start, uge_slut))
     bookinger_uge = cur.fetchall()
+
+    # Ugens bookinger → dict pr. celle med {full|early|late}
+    bookinger = {}
+    for d, slot, navn, sub in bookinger_uge:
+        key = (d, int(slot))
+        if key not in bookinger:
+            bookinger[key] = {"full": None, "early": None, "late": None}
+        if sub == "full":
+            bookinger[key]["full"] = navn
+        elif sub == "early":
+            bookinger[key]["early"] = navn  # kan være None (placeholder)
+        elif sub == "late":
+            bookinger[key]["late"] = navn   # kan være None (placeholder)
+
 
     # Kommende bookinger (14 dage)
     frem_slut = idag + timedelta(days=14)

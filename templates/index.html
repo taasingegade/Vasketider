@@ -67,38 +67,111 @@
 
   {% for i in range(4) %}
     <div><strong>{{ tider[i] }}</strong></div>
-    {% for j in range(7) %}
-      {% set dato = ugedage_dato[j] %}
-      {% set booking = bookinger.get((dato, i)) %}
+{% for j in range(7) %}
+  {% set dato = ugedage_dato[j] %}  {# dato er et date-objekt #}
+  {% set cell = bookinger.get((dato, i)) %}
 
-     {% if booking %}
-  <div style="display: flex; justify-content: center; align-items: center;">
-    {% if booking == 'service' %}
-      <button class="slot-btn" style="background-color: gold; color: black;">{{ booking }}</button>
-    {% elif booking == bruger %}
-      <form method="POST" action="/slet">
-        <!-- Dato sendes altid som YYYY-MM-DD -->
-        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-        <input type="hidden" name="tid" value="{{ i }}">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button type="submit" class="slot-btn" style="background-color: crimson;">{{ booking }}</button>
-      </form>
+  <div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;min-height:42px;">
+
+    {% if cell and cell.full %}
+      {# FULD BOOKING #}
+      {% if cell.full == bruger %}
+        <form method="POST" action="/slet">
+          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+          <input type="hidden" name="tid" value="{{ i }}">
+          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+          <button type="submit" class="slot-btn" style="background-color:crimson;">
+            {{ cell.full }} (fuld)
+          </button>
+        </form>
+      {% else %}
+        <button class="slot-btn" style="background-color:crimson;" disabled>
+          {{ cell.full }}
+        </button>
+      {% endif %}
+
     {% else %}
-      <button class="slot-btn" style="background-color: crimson;" disabled>{{ booking }}</button>
+      {# IKKE FULD – tjek halvdele #}
+      {% set has_early = cell and (cell.early is not none) %}
+      {% set has_late  = cell and (cell.late  is not none) %}
+
+      {% if has_early or has_late %}
+        {# Der findes mindst én halvdel (den anden kan være tom/placeholder) #}
+
+        {# EARLY #}
+        {% if cell.early %}
+          {% if cell.early == bruger %}
+            <form method="POST" action="/slet">
+              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+              <input type="hidden" name="tid" value="{{ i }}">
+              <input type="hidden" name="sub" value="early">
+              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+              <button type="submit" class="slot-btn" style="background-color:crimson;">Tidlig (min)</button>
+            </form>
+          {% else %}
+            <button class="slot-btn" style="background-color:crimson;" disabled>Tidlig ({{ cell.early }})</button>
+          {% endif %}
+        {% else %}
+          <form method="POST" action="/book_half">
+            <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+            <input type="hidden" name="tid" value="{{ i }}">
+            <input type="hidden" name="sub" value="early">
+            <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+            <button type="submit" class="slot-btn ledig-knap">Book tidlig</button>
+          </form>
+        {% endif %}
+
+        {# LATE #}
+        {% if cell.late %}
+          {% if cell.late == bruger %}
+            <form method="POST" action="/slet">
+              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+              <input type="hidden" name="tid" value="{{ i }}">
+              <input type="hidden" name="sub" value="late">
+              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+              <button type="submit" class="slot-btn" style="background-color:crimson;">Sen (min)</button>
+            </form>
+          {% else %}
+            <button class="slot-btn" style="background-color:crimson;" disabled>Sen ({{ cell.late }})</button>
+          {% endif %}
+        {% else %}
+          <form method="POST" action="/book_half">
+            <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+            <input type="hidden" name="tid" value="{{ i }}">
+            <input type="hidden" name="sub" value="late">
+            <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+            <button type="submit" class="slot-btn ledig-knap">Book sen</button>
+          </form>
+        {% endif %}
+
+      {% else %}
+        {# HELT TOMT SLOT → vis både FULD og SPLIT-START #}
+        <form method="POST" action="/book">
+          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+          <input type="hidden" name="tid" value="{{ i }}">
+          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+          <button type="submit" class="slot-btn ledig-knap">Book fuld</button>
+        </form>
+
+        <form method="POST" action="/book_split">
+          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+          <input type="hidden" name="tid" value="{{ i }}">
+          <input type="hidden" name="del" value="early">
+          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+          <button type="submit" class="slot-btn ledig-knap">Del tid: tidlig</button>
+        </form>
+
+        <form method="POST" action="/book_split">
+          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+          <input type="hidden" name="tid" value="{{ i }}">
+          <input type="hidden" name="del" value="late">
+          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+          <button type="submit" class="slot-btn ledig-knap">Del tid: sen</button>
+        </form>
+      {% endif %}
     {% endif %}
   </div>
-{% else %}
-  <div style="display: flex; justify-content: center; align-items: center;">
-    <form method="POST" action="/book">
-      <!-- Dato sendes altid som YYYY-MM-DD -->
-      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-      <input type="hidden" name="tid" value="{{ i }}">
-      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-      <button type="submit" class="slot-btn ledig-knap">Ledig</button>
-    </form>
-  </div>
-{% endif %}
-    {% endfor %}
+{% endfor %}
   {% endfor %}
 </div>
 
