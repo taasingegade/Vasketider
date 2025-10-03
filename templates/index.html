@@ -145,41 +145,35 @@
         {% endif %}
 
       {% else %}
-        {# HELT TOMT SLOT → kun én "Ledig" knap + lille menu #}
-        {% set cell_id = (dato.isoformat() ~ '-' ~ i) %}
-        <div class="cal-cell" data-cell="{{ cell_id }}">
-          <button type="button"
-                  class="slot-btn ledig-knap"
-                  data-toggle="split"
-                  data-target="{{ cell_id }}">
-            Ledig
-          </button>
+        {# HELT TOMT SLOT → kun én "Ledig" knap med lille menu #}
+<div class="split-wrap">
+  <button type="button" class="slot-btn ledig-knap split-btn">Ledig ▾</button>
 
-          <div class="split-menu" id="menu-{{ cell_id }}" role="menu" aria-hidden="true">
-            <form method="POST" action="/book">
-              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-              <input type="hidden" name="tid" value="{{ i }}">
-              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-              <button type="submit" class="mini-btn warn">Book fuld tid</button>
-            </form>
+  <div class="split-menu" tabindex="-1">
+    <form method="POST" action="/book">
+      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+      <input type="hidden" name="tid" value="{{ i }}">
+      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+      <button type="submit">Book fuld tid</button>
+    </form>
 
-            <form method="POST" action="/book_split">
-              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-              <input type="hidden" name="tid" value="{{ i }}">
-              <input type="hidden" name="del" value="early">
-              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-              <button type="submit" class="mini-btn">Del tid – tidlig</button>
-            </form>
+    <form method="POST" action="/book_split">
+      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+      <input type="hidden" name="tid" value="{{ i }}">
+      <input type="hidden" name="del" value="early">
+      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+      <button type="submit">Del tid – tidlig halvdel</button>
+    </form>
 
-            <form method="POST" action="/book_split">
-              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-              <input type="hidden" name="tid" value="{{ i }}">
-              <input type="hidden" name="del" value="late">
-              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-              <button type="submit" class="mini-btn alt">Del tid – sen</button>
-            </form>
-          </div>
-        </div>
+    <form method="POST" action="/book_split">
+      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+      <input type="hidden" name="tid" value="{{ i }}">
+      <input type="hidden" name="del" value="late">
+      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+      <button type="submit">Del tid – sen halvdel</button>
+    </form>
+  </div>
+</div>
       {% endif %}
     {% endif %}
   </div>

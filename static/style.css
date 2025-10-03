@@ -403,3 +403,34 @@ ol li {
 }
 
 .menu-btn:hover { background: #333; }
+
+/* Split-menu pr. celle */
+.split-wrap { position: relative; display:inline-block; }
+.split-btn  { min-width: 88px; }
+
+.split-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: none;
+  z-index: 20;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.15);
+  min-width: 200px;
+}
+
+.split-wrap:focus-within .split-menu { display: block; }
+
+.split-menu form { margin: 4px 0; }
+.split-menu button {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+.split-menu button:hover { background: #eee; }

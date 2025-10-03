@@ -1320,6 +1320,8 @@ def book_full():
     raw_dato = request.form["dato"]  # ISO fra formen
     dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()  # -> datetime.date
 
+    # BRUG slot_start_end med ISO-streng:
+    slot_start, slot_end = slot_start_end(dato.strftime("%Y-%m-%d"), tid)
     tid  = int(request.form["tid"])        # 0..3
     valgt_uge = request.form.get("valgt_uge","")
 
