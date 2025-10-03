@@ -1313,21 +1313,26 @@ def book_full():
             conn.commit()
         finally:
             cur.close(); conn.close()
-        # vis fejl i UI via querystring
         return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
-    raw_dato = request.form["dato"]  # ISO fra formen
-    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()  # -> datetime.date
 
-    # BRUG slot_start_end med ISO-streng:
-    slot_start, slot_end = slot_start_end(dato.strftime("%Y-%m-%d"), tid)
-    tid  = int(request.form["tid"])        # 0..3
-    valgt_uge = request.form.get("valgt_uge","")
+    # --- LÆS INPUT FØRST (før vi bruger dem) ---
+    raw_dato  = request.form.get("dato", "").strip()
+    valgt_uge = request.form.get("valgt_uge", "")
+    try:
+        dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # ISO -> date
+    except ValueError:
+        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldig dato"))
+
+    try:
+        tid = int(request.form.get("tid"))
+    except Exception:
+        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldigt tids-slot"))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # 1) Er slot optaget?
+        # 1) Er slot optaget? (fuld eller begge halvdele optaget)
         cur.execute("""
             SELECT
               SUM(CASE WHEN COALESCE(sub_slot,'full')='full' THEN 1 ELSE 0 END) AS fulls,
@@ -1340,10 +1345,9 @@ def book_full():
         if fulls > 0 or (early_taken > 0 and late_taken > 0):
             log_booking_attempt(cur, brugernavn, dato, tid, "afvist:taget")
             conn.commit()
-            # redirect med ?fejl=
             return redirect(url_for("index", uge=valgt_uge, fejl="Tiden er allerede optaget."))
 
-        # 2) Max-regler (eksempel max 2 pr. dag)
+        # 2) Max 2 bookinger samme dag
         cur.execute("""
             SELECT COUNT(*) FROM bookinger
             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
@@ -1351,11 +1355,10 @@ def book_full():
         if (cur.fetchone()[0] or 0) >= 2:
             log_booking_attempt(cur, brugernavn, dato, tid, "afvist:max2")
             conn.commit()
-            # redirect med ?fejl=
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
         # --- Opret fuld booking med aktiveringsvindue (30 min) ---
-        slot_start, slot_end = slot_interval(dato, tid)
+        slot_start, slot_end = slot_start_end(dato.strftime("%Y-%m-%d"), tid)
         activation_required = True
         activation_deadline = slot_start + timedelta(minutes=30)
 
@@ -1369,18 +1372,17 @@ def book_full():
         """, (dato, tid, brugernavn, activation_required, activation_deadline))
         _ = cur.fetchone()
 
-        # Log forsøg/succes
+        # Log succes
         log_booking_attempt(cur, brugernavn, dato, tid, "success")
         conn.commit()
 
-        # EFTER commit: evt. kæde-registrering (best effort)
+        # Kæde-registrering (må IKKE give fejl hvis dato er date-objekt)
         try:
             with get_db_connection() as _c:
-                registrer_kæde_hvis_nødvendigt(_c, dato_iso=dato, bruger_slot=tid, brugernavn=brugernavn)
+                registrer_kæde_hvis_nødvendigt(_c, dato_iso=dato.strftime("%Y-%m-%d"), bruger_slot=tid, brugernavn=brugernavn)
         except Exception:
             current_app.logger.exception("Kæde-registrering fejlede (ignoreret)")
 
-        # redirect med ?besked=
         return redirect(url_for(
             "index",
             uge=valgt_uge,
@@ -1389,11 +1391,11 @@ def book_full():
 
     except Exception as e:
         conn.rollback()
-        current_app.logger.exception("BOOK FEJL")   # ← logger hele stacktrace
+        current_app.logger.exception("BOOK FEJL")
         try:
-            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:ukendt:{e}")
+            log_booking_attempt(cur, brugernavn, dato, tid if 'tid' in locals() else -1, f"afvist:ukendt:{e}")
             conn.commit()
-        except:
+        except Exception:
             pass
         return redirect(url_for("index", uge=valgt_uge, fejl=f"DB-fejl: {str(e)}"))
     finally:
