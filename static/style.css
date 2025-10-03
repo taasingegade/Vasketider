@@ -23,7 +23,31 @@ body {
     z-index: 1000;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(6px);
+    flex-wrap: wrap;
 }
+
+.toppanel .brand { 
+    margin-right: auto; 
+    font-weight: 700; 
+}
+.toppanel .brand a { 
+    color: #fff; 
+    text-decoration: none; 
+}
+
+/* Desktop: vis alle links */
+.toppanel-links { 
+    display: flex; 
+    gap: 10px; 
+}
+
+/* Auth-område (login/logud/profil) – altid synligt */
+.toppanel-auth { 
+    display: flex; 
+    gap: 10px; 
+    align-items: center; 
+}
+.hello { opacity: .85; }
 
 /* Knapper i topmenu */
 .toppanel-knap {
@@ -108,6 +132,19 @@ body {
         box-sizing: border-box;
         margin-top: 5px;
     }
+
+     /* Mobil: kun login/logud i topmenu */
+    .toppanel-links { display: none !important; }
+
+    .toppanel-auth .toppanel-knap {
+        font-size: 16px;
+        padding: 10px 14px;
+    }
+
+    /* Ekstra plads under toppanel */
+    .wrapper { margin-top: 110px; }
+    .main { padding-top: 100px; }
+
 }
 
 /* Footer */
@@ -326,4 +363,45 @@ ol li {
 .service {
   background-color: rgba(255, 193, 7, 0.9) !important; /* gul */
   color: black !important;
+}
+
+/* Split-menu i kalenderceller */
+.cal-cell { position: relative; }
+
+.split-menu {
+  display: none;
+  position: absolute;
+  top: 44px;           /* lige under knappen */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: #111;
+  border: 1px solid #444;
+  padding: 8px;
+  border-radius: 8px;
+  min-width: 180px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.45);
+}
+.split-menu.open { display: block; }
+
+.split-menu form { margin: 4px 0; }
+
+.split-menu .mini-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #2d6;
+  background: #0e281b;
+  color: #cfe;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.split-menu .mini-btn.alt {
+  border-color: #2a8;
+  background: #0b2330;
+}
+.split-menu .mini-btn.warn {
+  border-color: #7ad;
+  background: #0a1523;
 }

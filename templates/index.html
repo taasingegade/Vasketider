@@ -145,29 +145,41 @@
         {% endif %}
 
       {% else %}
-        {# HELT TOMT SLOT → vis både FULD og SPLIT-START #}
-        <form method="POST" action="/book">
-          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn ledig-knap">Book fuld</button>
-        </form>
+        {# HELT TOMT SLOT → kun én "Ledig" knap + lille menu #}
+        {% set cell_id = (dato.isoformat() ~ '-' ~ i) %}
+        <div class="cal-cell" data-cell="{{ cell_id }}">
+          <button type="button"
+                  class="slot-btn ledig-knap"
+                  data-toggle="split"
+                  data-target="{{ cell_id }}">
+            Ledig
+          </button>
 
-        <form method="POST" action="/book_split">
-          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="del" value="early">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn ledig-knap">Del tid: tidlig</button>
-        </form>
+          <div class="split-menu" id="menu-{{ cell_id }}" role="menu" aria-hidden="true">
+            <form method="POST" action="/book">
+              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+              <input type="hidden" name="tid" value="{{ i }}">
+              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+              <button type="submit" class="mini-btn warn">Book fuld tid</button>
+            </form>
 
-        <form method="POST" action="/book_split">
-          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="del" value="late">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn ledig-knap">Del tid: sen</button>
-        </form>
+            <form method="POST" action="/book_split">
+              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+              <input type="hidden" name="tid" value="{{ i }}">
+              <input type="hidden" name="del" value="early">
+              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+              <button type="submit" class="mini-btn">Del tid – tidlig</button>
+            </form>
+
+            <form method="POST" action="/book_split">
+              <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+              <input type="hidden" name="tid" value="{{ i }}">
+              <input type="hidden" name="del" value="late">
+              <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+              <button type="submit" class="mini-btn alt">Del tid – sen</button>
+            </form>
+          </div>
+        </div>
       {% endif %}
     {% endif %}
   </div>
@@ -216,6 +228,40 @@ function hentBookinger() {
 }
 setInterval(hentBookinger, 10000); // Hver 10. sekund
 window.onload = hentBookinger;
+</script>
+<script>
+  // Åbn/luk split-menu for den ene celle
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-toggle="split"]');
+    const anyMenu = document.querySelectorAll('.split-menu.open');
+
+    // Klik på "Ledig" knappen → toggle kun den relevante menu
+    if (btn) {
+      const id = btn.getAttribute('data-target');
+      const menu = document.getElementById('menu-' + id);
+      if (!menu) return;
+
+      // Luk alle andre åbne menuer først
+      anyMenu.forEach(m => { if (m !== menu) m.classList.remove('open'); });
+
+      // Toggle denne
+      menu.classList.toggle('open');
+      e.stopPropagation();
+      return;
+    }
+
+    // Klik udenfor → luk alle menuer
+    if (!e.target.closest('.split-menu')) {
+      anyMenu.forEach(m => m.classList.remove('open'));
+    }
+  });
+
+  // ESC lukker menuer
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.split-menu.open').forEach(m => m.classList.remove('open'));
+    }
+  });
 </script>
 <script>
 window.onload = function() {

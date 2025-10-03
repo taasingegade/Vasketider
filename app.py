@@ -1217,12 +1217,21 @@ def admin_opdater_tider():
 
 @app.route("/admin/delete_booking", methods=["POST"])
 def admin_delete_booking():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
     booking_id = request.form.get("booking_id")
-    conn = psycopg2.connect(DATABASE_URL)
+    if not booking_id:
+        return redirect("/admin")
+
+    conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM bookinger WHERE id = %s", (booking_id,))
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute("DELETE FROM bookinger WHERE id = %s", (booking_id,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
     return redirect("/admin")
 
 @app.route("/admin/delete_comment", methods=["POST"])
@@ -1231,7 +1240,7 @@ def admin_delete_comment():
         return redirect('/login')
 
     kommentar_id = request.form.get("kommentar_id")
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM kommentar WHERE id = %s", (kommentar_id,))
     conn.commit()
@@ -1718,7 +1727,7 @@ def opret():
 
 @app.route("/vis_brugere")
 def vis_brugere():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT brugernavn, kode, email, notifikation, sms, godkendt FROM brugere")
     brugere = [dict(zip(['brugernavn','adgangskode','email','notifikation','sms','godkendt'], row)) for row in cur.fetchall()]
@@ -1733,7 +1742,7 @@ def opret_bruger():
     notifikation = request.form.get("notifikation")
     sms = request.form.get("sms")
     godkendt = False
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("INSERT INTO brugere (brugernavn, kode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
                 (brugernavn, adgangskode, email, notifikation, sms, godkendt))
@@ -1744,7 +1753,7 @@ def opret_bruger():
 @app.route("/slet_bruger", methods=["POST"])
 def slet_bruger():
     brugernavn = request.form.get("brugernavn")
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM brugere WHERE brugernavn = %s", (brugernavn,))
     conn.commit()
@@ -1754,7 +1763,7 @@ def slet_bruger():
 @app.route("/godkend_bruger", methods=["POST"])
 def godkend_bruger():
     brugernavn = request.form.get("brugernavn")
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
     conn.commit()
@@ -1770,7 +1779,7 @@ def opdater_bruger():
     notifikation = "ja" if request.form.get("notifikation") == "on" else "nej"
     godkendt = True if request.form.get("godkendt") == "on" else False
 
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
         UPDATE brugere
@@ -1867,29 +1876,25 @@ def index():
     tider_raw = cur.fetchall()
     tider = [r[1] for r in tider_raw]
 
-    # Hele ugevisningen (inkl. sub_slot)
-    uge_start = start_dato
-    uge_slut = start_dato + timedelta(days=6)
+    # Læg hele ugens bookinger i dict til kalenderen
+    bookinger = {}
     cur.execute("""
-        SELECT dato_rigtig, slot_index, brugernavn, COALESCE(sub_slot,'full') AS sub
+        SELECT dato_rigtig, slot_index, COALESCE(sub_slot,'full') AS sub, brugernavn
         FROM bookinger
         WHERE dato_rigtig BETWEEN %s AND %s
         ORDER BY dato_rigtig, slot_index
     """, (uge_start, uge_slut))
-    bookinger_uge = cur.fetchall()
+    rows = cur.fetchall()
 
-    # Ugens bookinger → dict pr. celle med {full|early|late}
-    bookinger = {}
-    for d, slot, navn, sub in bookinger_uge:
+    for d, slot, sub, navn in rows:
         key = (d, int(slot))
-        if key not in bookinger:
-            bookinger[key] = {"full": None, "early": None, "late": None}
+        cell = bookinger.setdefault(key, {"full": None, "early": None, "late": None})
         if sub == "full":
-            bookinger[key]["full"] = navn
+            cell["full"] = navn
         elif sub == "early":
-            bookinger[key]["early"] = navn  # kan være None (placeholder)
+            cell["early"] = navn
         elif sub == "late":
-            bookinger[key]["late"] = navn   # kan være None (placeholder)
+            cell["late"]  = navn
 
 
     # Kommende bookinger (14 dage)
