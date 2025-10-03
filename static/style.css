@@ -395,3 +395,51 @@ ol li {
   cursor: pointer;
 }
 .split-menu button:hover { background: #eee; }
+
+/* Split menu via <details> – mobil-sikkert */
+.split-details {
+  position: relative;
+  display: inline-block;
+}
+
+.split-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.split-details > summary::-webkit-details-marker { display: none; }
+
+.split-panel {
+  position: absolute;
+  top: 42px;            /* lige under knappen */
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  background: #1f1f1f;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 8px;
+  z-index: 60;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+}
+
+.split-details[open] .split-panel { display: block; }
+
+.menu-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #666;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #fff;
+  cursor: pointer;
+}
+
+.menu-btn:hover { background: #333; }
+
+.menu-sep {
+  border: none;
+  border-top: 1px solid #444;
+  margin: 6px 0;
+  opacity: .7;
+}
