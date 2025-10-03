@@ -226,7 +226,23 @@
       if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
     }
   </script>
-
+<script>
+  function toggleMenu(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Luk andre åbne menuer
+    document.querySelectorAll('.cell-menu .menu.show').forEach(m=>{
+      if (m.id !== id) m.classList.remove('show');
+    });
+    el.classList.toggle('show');
+  }
+  // Klik udenfor lukker menu
+  document.addEventListener('click', (e)=>{
+    if (!e.target.closest('.cell-menu')) {
+      document.querySelectorAll('.cell-menu .menu.show').forEach(m=>m.classList.remove('show'));
+    }
+  });
+</script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
