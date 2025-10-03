@@ -1326,15 +1326,17 @@ def book_full():
         slot_start, slot_end = slot_start_end(dato.strftime("%Y-%m-%d"), tid)
         activation_required = True
         activation_deadline = slot_start + timedelta(minutes=30)
+        # >>> Gør timestamp naiv (uden tz), så det matcher TIMESTAMP-kolonnen
+        activation_deadline_naive = activation_deadline.replace(tzinfo=None) if getattr(activation_deadline, "tzinfo", None) else activation_deadline
 
         cur.execute("""
             INSERT INTO bookinger (
               dato_rigtig, slot_index, brugernavn,
               sub_slot, status, activation_required, activation_deadline, created_at
             )
-            VALUES (%s,%s,%s,'full','pending_activation',%s,%s, NOW())
-            RETURNING id
-        """, (dato, tid, brugernavn, activation_required, activation_deadline))
+           VALUES (%s,%s,%s,'full','pending_activation',%s,%s, NOW())
+           RETURNING id
+        """, (dato, tid, brugernavn, activation_required, activation_deadline_naive))
         _ = cur.fetchone()
 
         # Log succes
@@ -1370,7 +1372,7 @@ def book_full():
 def auto_release():
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        now = datetime.now(CPH)
+        now = datetime.now()
         # Markér udløbne fuld-bookinger
         cur.execute("""
             UPDATE bookinger
