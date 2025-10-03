@@ -57,20 +57,6 @@ def _first_existing(paths):
             return p 
     return None
 
-CITY_CANDIDATES = [
-    "/config/geo/GeoLite2-City.mmdb",  # Home Assistant
-    "/app/geo/GeoLite2-City.mmdb"  # Render.com
-]
-ASN_CANDIDATES = [
-    "/config/geo/GeoLite2-ASN.mmdb",
-    "/app/geo/GeoLite2-ASN.mmdb"
-]
-
-CITY_MMDB = _first_existing(CITY_CANDIDATES)
-ASN_MMDB  = _first_existing(ASN_CANDIDATES)
-
-_city_reader = geoip2.database.Reader(CITY_MMDB) if CITY_MMDB else None
-_asn_reader  = geoip2.database.Reader(ASN_MMDB)  if ASN_MMDB else None
 ALLOWED_EXTENSIONS = {'pdf'}
 CPH = timezone("Europe/Copenhagen")
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
@@ -215,27 +201,6 @@ def parse_ua(user_agent: str):
         "os": ua.os.family or "",
         "device": "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"
     }
-
-def local_geo(ip: str):
-    country = region = city = org = ""
-    is_dc = False
-    if _city_reader:
-        try:
-            c = _city_reader.city(ip)
-            country = c.country.iso_code or ""
-            region  = (c.subdivisions[0].names.get("en","") if c.subdivisions else "")
-            city    = c.city.name or ""
-        except Exception:
-            pass
-    if _asn_reader:
-        try:
-            a = _asn_reader.asn(ip)
-            org = a.autonomous_system_organization or ""
-            dc_keywords = ("Amazon","Google","Microsoft","DigitalOcean","OVH","Hetzner","Akamai","Cloudflare")
-            is_dc = any(k.lower() in (org or "").lower() for k in dc_keywords)
-        except Exception:
-            pass
-    return {"country": country, "region": region, "city": city, "org": org, "is_dc": is_dc}
 
 def get_indstilling(cur, navn: str, default: str=""):
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn=%s", (navn,))
@@ -1932,7 +1897,7 @@ def skiftkode_post():
     if ny_kode1 != ny_kode2:
         return redirect('/skiftkode?fejl=Kodeord+matcher+ikke')
 
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT kode FROM brugere WHERE LOWER(brugernavn) = %s", (brugernavn,))
     result = cur.fetchone()
@@ -1962,51 +1927,49 @@ def index():
     valgt_uge = request.args.get("uge")
     if valgt_uge:
         valgt_uge = int(valgt_uge)
-        try:
-            start_dato = datetime.strptime(f"{idag.year} {valgt_uge} 1", "%G %V %u").date()
-        except ValueError:
-            valgt_uge = 1
-            start_dato = datetime.strptime(f"{idag.year} 1 1", "%G %V %u").date()
+        # mandag i den valgte ISO-uge
+        start_dato = datetime.strptime(f"{idag.year} {valgt_uge} 1", "%G %V %u").date()
     else:
         valgt_uge = idag_dt.isocalendar().week
         start_dato = (idag_dt - timedelta(days=idag_dt.weekday())).date()
 
-    # Ugedage labels og dato-objekter
-    ugedage_dk = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
-    ugedage_dato = [start_dato + timedelta(days=i) for i in range(7)]
+    uge_start = start_dato
+    uge_slut  = start_dato + timedelta(days=6)
+
+    ugedage_dk   = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
+    ugedage_dato = [uge_start + timedelta(days=i) for i in range(7)]
 
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur  = conn.cursor()
 
     # Vasketider
     cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
     tider_raw = cur.fetchall()
     tider = [r[1] for r in tider_raw]
 
-    # Hele uge-vinduet
-    uge_start = start_dato
-    uge_slut  = start_dato + timedelta(days=6)
-
-    # Byg bookinger-struktur til kalendercellerne
-    bookinger = {}
+    # Hent ugens bookinger med sub_slot + status
     cur.execute("""
-        SELECT dato_rigtig, slot_index, COALESCE(sub_slot,'full') AS sub, brugernavn
+        SELECT dato_rigtig, slot_index, COALESCE(sub_slot,'full') AS sub, brugernavn, COALESCE(status,'active')
         FROM bookinger
         WHERE dato_rigtig BETWEEN %s AND %s
         ORDER BY dato_rigtig, slot_index
     """, (uge_start, uge_slut))
     rows = cur.fetchall()
-    for d, slot, sub, navn in rows:
-        key = (d, int(slot))
-        cell = bookinger.setdefault(key, {"full": None, "early": None, "late": None})
-        if sub == "full":
-            cell["full"] = navn
-        elif sub == "early":
-            cell["early"] = navn
-        elif sub == "late":
-            cell["late"]  = navn
 
-    # Kommende bookinger (14 dage)
+    # Byg struktur til kalenderen
+    bookinger = {}
+    for d, slot, sub, navn, status in rows:
+        key  = (d, int(slot))
+        cell = bookinger.setdefault(key, {"full": None, "early": None, "late": None})
+        item = {"navn": navn, "status": status}
+        if sub == "full":
+            cell["full"] = item
+        elif sub == "early":
+            cell["early"] = item
+        elif sub == "late":
+            cell["late"]  = item
+
+    # Kommende 14 dage (til listen nederst)
     frem_slut = idag + timedelta(days=14)
     cur.execute("""
         SELECT b.dato_rigtig, b.slot_index, b.brugernavn, v.tekst
@@ -2015,64 +1978,39 @@ def index():
         WHERE b.dato_rigtig >= %s AND b.dato_rigtig <= %s
         ORDER BY b.dato_rigtig, b.slot_index
     """, (idag, frem_slut))
-    kommende = [
-        {
-            "dato_iso": r[0].strftime("%Y-%m-%d"),
-            "dato_dk":  r[0].strftime("%d-%m-%Y"),
-            "slot_index": r[1],
-            "brugernavn": r[2],
-            "slot_tekst": r[3],
-        }
-        for r in cur.fetchall()
-    ]
+    kommende = [{
+        "dato_iso": r[0].strftime("%Y-%m-%d"),
+        "dato_dk":  r[0].strftime("%d-%m-%Y"),
+        "slot_index": r[1],
+        "brugernavn": r[2],
+        "slot_tekst": r[3],
+    } for r in cur.fetchall()]
 
-    # Miele status
+    # Miele status (uændret – din eksisterende kode kan bevares)
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
-    iot = cur.fetchone()[0] if cur.rowcount > 0 else "nej"
+    iot_row = cur.fetchone()
+    iot = iot_row[0] if iot_row else "nej"
 
     cur.execute("SELECT status, remaining_time, opdateret FROM miele_status ORDER BY opdateret DESC LIMIT 1")
     row = cur.fetchone()
     if row:
-        miele_status = row[0]
-        remaining_time = row[1]
-        miele_opdateret = row[2]
-        if miele_status.lower() in ["i brug", "in use", "running"] and remaining_time is not None:
-            try:
-                minutes = int(remaining_time)
-                hours = minutes // 60
-                mins = minutes % 60
-                if hours > 0:
-                    tids_str = f"{hours} time{'r' if hours > 1 else ''} og {mins} min."
-                else:
-                    tids_str = f"{mins} min."
-                miele_status += f" – {tids_str} tilbage"
-            except ValueError:
-                miele_status += f" – {remaining_time} tilbage"
+        miele_status, remaining_time, miele_opdateret = row[0], row[1], row[2]
     else:
-        miele_status = "Ukendt"
-        remaining_time = None
-        miele_opdateret = None
+        miele_status, remaining_time, miele_opdateret = "Ukendt", None, None
 
     conn.close()
-
-    # For bagudkompatibilitet – hvis din template stadig forventer 'booked' / 'bookinger_14'
-    booked = bookinger
-    bookinger_14 = bookinger
 
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
-        ugedage_dato=ugedage_dato,   # date-objekter
+        ugedage_dato=ugedage_dato,
         tider=tider,
         valgt_uge=valgt_uge,
-        bookinger=bookinger,         # dict: {(date, slot): {"full","early","late"}}
-        booked=booked,               # (valgfrit) alias
-        idag_iso=idag_dt.strftime("%Y-%m-%d"),
-        kommende_bookinger=kommende,
-        bookinger_14=bookinger_14,   # (valgfrit) alias
+        bookinger=bookinger,        # ← nu den rigtige struktur
         bruger=brugernavn,
-        start_dato=start_dato.strftime("%Y-%m-%d"),
-        timedelta=timedelta,
+        idag_iso=idag_dt.strftime("%Y-%m-%d"),
+        start_dato=uge_start.strftime("%Y-%m-%d"),
+        kommende_bookinger=kommende,
         iot=iot,
         miele_status=miele_status,
         miele_remaining=remaining_time,
