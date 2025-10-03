@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<title>Vasketider</title>
-<link rel="manifest" href="/static/manifest.json">
-<link rel="stylesheet" href="/static/style.css">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/service-worker.js');
-  }
-</script>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <title>Vasketider</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+  </script>
 </head>
 <body>
   <div class="toppanel">
@@ -28,10 +28,12 @@
     <form method="get" action="/regler">
       <button class="toppanel-knap">Regler</button>
     </form>
+
     <div class="status">
       <span class="status-label">🧺 Status:</span>
       <span class="status-value">{{ miele_status | capitalize }}</span>
     </div>
+
     <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
       <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
       <span style="color:white; align-self: center;">Uge {{ valgt_uge }}</span>
@@ -70,121 +72,121 @@
             {% set dato = ugedage_dato[j] %}
             {% set cell = bookinger.get((dato, i)) %}
 
-<div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;min-height:42px;">
-  {% if cell and cell.full %}
-    {# FULD BOOKING #}
-    {% set f = cell.full %}
-    {% if f.navn == "service" %}
-      <button class="slot-btn service" disabled>Service</button>
-    {% elif f.navn == bruger %}
-      <form method="POST" action="/slet">
-        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-        <input type="hidden" name="tid" value="{{ i }}">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button type="submit" class="slot-btn" style="background-color:crimson;">
-          {{ f.navn }} (fuld)
-          {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
-        </button>
-      </form>
-    {% else %}
-      <button class="slot-btn" style="background-color:crimson;" disabled>
-        {{ f.navn }}
-        {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
-      </button>
-    {% endif %}
+            <div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;min-height:42px;">
+              {% if cell and cell.full %}
+                {# FULD BOOKING #}
+                {% set f = cell.full %}
+                {% if f.navn == "service" %}
+                  <button class="slot-btn service" disabled>Service</button>
+                {% elif f.navn == bruger %}
+                  <form method="POST" action="/slet">
+                    <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                    <input type="hidden" name="tid" value="{{ i }}">
+                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                    <button type="submit" class="slot-btn" style="background-color:crimson;">
+                      {{ f.navn }} (fuld)
+                      {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+                    </button>
+                  </form>
+                {% else %}
+                  <button class="slot-btn" style="background-color:crimson;" disabled>
+                    {{ f.navn }}
+                    {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+                  </button>
+                {% endif %}
 
-  {% else %}
-    {# IKKE FULD – halvdele #}
-    {% set has_early = cell and (cell.early is not none) %}
-    {% set has_late  = cell and (cell.late  is not none) %}
+              {% else %}
+                {# IKKE FULD – halvdele #}
+                {% set has_early = cell and (cell.early is not none) %}
+                {% set has_late  = cell and (cell.late  is not none) %}
 
-    {% if has_early or has_late %}
-      {# EARLY #}
-      {% if cell.early %}
-        {% set e = cell.early %}
-        {% if e.navn == "service" %}
-          <button class="slot-btn service" disabled>Service (tidlig)</button>
-        {% elif e.navn == bruger %}
-          <form method="POST" action="/slet">
-            <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-            <input type="hidden" name="tid" value="{{ i }}">
-            <input type="hidden" name="sub" value="early">
-            <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-            <button type="submit" class="slot-btn" style="background-color:crimson;">Tidlig (min)</button>
-          </form>
-        {% else %}
-          <button class="slot-btn" style="background-color:crimson;" disabled>Tidlig ({{ e.navn }})</button>
-        {% endif %}
-      {% else %}
-        <form method="POST" action="/book_half">
-          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="sub" value="early">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn ledig-knap">Book tidlig</button>
-        </form>
-      {% endif %}
+                {% if has_early or has_late %}
+                  {# EARLY #}
+                  {% if cell.early %}
+                    {% set e = cell.early %}
+                    {% if e.navn == "service" %}
+                      <button class="slot-btn service" disabled>Service (tidlig)</button>
+                    {% elif e.navn == bruger %}
+                      <form method="POST" action="/slet">
+                        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                        <input type="hidden" name="tid" value="{{ i }}">
+                        <input type="hidden" name="sub" value="early">
+                        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                        <button type="submit" class="slot-btn" style="background-color:crimson;">Tidlig (min)</button>
+                      </form>
+                    {% else %}
+                      <button class="slot-btn" style="background-color:crimson;" disabled>Tidlig ({{ e.navn }})</button>
+                    {% endif %}
+                  {% else %}
+                    <form method="POST" action="/book_half">
+                      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                      <input type="hidden" name="tid" value="{{ i }}">
+                      <input type="hidden" name="sub" value="early">
+                      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                      <button type="submit" class="slot-btn ledig-knap">Book tidlig</button>
+                    </form>
+                  {% endif %}
 
-      {# LATE #}
-      {% if cell.late %}
-        {% set l = cell.late %}
-        {% if l.navn == "service" %}
-          <button class="slot-btn service" disabled>Service (sen)</button>
-        {% elif l.navn == bruger %}
-          <form method="POST" action="/slet">
-            <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-            <input type="hidden" name="tid" value="{{ i }}">
-            <input type="hidden" name="sub" value="late">
-            <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-            <button type="submit" class="slot-btn" style="background-color:crimson;">Sen (min)</button>
-          </form>
-        {% else %}
-          <button class="slot-btn" style="background-color:crimson;" disabled>Sen ({{ l.navn }})</button>
-        {% endif %}
-      {% else %}
-        <form method="POST" action="/book_half">
-          <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-          <input type="hidden" name="tid" value="{{ i }}">
-          <input type="hidden" name="sub" value="late">
-          <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-          <button type="submit" class="slot-btn ledig-knap">Book sen</button>
-        </form>
-      {% endif %}
+                  {# LATE #}
+                  {% if cell.late %}
+                    {% set l = cell.late %}
+                    {% if l.navn == "service" %}
+                      <button class="slot-btn service" disabled>Service (sen)</button>
+                    {% elif l.navn == bruger %}
+                      <form method="POST" action="/slet">
+                        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                        <input type="hidden" name="tid" value="{{ i }}">
+                        <input type="hidden" name="sub" value="late">
+                        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                        <button type="submit" class="slot-btn" style="background-color:crimson;">Sen (min)</button>
+                      </form>
+                    {% else %}
+                      <button class="slot-btn" style="background-color:crimson;" disabled>Sen ({{ l.navn }})</button>
+                    {% endif %}
+                  {% else %}
+                    <form method="POST" action="/book_half">
+                      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                      <input type="hidden" name="tid" value="{{ i }}">
+                      <input type="hidden" name="sub" value="late">
+                      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                      <button type="submit" class="slot-btn ledig-knap">Book sen</button>
+                    </form>
+                  {% endif %}
 
-    {% else %}
-      {# HELT TOMT SLOT → fuld + split start #}
-      <form method="POST" action="/book">
-        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-        <input type="hidden" name="tid" value="{{ i }}">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button type="submit" class="slot-btn ledig-knap">Book fuld</button>
-      </form>
+                {% else %}
+                  {# HELT TOMT SLOT → fuld + split start #}
+                  <form method="POST" action="/book">
+                    <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                    <input type="hidden" name="tid" value="{{ i }}">
+                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                    <button type="submit" class="slot-btn ledig-knap">Book fuld</button>
+                  </form>
 
-      <form method="POST" action="/book_split">
-        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-        <input type="hidden" name="tid" value="{{ i }}">
-        <input type="hidden" name="del" value="early">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button type="submit" class="slot-btn ledig-knap">Del tid: tidlig</button>
-      </form>
+                  <form method="POST" action="/book_half">
+                    <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                    <input type="hidden" name="tid" value="{{ i }}">
+                    <input type="hidden" name="sub" value="early">
+                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                    <button type="submit" class="slot-btn ledig-knap">Del tid: tidlig</button>
+                  </form>
 
-      <form method="POST" action="/book_split">
-        <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
-        <input type="hidden" name="tid" value="{{ i }}">
-        <input type="hidden" name="del" value="late">
-        <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-        <button type="submit" class="slot-btn ledig-knap">Del tid: sen</button>
-      </form>
-    {% endif %}
-  {% endif %}
-</div>
+                  <form method="POST" action="/book_half">
+                    <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+                    <input type="hidden" name="tid" value="{{ i }}">
+                    <input type="hidden" name="sub" value="late">
+                    <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+                    <button type="submit" class="slot-btn ledig-knap">Del tid: sen</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+            </div>
           {% endfor %}
         {% endfor %}
       </div>
 
       <hr>
       <h3>Alle bookede tider (næste 14 dage):</h3>
-      <ul>
+      <ul id="bookinger_14_ul">
         {% if kommende_bookinger %}
           {% for b in kommende_bookinger %}
             <li><strong>{{ b.dato_dk }}</strong> – <strong>{{ b.slot_tekst }}</strong> → {{ b.brugernavn }}</li>
@@ -196,31 +198,35 @@
     </div>
   </div>
 
-<script>
-function hentBookinger() {
-  fetch('/bookinger_json')
-    .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
-    .then(data => {
-      let ul = document.getElementById('bookinger_14_ul');
-      if (!ul) return;
-      ul.innerHTML = "";
-      if(data.length === 0) {
-        ul.innerHTML = "<li>Ingen bookede tider de næste 14 dage.</li>";
-      } else {
-        data.forEach(function(item) {
-          ul.innerHTML += `<li><strong>${item.dato}</strong> – <strong>${item.tid}</strong> → ${item.navn}</li>`;
-        });
-      }
-    })
-    .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
-}
-setInterval(hentBookinger, 10000);
-window.onload = function() {
-  hentBookinger();
-  const popup = document.getElementById('popup-besked');
-  if (popup) setTimeout(() => { popup.style.display = 'none'; }, 3000);
-}
-</script>
-<footer>© Hornsberg Group</footer>
+  <script>
+    function hentBookinger() {
+      fetch('/bookinger_json')
+        .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
+        .then(data => {
+          let ul = document.getElementById('bookinger_14_ul');
+          if (!ul) return;
+          ul.innerHTML = "";
+          if (data.length === 0) {
+            ul.innerHTML = "<li>Ingen bookede tider de næste 14 dage.</li>";
+          } else {
+            data.forEach(function(item) {
+              ul.innerHTML += `<li><strong>${item.dato}</strong> – <strong>${item.tid}</strong> → ${item.navn}</li>`;
+            });
+          }
+        })
+        .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
+    }
+
+    setInterval(hentBookinger, 10000);
+    window.onload = function() {
+      hentBookinger();
+      const popupOK = document.getElementById('popup-besked');
+      if (popupOK) setTimeout(() => { popupOK.style.display = 'none'; }, 3000);
+      const popupErr = document.getElementById('popup-fejl');
+      if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
+    }
+  </script>
+
+  <footer>© Hornsberg Group</footer>
 </body>
 </html>
