@@ -1876,7 +1876,11 @@ def index():
     tider_raw = cur.fetchall()
     tider = [r[1] for r in tider_raw]
 
-    # Læg hele ugens bookinger i dict til kalenderen
+    # Hele uge-vinduet
+    uge_start = start_dato
+    uge_slut  = start_dato + timedelta(days=6)
+
+    # Byg bookinger-struktur til kalendercellerne
     bookinger = {}
     cur.execute("""
         SELECT dato_rigtig, slot_index, COALESCE(sub_slot,'full') AS sub, brugernavn
@@ -1885,7 +1889,6 @@ def index():
         ORDER BY dato_rigtig, slot_index
     """, (uge_start, uge_slut))
     rows = cur.fetchall()
-
     for d, slot, sub, navn in rows:
         key = (d, int(slot))
         cell = bookinger.setdefault(key, {"full": None, "early": None, "late": None})
@@ -1895,7 +1898,6 @@ def index():
             cell["early"] = navn
         elif sub == "late":
             cell["late"]  = navn
-
 
     # Kommende bookinger (14 dage)
     frem_slut = idag + timedelta(days=14)
@@ -1916,9 +1918,6 @@ def index():
         }
         for r in cur.fetchall()
     ]
-
-    # Mapping til kalenderen → nøgler er date-objekter
-    booked = {(row[0], int(row[1])): row[2] for row in bookinger_uge}
 
     # Miele status
     cur.execute("SELECT vaerdi FROM indstillinger WHERE navn = 'iot_vaskemaskine'")
@@ -1949,24 +1948,21 @@ def index():
 
     conn.close()
 
-    # Ugens bookinger → også date-objekter
-    bookinger = {}
-    for b in bookinger_uge:
-        d = b[0]   # allerede date fra DB
-        slot = int(b[1])
-        bookinger[(d, slot)] = b[2]
+    # For bagudkompatibilitet – hvis din template stadig forventer 'booked' / 'bookinger_14'
+    booked = bookinger
+    bookinger_14 = bookinger
 
     return render_template(
         "index.html",
         ugedage_dk=ugedage_dk,
-        ugedage_dato=ugedage_dato,   # ← date-objekter
+        ugedage_dato=ugedage_dato,   # date-objekter
         tider=tider,
         valgt_uge=valgt_uge,
-        bookinger=bookinger,
-        booked=booked,
+        bookinger=bookinger,         # dict: {(date, slot): {"full","early","late"}}
+        booked=booked,               # (valgfrit) alias
         idag_iso=idag_dt.strftime("%Y-%m-%d"),
         kommende_bookinger=kommende,
-        bookinger_14=bookinger,
+        bookinger_14=bookinger_14,   # (valgfrit) alias
         bruger=brugernavn,
         start_dato=start_dato.strftime("%Y-%m-%d"),
         timedelta=timedelta,

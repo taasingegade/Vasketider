@@ -230,38 +230,38 @@ setInterval(hentBookinger, 10000); // Hver 10. sekund
 window.onload = hentBookinger;
 </script>
 <script>
-  // Åbn/luk split-menu for den ene celle
-  document.addEventListener('click', function (e) {
-    const btn = e.target.closest('[data-toggle="split"]');
-    const anyMenu = document.querySelectorAll('.split-menu.open');
+document.addEventListener('click', function (e) {
+  // Luk alle åbne menuer hvis man klikker udenfor
+  if (!e.target.closest('.slot-wrapper')) {
+    document.querySelectorAll('.split-menu.open').forEach(m => {
+      m.classList.remove('open');
+      const btn = m.parentElement.querySelector('.open-split-menu');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    });
+    return;
+  }
 
-    // Klik på "Ledig" knappen → toggle kun den relevante menu
-    if (btn) {
-      const id = btn.getAttribute('data-target');
-      const menu = document.getElementById('menu-' + id);
-      if (!menu) return;
+  // Klik på “Ledig” → toggle kun denne celles menu
+  const ledigBtn = e.target.closest('.open-split-menu');
+  if (ledigBtn) {
+    const wrapper = ledigBtn.closest('.slot-wrapper');
+    const menu = wrapper.querySelector('.split-menu');
 
-      // Luk alle andre åbne menuer først
-      anyMenu.forEach(m => { if (m !== menu) m.classList.remove('open'); });
+    // Luk andre menuer
+    document.querySelectorAll('.split-menu.open').forEach(m => {
+      if (m !== menu) {
+        m.classList.remove('open');
+        const b = m.parentElement.querySelector('.open-split-menu');
+        if (b) b.setAttribute('aria-expanded', 'false');
+      }
+    });
 
-      // Toggle denne
-      menu.classList.toggle('open');
-      e.stopPropagation();
-      return;
-    }
-
-    // Klik udenfor → luk alle menuer
-    if (!e.target.closest('.split-menu')) {
-      anyMenu.forEach(m => m.classList.remove('open'));
-    }
-  });
-
-  // ESC lukker menuer
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.split-menu.open').forEach(m => m.classList.remove('open'));
-    }
-  });
+    // Toggle denne
+    const isOpen = menu.classList.toggle('open');
+    ledigBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    menu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  }
+});
 </script>
 <script>
 window.onload = function() {

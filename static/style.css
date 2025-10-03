@@ -365,43 +365,41 @@ ol li {
   color: black !important;
 }
 
-/* Split-menu i kalenderceller */
-.cal-cell { position: relative; }
+.slot-wrapper {
+  position: relative;
+  display: inline-block;
+}
 
 .split-menu {
   display: none;
   position: absolute;
-  top: 44px;           /* lige under knappen */
+  top: 42px;          /* under “Ledig”-knappen */
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
-  background: #111;
+  min-width: 160px;
+  background: #1f1f1f;
   border: 1px solid #444;
-  padding: 8px;
   border-radius: 8px;
-  min-width: 180px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.45);
+  padding: 6px;
+  z-index: 50;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
 }
-.split-menu.open { display: block; }
 
-.split-menu form { margin: 4px 0; }
-
-.split-menu .mini-btn {
+.split-menu.open {
   display: block;
+}
+
+.split-menu .menu-item { margin: 0; }
+
+.menu-btn {
   width: 100%;
-  padding: 6px 10px;
-  border: 1px solid #2d6;
-  background: #0e281b;
-  color: #cfe;
+  padding: 8px 10px;
+  border: 1px solid #666;
   border-radius: 6px;
+  background: #2a2a2a;
+  color: #fff;
   cursor: pointer;
-  font-size: 14px;
+  margin: 4px 0;
 }
-.split-menu .mini-btn.alt {
-  border-color: #2a8;
-  background: #0b2330;
-}
-.split-menu .mini-btn.warn {
-  border-color: #7ad;
-  background: #0a1523;
-}
+
+.menu-btn:hover { background: #333; }
