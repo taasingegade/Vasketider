@@ -1,13 +1,13 @@
 /* =========================
-   BASE OG TEMA
+   BASE & THEME
    ========================= */
 :root{
-  --ok: #28a745;
-  --ok-darker: #218838;
-  --service: rgba(255,193,7,0.9);
-  --booked: rgba(220,53,69,0.95);
-  --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
-  --slot-h: 70px;            /* før: 48px — nu tydeligt højere */
+  --ok:#28a745;
+  --ok-darker:#218838;
+  --service:rgba(255,193,7,0.9);
+  --booked:rgba(220,53,69,0.95);
+  --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
+  --slot-h:70px;
 }
 @media (max-width:768px){ :root{ --slot-h:80px; } }
 
@@ -20,8 +20,9 @@ html,body{ height:100%; margin:0; padding:0; font-family:sans-serif; color:#fff;
 body{
   background:url('/static/Bg.jpg') no-repeat center center fixed;
   background-size:cover;
-  background-color:#f8f9fa;
+  background-color:#0b0f14;
   min-height:100vh;
+  overflow-x:hidden;
 }
 
 /* =========================
@@ -48,22 +49,19 @@ body{
 .toppanel-knap:hover{background:rgba(255,255,255,0.3); transform:scale(1.03);}
 
 /* =========================
-   WRAPPER OG MAIN
+   WRAPPER & MAIN
    ========================= */
 .wrapper{
   width:100%; max-width:1100px;
   margin:100px auto 24px;
   padding:25px;
   background:rgba(255,255,255,0.05);
-  border-radius:10px;
+  border-radius:12px;
   overflow:visible;
 }
-.main{padding-top:80px;width:100%;max-width:1000px;margin:0 auto;overflow:visible;}
-
-.slot-btn:focus-visible,
-.toppanel-knap:focus-visible,
-.split-details > summary:focus-visible{
-  outline:none; box-shadow:var(--focus);
+.main{
+  padding-top:80px; width:100%; max-width:1000px; margin:0 auto;
+  overflow:visible;
 }
 
 /* =========================
@@ -73,7 +71,7 @@ body{
   display:grid;
   grid-template-columns:140px repeat(7, 1fr);
   grid-auto-rows:var(--slot-h);
-  gap:18px;                               /* før: 8px — mere luft */
+  gap:18px;
   align-items:stretch;
   justify-items:stretch;
   overflow:visible;
@@ -83,9 +81,10 @@ body{
 .calendar > div:nth-child(-n+8){
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:3px; padding:8px 6px;
-  background:rgba(0,0,0,0.3);
+  background:rgba(0,0,0,0.28);
   border-radius:10px;
-  font-weight:600; line-height:1.2;
+  font-weight:600;
+  line-height:1.2;
 }
 .calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
 .calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
@@ -95,12 +94,11 @@ body{
   display:flex; align-items:center; justify-content:flex-end;
   font-weight:700; font-size:16px;
   padding-right:12px;
-  line-height:1.2;
   height:var(--slot-h);
 }
 
 /* =========================
-   SLOT-KNAPPER OG MENU
+   SLOT-KNAPPER
    ========================= */
 .slot-btn, .split-details > summary{
   display:flex; align-items:center; justify-content:center;
@@ -110,7 +108,6 @@ body{
   border:none;
   border-radius:10px;
   line-height:1.2;
-  white-space:nowrap;
   cursor:pointer;
   position:relative;
   gap:8px;
@@ -122,24 +119,35 @@ body{
   box-shadow:0 5px 12px rgba(0,0,0,0.35);
 }
 
-/* LEDIG – fuldt grøn */
-.ledig-knap, .slot-btn.ledig, .split-details.ledig > summary,
-.split-details[data-state="free"] > summary, .slot-btn[data-state="free"],
-.calendar form[action$="/book"] > .slot-btn{
+/* =========================
+   FARVER (tilstande)
+   ========================= */
+
+/* LEDIG – tving altid fuld grøn */
+.slot-btn.ledig,
+.split-details.ledig > summary,
+.split-details[data-state="free"] > summary,
+.slot-btn[data-state="free"],
+.calendar form[action$="/book"] > .slot-btn,
+.calendar form[action$="/book"] button.slot-btn,
+.ledig-knap{
   background:#28a745 !important;
+  background-image:none !important;
   color:#fff !important;
+  border:none !important;
   opacity:1 !important;
   filter:none !important;
 }
-.ledig-knap:hover, .slot-btn.ledig:hover,
+.slot-btn.ledig:hover,
 .split-details.ledig > summary:hover,
-.calendar form[action$="/book"] > .slot-btn:hover{
+.calendar form[action$="/book"] > .slot-btn:hover,
+.ledig-knap:hover{
   background:#218838 !important;
 }
 
 /* SERVICE – gul */
 .slot-btn.service, .split-details.service > summary,
-.slot-btn[data-state="service"]{
+.slot-btn[data-state="service"], .split-details[data-state="service"] > summary{
   background:var(--service) !important;
   color:#000 !important;
   border:1px solid rgba(0,0,0,0.2) !important;
@@ -147,12 +155,14 @@ body{
 
 /* OPTAGET – rød/grå */
 .slot-btn.optaget, .optaget-knap, .split-details.booked > summary{
-  background:rgba(0,0,0,0.3);
+  background:rgba(220,53,69,0.9);
   color:#fff;
   border:1px solid rgba(255,255,255,0.25);
 }
 
-/* Dropdown (Tidlig/Sen) foran alt */
+/* =========================
+   DROPDOWN (TIDLIG/SEN)
+   ========================= */
 .split-details{
   position:relative;
   display:inline-block;
@@ -189,7 +199,7 @@ body{
 .menu-btn:hover{background:#343434;}
 
 /* =========================
-   STATUS OG ØVRIGE
+   STATUS OG DIVERSE
    ========================= */
 .status{
   margin-top:15px;
@@ -229,8 +239,6 @@ footer{
   color:#fff;
   font-size:12px;
   z-index:3000;
-  margin:0;
-  padding:0;
 }
 
 /* =========================
@@ -239,7 +247,7 @@ footer{
 @media (max-width:768px){
   .calendar{
     grid-template-columns:100px repeat(7, minmax(140px,1fr));
-    gap:14px;
+    gap:16px;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
   }
