@@ -75,18 +75,39 @@
 
   {# 1) FULD BOOKET? #}
   {% if cell and cell.full %}
-    {% set f = cell.full %}
-    <button class="slot-btn" style="background-color:crimson;" disabled>
-      {% if f.navn == 'service' %}Service{% else %}{{ f.navn }}{% endif %}
+  {% set f = cell.full %}
+
+  {% if f.navn == 'service' %}
+    <!-- Service = GUL (styres af .slot-btn.service i CSS) -->
+    <button class="slot-btn service" disabled>
+      Service
       {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
     </button>
+
+  {% elif f.navn == bruger %}
+    <!-- Egen fuld booking = kan aflyses -->
+    <form method="POST" action="/slet">
+      <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
+      <input type="hidden" name="tid" value="{{ i }}">
+      <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
+      <button type="submit" class="slot-btn" style="background-color:crimson;">
+        {{ f.navn }} (fuld){% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+      </button>
+    </form>
+
+  {% else %}
+    <!-- Anden bruger = rød, disabled -->
+    <button class="slot-btn" style="background-color:crimson;" disabled>
+      {{ f.navn }}{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+    </button>
+  {% endif %}
 
   {% else %}
     {# 2) IKKE fuld → vis Book-menu #}
     {% set has_early = cell and (cell.early is not none) %}
     {% set has_late  = cell and (cell.late  is not none) %}
     <details class="split-details {% if (cell and (cell.early and cell.early.navn=='service')) or (cell and (cell.late and cell.late.navn=='service')) %}service{% endif %}">
-      <summary>Book</summary>
+      <summary>Ledig</summary>
       <div class="split-panel">
         {# FULD (disabled hvis begge halvdele er taget) #}
         {% set fuld_disabled = has_early and has_late %}
