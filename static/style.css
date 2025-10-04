@@ -323,3 +323,8 @@ footer{
               form[action$="/book"] .slot-btn:hover){
   background-color: #218838 !important;
 }
+
+/* ===========================================*/
+
+.status-eta { color:#ffcc00; font-weight:700; }
+.status-sep { opacity:.6; padding:0 6px; }

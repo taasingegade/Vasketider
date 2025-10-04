@@ -29,9 +29,11 @@
       <button class="toppanel-knap">Regler</button>
     </form>
 
-    <div class="status">
+    <div class="status" id="miele-status" data-remaining="{{ miele_minutes_left or 0 }}">
       <span class="status-label">🧺 Status:</span>
       <span class="status-value">{{ miele_status | capitalize }}</span>
+      <span class="status-sep">•</span>
+      <span class="status-eta" id="status-eta" style="display:none;"></span>
     </div>
 
     <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
@@ -230,7 +232,69 @@
       if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
     }
   </script>
+<script>
+  function hentBookinger() {
+    fetch('/bookinger_json')
+      .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
+      .then(data => {
+        let ul = document.getElementById('bookinger_14_ul');
+        if (!ul) return;
+        ul.innerHTML = "";
+        if (data.length === 0) {
+          ul.innerHTML = "<li>Ingen bookede tider de næste 14 dage.</li>";
+        } else {
+          data.forEach(function(item) {
+            ul.innerHTML += `<li><strong>${item.dato}</strong> – <strong>${item.tid}</strong> → ${item.navn}</li>`;
+          });
+        }
+      })
+      .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
+  }
 
+  function renderETA() {
+    const box = document.getElementById('miele-status');
+    const etaSpan = document.getElementById('status-eta');
+    if (!box || !etaSpan) return;
+
+    let mins = parseInt(box.dataset.remaining || '0', 10);
+  
+    if (!Number.isFinite(mins) || mins <= 0) {
+      etaSpan.style.display = 'none';
+      return;
+    }
+
+    const end = new Date(Date.now() + mins * 60000);
+    const hh = String(end.getHours()).padStart(2, '0');
+    const mm = String(end.getMinutes()).padStart(2, '0');
+
+    etaSpan.textContent = `⏱ ~${mins} min (færdig ca. kl. ${hh}:${mm})`;
+    etaSpan.style.display = '';
+  }
+
+  function tickETA() {
+    const box = document.getElementById('miele-status');
+    if (!box) return;
+    let mins = parseInt(box.dataset.remaining || '0', 10);
+    if (!Number.isFinite(mins) || mins <= 0) return;
+    mins -= 1;
+    box.dataset.remaining = String(mins);
+    renderETA();
+  }
+
+  setInterval(hentBookinger, 10000);
+
+  window.onload = function() {
+    hentBookinger();
+
+    const popupOK = document.getElementById('popup-besked');
+    if (popupOK) setTimeout(() => { popupOK.style.display = 'none'; }, 3000);
+    const popupErr = document.getElementById('popup-fejl');
+    if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
+
+    renderETA();     
+    setInterval(tickETA, 60000);
+  };
+</script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
