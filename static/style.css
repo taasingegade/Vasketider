@@ -1,106 +1,118 @@
 /* =========================
-   Theme tokens + base
+   Base og farver
    ========================= */
 :root{
   --ok: #28a745;
   --ok-darker: #218838;
   --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
-  --slot-h: 48px;            /* standard slot-højde */
+  --slot-h: 48px;
 }
 @media (max-width:768px){ :root{ --slot-h:56px; } }
 
-*{ box-sizing: border-box; }
-html, body { height: 100%; margin: 0; padding: 0; font-family: sans-serif; color: white; }
+*{ box-sizing:border-box; }
+html,body{height:100%;margin:0;padding:0;font-family:sans-serif;color:white;}
 
 /* =========================
-   Baggrund og grundlayout
+   Baggrund
    ========================= */
 body{
-  background: url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size: cover;
-  background-color: #f8f9fa;
-  min-height: 100vh;
-}
-
-/* Tastaturvenlig fokus */
-.slot-btn:focus-visible,
-.toppanel-knap:focus-visible,
-.split-details > summary:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
+  background:url('/static/Bg.jpg') no-repeat center center fixed;
+  background-size:cover;
+  background-color:#f8f9fa;
+  min-height:100vh;
 }
 
 /* =========================
-   Topmenu
+   Toppanel
    ========================= */
 .toppanel{
-  position: fixed; top: 0; left: 0; right: 0;
-  display: flex; gap: 15px; flex-wrap: wrap;
-  background-color: rgba(0,0,0,0.6);
-  padding: 10px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.2);
-  backdrop-filter: blur(6px);
-  z-index: 1000;
+  position:fixed;top:0;left:0;right:0;
+  display:flex;gap:15px;flex-wrap:wrap;
+  background:rgba(0,0,0,0.6);
+  padding:10px 20px;
+  border-bottom:1px solid rgba(255,255,255,0.2);
+  backdrop-filter:blur(6px);
+  z-index:1000;
 }
-.toppanel .brand{ margin-right: auto; font-weight: 700; }
-.toppanel .brand a{ color: #fff; text-decoration: none; }
-.toppanel-links{ display: flex; gap: 10px; }
-.toppanel-auth{ display: flex; gap: 10px; align-items: center; }
+.toppanel .brand{margin-right:auto;font-weight:700;}
+.toppanel .brand a{color:#fff;text-decoration:none;}
+.toppanel-links{display:flex;gap:10px;}
+.toppanel-auth{display:flex;gap:10px;align-items:center;}
 .toppanel-knap{
-  background-color: rgba(255,255,255,0.2);
-  color: black !important;
-  border: none; padding: 10px 15px; border-radius: 8px;
-  cursor: pointer; transition: background-color .3s, transform .1s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  background:rgba(255,255,255,0.2);
+  color:black!important;
+  border:none;
+  padding:10px 15px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:.3s;
+  box-shadow:0 2px 4px rgba(0,0,0,0.7);
 }
-.toppanel-knap:hover{ background-color: rgba(255,255,255,0.3); transform: scale(1.03); }
+.toppanel-knap:hover{background:rgba(255,255,255,0.3);transform:scale(1.03);}
 
 /* =========================
    Wrapper + Main
    ========================= */
 .wrapper{
-  width: 100%; max-width: 1100px;
-  margin: 100px auto 24px; padding: 20px;
-  background-color: rgba(255,255,255,0.05);
-  border-radius: 10px;
+  width:100%;max-width:1100px;
+  margin:100px auto 24px;
+  padding:20px;
+  background:rgba(255,255,255,0.05);
+  border-radius:10px;
 }
-.main{ padding-top: 80px; width: 100%; max-width: 1000px; margin: 0 auto; }
+.main{padding-top:80px;width:100%;max-width:1000px;margin:0 auto;}
 
 /* =========================
-   Kalenderlayout (8 kolonner: tid + 7 dage)
+   Kalenderlayout
    ========================= */
 .calendar{
-  display: grid;
-  grid-template-columns: 110px repeat(7, 1fr);
-  grid-auto-rows: var(--slot-h);
-  gap: 8px;
-  align-items: stretch;
-  justify-items: stretch;
+  display:grid;
+  grid-template-columns:110px repeat(7,1fr);
+  grid-auto-rows:var(--slot-h);
+  gap:8px;
+  align-items:stretch;
+  justify-items:stretch;
 }
 
-/* Første række = header (8 celler: tom/“Tid” + 7 dage) */
+/* Header: ugedag + dato */
 .calendar > div:nth-child(-n+8){
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; background: rgba(0,0,0,0.28); border-radius: 10px;
-  font-weight: 600; line-height: 1.2; padding: 8px 6px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  background:rgba(0,0,0,0.28);
+  border-radius:10px;
+  font-weight:600;
+  line-height:1.2;
+  padding:8px 6px;
 }
-.calendar > div:nth-child(-n+8) span:first-child{ font-size: 15px; }   /* ugedag */
-.calendar > div:nth-child(-n+8) span:last-child { font-size: 13px; opacity: .9; } /* dato */
+.calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
+.calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
 
-/* Venstre tidskolonne (hver 8n+1) */
+/* Tidskolonnen */
 .calendar > div:nth-child(8n+1){
-  display: flex; align-items: center; justify-content: flex-end;
-  padding: 0 10px 0 0; margin: 0; line-height: 1.2; font-weight: 700; letter-spacing: .2px;
-  height: var(--slot-h);
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding:0 10px 0 0;
+  font-weight:700;
+  letter-spacing:.2px;
+  height:var(--slot-h);
 }
 
-/* Øvrige celler */
+/* Celler */
 .calendar > div{
-  padding: 0; margin: 0;
-  display: flex; align-items: center; justify-content: center;
+  padding:0;margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .calendar > div > *{
-  width: 100%; height: 100%; margin: 0; box-sizing: border-box;
+  width:100%;
+  height:100%;
+  margin:0;
+  box-sizing:border-box;
 }
 
 /* =========================
@@ -108,136 +120,218 @@ body{
    ========================= */
 .slot-btn,
 .split-details > summary{
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; height: 100%;
-  padding: 0 12px; border-radius: 8px; border: 1px solid transparent;
-  line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
-  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+  padding:0 12px;
+  border-radius:8px;
+  border:1px solid transparent;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+  cursor:pointer;
+  position:relative;
+  z-index:1;
 }
 
 /* LEDIG (grøn) */
-.ledig-knap, .slot-btn.ledig{
-  background-color: var(--ok); color: #fff; border: none; opacity: 1;
+.ledig-knap,
+.slot-btn.ledig,
+.split-details.ledig > summary,
+.split-details[data-state="free"] > summary,
+.slot-btn[data-state="free"]{
+  background:#28a745 !important;
+  color:#fff !important;
+  border:none !important;
+  opacity:1 !important;
+  filter:none !important;
 }
-.ledig-knap:hover, .slot-btn.ledig:hover{ background-color: var(--ok-darker); }
+.ledig-knap:hover,
+.slot-btn.ledig:hover,
+.split-details.ledig > summary:hover,
+.split-details[data-state="free"] > summary:hover,
+.slot-btn[data-state="free"]:hover{
+  background:#218838 !important;
+}
 
-/* OPTAGET (grå) */
-.slot-btn.optaget, .optaget-knap{
-  background: rgba(0,0,0,0.28); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+/* OPTAGET (rød/grå) */
+.slot-btn.optaget,
+.optaget-knap,
+.split-details.booked > summary{
+  background:rgba(220,53,69,0.95);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.25);
 }
 
 /* SERVICE (gul) */
-.slot-btn.service, .split-details.service > summary{
-  background-color: rgba(255,193,7,0.9); color: #000; border: 1px solid rgba(0,0,0,0.2);
+.slot-btn.service,
+.split-details.service > summary,
+.slot-btn[data-state="service"],
+.split-details[data-state="service"] > summary{
+  background:rgba(255,193,7,0.9) !important;
+  color:#000 !important;
+  border:1px solid rgba(0,0,0,0.2) !important;
 }
 
-/* Tekst inde i knapper (hold på samme linje) */
-.slot-btn .time, .slot-btn .label,
-.split-details > summary .time, .split-details > summary .label{
-  display: inline-block; vertical-align: middle;
+/* Centrer tekst/bruger/etiket */
+.slot-btn,
+.split-details > summary{gap:8px;}
+.slot-btn :is(.time,.label,.brugernavn,[data-user]),
+.split-details > summary :is(.time,.label,.brugernavn,[data-user]){
+  display:inline-block;
+  vertical-align:middle;
 }
-.slot-btn, .split-details > summary{ gap: 8px; }
 
 /* =========================
    Split-menu
    ========================= */
-.split-details{ position: relative; display: inline-block; }
-.split-details > summary::-webkit-details-marker{ display: none; }
+.split-details{position:relative;display:inline-block;}
+.split-details>summary::-webkit-details-marker{display:none;}
 .split-panel{
-  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-  min-width: 200px; background: #1f1f1f; color: #fff;
-  border: 1px solid #444; border-radius: 10px; padding: 8px; z-index: 10;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  min-width:200px;
+  background:#1f1f1f;
+  color:#fff;
+  border:1px solid #444;
+  border-radius:10px;
+  padding:8px;
+  z-index:10;
+  box-shadow:0 10px 24px rgba(0,0,0,0.35);
 }
-.split-details:not([open]) .split-panel{ display: none; }
+.split-details:not([open]) .split-panel{
+  display:none;
+  pointer-events:none;
+}
 
 /* =========================
    Status
    ========================= */
 .status{
-  margin-top: 15px; background: rgba(0,0,0,0.5); color: white;
-  padding: 8px 12px; border-radius: 8px;
-  display: flex; flex-wrap: wrap; gap: 8px; align-content: center; font-size: 14px;
+  margin-top:15px;
+  background:rgba(0,0,0,0.5);
+  color:white;
+  padding:8px 12px;
+  border-radius:8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-content:center;
+  font-size:14px;
 }
-.status-label{ font-weight: bold; }
-.status-time { color: #ffcc00; }
+.status-label{font-weight:bold;}
+.status-time{color:#ffcc00;}
 
 /* =========================
    Øvrige elementer
    ========================= */
 .glassbox{
-  background: rgba(255,255,255,0.2); border-radius: 16px; padding: 20px;
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.3);
+  background:rgba(255,255,255,0.2);
+  border-radius:16px;
+  padding:20px;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 20px rgba(0,0,0,0.1);
+  border:1px solid rgba(255,255,255,0.3);
 }
-.center-knap{ display: flex; justify-content: center; }
+.center-knap{display:flex;justify-content:center;}
 .form-box{
-  text-align: center; display: flex; flex-direction: column; justify-content: center;
-  background-color: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;
-  width: 100%; max-width: 400px; margin: 10vh auto 0;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  background-color:rgba(0,0,0,0.7);
+  padding:20px;
+  border-radius:10px;
+  width:100%;
+  max-width:400px;
+  margin:10vh auto 0;
 }
-.form-box h2{ text-align: center; }
 button:not(.slot-btn){
-  background-color: rgba(220,220,220,0.9); color: black; border: none;
-  padding: 10px 15px; border-radius: 5px; margin: 8px 0; cursor: pointer;
+  background-color:rgba(220,220,220,0.9);
+  color:black;
+  border:none;
+  padding:10px 15px;
+  border-radius:5px;
+  margin:8px 0;
+  cursor:pointer;
 }
-button:not(.slot-btn):hover{ background-color: rgba(180,180,180,0.9); }
-input{ margin: 5px 10px 5px 0; padding: 6px; border-radius: 5px; border: 1px solid #ccc; }
+button:not(.slot-btn):hover{background-color:rgba(180,180,180,0.9);}
+input{margin:5px 10px 5px 0;padding:6px;border-radius:5px;border:1px solid #ccc;}
 
 /* =========================
-   Toggle switch (slider)
+   Toggle switch
    ========================= */
-.switch{ position: relative; display: inline-block; width: 46px; height: 26px; }
-.switch input{ display: none; }
+.switch{position:relative;display:inline-block;width:46px;height:26px;}
+.switch input{display:none;}
 .slider{
-  position: absolute; cursor: pointer; inset: 0; background-color: #ccc;
-  transition: .2s; border-radius: 26px;
+  position:absolute;
+  cursor:pointer;
+  inset:0;
+  background-color:#ccc;
+  transition:.2s;
+  border-radius:26px;
 }
 .slider:before{
-  position: absolute; content: ""; height: 20px; width: 20px; left: 3px; top: 3px;
-  background-color: white; transition: .2s; border-radius: 50%;
+  position:absolute;
+  content:"";
+  height:20px;
+  width:20px;
+  left:3px;
+  top:3px;
+  background-color:white;
+  transition:.2s;
+  border-radius:50%;
 }
 .slider:after{
-  content: "O"; color: black; position: absolute; right: 8px; top: 4px; font-size: 14px; font-weight: bold;
+  content:"O";
+  color:black;
+  position:absolute;
+  right:8px;
+  top:4px;
+  font-size:14px;
+  font-weight:bold;
 }
-input:checked + .slider{ background-color: var(--ok); }
-input:checked + .slider:before{ transform: translateX(20px); }
-input:checked + .slider:after{ content: "I"; left: 8px; right: auto; }
-.slider.round{ border-radius: 26px; }
+input:checked + .slider{background-color:var(--ok);}
+input:checked + .slider:before{transform:translateX(20px);}
+input:checked + .slider:after{content:"I";left:8px;right:auto;}
+.slider.round{border-radius:26px;}
 
 /* =========================
    Footer
    ========================= */
 footer{
-  position: fixed; bottom: 10px; left: 10px;
-  color: white; font-size: 12px; z-index: 1000; margin: 0; padding: 0;
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  color:white;
+  font-size:12px;
+  z-index:1000;
+  margin:0;
+  padding:0;
 }
 
 /* =========================
    Mobil
    ========================= */
 @media (max-width:768px){
-  /* Behold ugevisning med horisontal scroll (bedre overblik) */
   .calendar{
-    grid-template-columns: 90px repeat(7, minmax(120px, 1fr));
-    gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    grid-template-columns:90px repeat(7,minmax(120px,1fr));
+    gap:6px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
   }
-  .slot-btn, .split-details > summary{ font-size: 16px; }
-
-  .toppanel-links{ display: none !important; }
-  .toppanel-auth .toppanel-knap{ font-size: 16px; padding: 10px 14px; }
-
-  .wrapper{ margin-top: 110px; }
-  .main{ padding-top: 100px; }
-
-  .split-panel{ left: 0; transform: none; min-width: 100%; }
-}
-
-/* =========================
-   Print (valgfrit pænere)
-   ========================= */
-@media print{
-  .toppanel, footer { display: none !important; }
-  .wrapper{ background: transparent; box-shadow: none; }
+  .slot-btn,.split-details>summary{font-size:16px;}
+  .toppanel-links{display:none!important;}
+  .toppanel-auth .toppanel-knap{font-size:16px;padding:10px 14px;}
+  .wrapper{margin-top:110px;}
+  .main{padding-top:100px;}
+  .split-panel{left:0;transform:none;min-width:100%;}
 }
