@@ -1371,58 +1371,69 @@ def slet_booking():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    valgt_uge  = request.form.get("valgt_uge","")
+    valgt_uge  = request.form.get("valgt_uge", "")
 
     # Læs felter
     try:
-        dato = datetime.strptime((request.form.get("dato") or "").strip(), "%Y-%m-%d").date()
-        slot_int = int((request.form.get("tid") or "-1").strip())
+        dato_str  = (request.form.get("dato") or "").strip()
+        tid_str   = (request.form.get("tid") or "-1").strip()
+        dato      = datetime.strptime(dato_str, "%Y-%m-%d").date()
+        slot_int  = int(tid_str)
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige felter."))
 
     sub = request.form.get("sub")  # None | 'early' | 'late'
     other = "late" if sub == "early" else "early"
 
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
-        if sub in ("early","late"):
-            # --- BLok: SLET EGEN HALV BOOKING (tidlig/sen) -------------------------
-            cur.execute("""
+        if sub in ("early", "late"):
+            # --- SLET EGEN HALV BOOKING (tidlig/sen) ---
+            cur.execute(
+                """
                 DELETE FROM bookinger
-                WHERE dato_rigtig=%s
+                WHERE dato_rigtig = %s
                   AND slot_index::text = %s
-                  AND sub_slot=%s
-                  AND LOWER(brugernavn)=LOWER(%s)
+                  AND sub_slot = %s
+                  AND LOWER(brugernavn) = LOWER(%s)
                 RETURNING 1
-            """, (dato, str(tid), sub, brugernavn))
+                """,
+                (dato, str(slot_int), sub, brugernavn),
+            )
             deleted = cur.fetchone() is not None
 
-            # --- BLok: RYD PLACEHOLDER PÅ DEN MODSATTE HALVDEL (hvis den var tom) ---
+            # --- RYD PLACEHOLDER PÅ MODSAT HALVDEL (hvis den var tom) ---
             if deleted:
-                cur.execute(f"""
+                cur.execute(
+                    """
                     DELETE FROM bookinger
-                    WHERE dato_rigtig=%s
+                    WHERE dato_rigtig = %s
                       AND (slot_index = %s OR slot_index::text = %s)
-                      AND sub_slot=%s
+                      AND sub_slot = %s
                       AND brugernavn IS NULL
-                """, (dato, slot_int, str(slot_int), other))
+                    """,
+                    (dato, slot_int, str(slot_int), other),
+                )
 
             conn.commit()
             if deleted:
                 return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende halv-booking at aflyse."))
-
         else:
-            # --- BLok: SLET FULD BOOKING -------------------------------------------
-            cur.execute(f"""
+            # --- SLET FULD BOOKING ---
+            cur.execute(
+                """
                 DELETE FROM bookinger
-                WHERE dato_rigtig=%s
+                WHERE dato_rigtig = %s
                   AND (slot_index = %s OR slot_index::text = %s)
-                  AND LOWER(brugernavn)=LOWER(%s)
-                  AND COALESCE(sub_slot,'full')='full'
+                  AND LOWER(brugernavn) = LOWER(%s)
+                  AND COALESCE(sub_slot, 'full') = 'full'
                 RETURNING 1
-            """, (dato, slot_int, str(slot_int), brugernavn))
+                """,
+                (dato, slot_int, str(slot_int), brugernavn),
+            )
             deleted = cur.fetchone() is not None
 
             conn.commit()
@@ -1431,7 +1442,8 @@ def slet_booking():
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende fuld booking at aflyse."))
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 @app.post("/book_half")
 def book_half():
