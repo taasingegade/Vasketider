@@ -159,8 +159,8 @@ button:not(.slot-btn):hover{ background-color:rgba(180,180,180,0.9); }
 .calendar .split-details > summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
-  padding:0 9px;
-  font-size:12px;
+  padding:0 14px;
+  font-size:14px;
   border:none; border-radius:6px;
   line-height:1.2;
   cursor:pointer;
