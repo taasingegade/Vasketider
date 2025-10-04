@@ -7,7 +7,7 @@
   --service:rgba(255,193,7,0.9);
   --booked:rgba(220,53,69,0.95);
   --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
-  --slot-h:40px; /* ↑ højere rækker for tydelige halvtider */
+  --slot-h:25px; /* ↑ højere rækker for tydelige halvtider */
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
