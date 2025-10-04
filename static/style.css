@@ -276,3 +276,25 @@ footer{
   .wrapper{ margin-top:110px; }
   .main{ padding-top:100px; }
 }
+
+/* === TVANG: LEDIG SKAL ALTID VÆRE MASSIV GRØN === */
+.calendar :is(.slot-btn.ledig,
+              .ledig-knap,
+              .split-details.ledig > summary,
+              .split-details[data-state="free"] > summary,
+              .slot-btn[data-state="free"],
+              form[action$="/book"] .slot-btn){
+  background-color: #28a745 !important;     /* massiv grøn */
+  background: #28a745 !important;           /* beskytter mod rgba eller gennemsigtighed */
+  color: #fff !important;
+  border: 1px solid #1e7e34 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+.calendar :is(.slot-btn.ledig:hover,
+              .split-details.ledig > summary:hover,
+              form[action$="/book"] .slot-btn:hover){
+  background-color: #218838 !important;     /* mørkere grøn ved hover */
+}
