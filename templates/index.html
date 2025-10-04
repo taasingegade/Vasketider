@@ -77,14 +77,14 @@
   {% if cell and cell.full %}
   {% set f = cell.full %}
 
-  {% if f.navn == 'service' %}
+  {% if f.navn if f and f.navn else '' == 'service' %}
     <!-- Service = GUL (styres af .slot-btn.service i CSS) -->
     <button class="slot-btn service" disabled>
       Service
       <!--{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
     </button>
 
-  {% elif f.navn == bruger %}
+  {% elif f.navn if f and f.navn else '' == bruger %}
     <!-- Egen fuld booking = kan aflyses -->
     <form method="POST" action="/slet">
       <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
