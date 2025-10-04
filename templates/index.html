@@ -81,7 +81,7 @@
     <!-- Service = GUL (styres af .slot-btn.service i CSS) -->
     <button class="slot-btn service" disabled>
       Service
-      {% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+      <!--{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
     </button>
 
   {% elif f.navn == bruger %}
@@ -91,14 +91,14 @@
       <input type="hidden" name="tid" value="{{ i }}">
       <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
       <button type="submit" class="slot-btn" style="background-color:crimson;">
-        {{ f.navn }} (fuld){% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+        <!--{{ f.navn }} (fuld){% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
       </button>
     </form>
 
   {% else %}
     <!-- Anden bruger = rød, disabled -->
     <button class="slot-btn" style="background-color:crimson;" disabled>
-      {{ f.navn }}{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}
+      <!--{{ f.navn }}{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
     </button>
   {% endif %}
 
