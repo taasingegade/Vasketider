@@ -440,15 +440,3 @@ footer {
   margin: 0;
   padding: 0;
 }
-
-/* Mini booking-menu */
-.cell-menu { position: relative; display:inline-block; }
-.cell-menu .menu-trigger { cursor:pointer; }
-.cell-menu .menu {
-  position: absolute; top: 100%; left: 0;
-  display: none; flex-direction: column; gap: 6px;
-  background: rgba(20,20,20,0.95); padding: 8px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.15); z-index: 10; min-width: 140px;
-}
-.cell-menu .menu.show { display: flex; }
-.cell-menu .menu .slot-btn { width: 100%; }
