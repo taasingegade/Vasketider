@@ -1,172 +1,354 @@
 /* =========================
-   Base + farver
+   Theme tokens + base
    ========================= */
-:root {
+:root{
   --ok: #28a745;
   --ok-darker: #218838;
   --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
-  --slot-h: 48px;
-  --slot-pad-x: 12px;
 }
-@media (max-width:768px){ :root{ --slot-h:56px; } }
 
-*{ box-sizing:border-box; }
-html,body{height:100%;margin:0;padding:0;font-family:sans-serif;color:white;}
+*{ box-sizing: border-box; }
+html, body { height: 100%; }
 
 /* =========================
-   Baggrund
+   Baggrund og grundlayout
    ========================= */
-body{
-  background:url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size:cover;
-  background-color:#f8f9fa;
+body {
+  margin: 0;
+  padding: 0;
+  background: url('/static/Bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+  background-color: #f8f9fa;
+  font-family: sans-serif;
+  color: white;
+  display: block;
+  min-height: 100vh;
+}
+
+/* Tastaturvenlig fokus */
+.slot-btn:focus-visible,
+.toppanel-knap:focus-visible,
+.split-details > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 /* =========================
-   Kalender
+   Topmenu
    ========================= */
-.calendar{
-  display:grid;
-  grid-template-columns:repeat(8,1fr);
-  gap:5px;
+.toppanel {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  gap: 15px;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 10px 20px;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  flex-wrap: wrap;
 }
 
-/* Ens højde + centrering for alle tider */
-.calendar > div{
-  padding:6px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+.toppanel .brand { margin-right: auto; font-weight: 700; }
+.toppanel .brand a { color: #fff; text-decoration: none; }
+
+.toppanel-links { display: flex; gap: 10px; }
+
+.toppanel-auth { display: flex; gap: 10px; align-items: center; }
+.hello { opacity: .85; }
+
+.toppanel-knap {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: black !important;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+}
+.toppanel-knap:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.03);
 }
 
-/* Knapper og split-summary har samme boks */
-.slot-btn,
-.split-details > summary{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  height:var(--slot-h);
-  min-height:var(--slot-h);
-  width:100%;
-  padding:0 var(--slot-pad-x);
-  border-radius:6px;
-  line-height:1.2;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  font-variant-numeric:tabular-nums;
-  font-feature-settings:"tnum" 1;
-  cursor:pointer;
-  box-sizing:border-box;
-  border:1px solid transparent;
+/* =========================
+   Wrapper + Main
+   ========================= */
+.wrapper {
+  width: 100%;
+  max-width: 1100px;
+  margin: 100px auto 24px;
+  padding: 20px;
+  background-color: rgba(255,255,255,0.05);
+  border-radius: 10px;
 }
 
-/* LEDIG (grøn) */
-.ledig-knap,
-.slot-btn.ledig{
-  background-color:var(--ok);
-  color:#fff;
-  border:none;
-  opacity:1;
-}
-.ledig-knap:hover,
-.slot-btn.ledig:hover{
-  background-color:var(--ok-darker);
+.main {
+  padding-top: 80px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-/* OPTAGET (grå) */
-.slot-btn.optaget,
-.optaget-knap{
-  background:rgba(0,0,0,0.25);
-  color:#fff;
-  border:1px solid rgba(255,255,255,0.25);
+/* =========================
+   Kalenderlayout
+   ========================= */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
 }
 
-/* SERVICE (gul) */
-.slot-btn.service,
-.split-details.service>summary{
-  background-color:rgba(255,193,7,0.9);
-  color:#000;
-  border:1px solid rgba(0,0,0,0.2);
+.calendar div {
+  padding: 5px;
+  text-align: center;
+  min-height: 60px;
 }
 
-/* Split dropdown */
-.split-details{position:relative;display:inline-block;}
-.split-details>summary::-webkit-details-marker{display:none;}
+/* Slot-knapper */
+.slot-btn {
+  display: inline-block;
+  padding: 5px 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.slot-btn[disabled] { cursor: not-allowed; }
+
+/* Ledig-knap (grøn) */
+.ledig-knap {
+  background-color: var(--ok) !important;
+  color: white !important;
+  transition: background-color 0.3s ease;
+}
+.ledig-knap:hover {
+  background-color: var(--ok-darker) !important;
+}
+
+/* =========================
+   Status
+   ========================= */
+.status {
+  margin-top: 15px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: center;
+  font-size: 14px;
+}
+.status-label { font-weight: bold; }
+.status-time  { color: #ffcc00; }
+
+/* =========================
+   Øvrige elementer
+   ========================= */
+.glassbox {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.center-knap { display: flex; justify-content: center; }
+
+.form-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 400px;
+  margin: 10vh auto 0;
+}
+.form-box h2 { text-align: center; }
+
+button:not(.slot-btn) {
+  background-color: rgba(220, 220, 220, 0.9);
+  color: black;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+button:not(.slot-btn):hover { background-color: rgba(180, 180, 180, 0.9); }
+
+input {
+  margin: 5px 10px 5px 0;
+  padding: 6px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.page-container { position: relative; width: 100%; height: 100vh; }
+
+.btn-login, .btn-opret, .btn-skiftkode {
+  width: 80%;
+  text-align: center;
+}
+
+/* =========================
+   Toggle switch (slider)
+   ========================= */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+}
+.switch input { display: none; }
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  transition: .2s;
+  border-radius: 26px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  top: 3px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+.slider:after {
+  content: "O";
+  color: black;
+  position: absolute;
+  right: 8px;
+  top: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+input:checked + .slider { background-color: var(--ok); }
+input:checked + .slider:before { transform: translateX(20px); }
+input:checked + .slider:after { content: "I"; left: 8px; right: auto; }
+.slider.round { border-radius: 26px; }
+
+/* =========================
+   Footer
+   ========================= */
+footer {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  color: white;
+  font-size: 12px;
+  z-index: 1000;
+  margin: 0;
+  padding: 0;
+}
+
+/* =========================
+   Split menu (details/summary)
+   ========================= */
+.split-details {
+  position: relative;
+  display: inline-block;
+  min-width: 110px;
+}
+.split-details > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  border: none;
+  display: inline-block;
+  padding: 5px 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  background: var(--ok);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.35);
+}
+.split-details > summary::-webkit-details-marker{ display: none; }
+.split-details > summary:hover,
+.split-details > summary:focus{ background: var(--ok-darker); }
+
 .split-panel{
-  position:absolute;
-  top:calc(100% + 6px);
-  left:50%;
-  transform:translateX(-50%);
-  min-width:200px;
-  background:#1f1f1f;
-  color:#fff;
-  border:1px solid #444;
-  border-radius:10px;
-  padding:8px;
-  z-index:10;
-  box-shadow:0 10px 24px rgba(0,0,0,0.35);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  background: #1f1f1f;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 8px;
+  z-index: 1100;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
-.split-details:not([open]) .split-panel{display:none;}
+.split-details:not([open]) .split-panel{ display: none; }
 
 /* =========================
-   Header – dato under ugedag
+   Responsive
    ========================= */
-.calendar .header-cell{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  line-height:1.2;
-  gap:2px;
-}
-.calendar .header-cell span:first-child{
-  font-weight:700;
-  font-size:15px;
-}
-.calendar .header-cell span:last-child{
-  font-size:13px;
-  opacity:.9;
+@media (max-width: 768px){
+  .calendar{ display: block; width: 100%; overflow-x: hidden; }
+  .calendar div{
+    display: block; width: 100%;
+    font-size: 16px; margin-bottom: 10px; text-align: center;
+  }
+  .slot-btn{
+    width: 100%;
+    font-size: 18px;
+    padding: 14px;
+    box-sizing: border-box;
+    margin-top: 5px;
+  }
+
+  .toppanel-links{ display: none !important; }
+  .toppanel-auth .toppanel-knap{
+    font-size: 16px; padding: 10px 14px;
+  }
+
+  .wrapper { margin-top: 110px; }
+  .main { padding-top: 100px; }
+
+  .split-details > summary{
+    width: 100%;
+    text-align: center;
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+  .split-panel{
+    left: 0; transform: none; min-width: 100%;
+  }
 }
 
 /* =========================
-   Slider (uændret)
+   === ENESTE NYE TILFØJELSE ===
+   Ens højde og centrering for tider
    ========================= */
-.switch{
-  position:relative;
-  display:inline-block;
-  width:46px;
-  height:26px;
+.calendar > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.switch input{display:none;}
-.slider{
-  position:absolute;
-  cursor:pointer;
-  inset:0;
-  background-color:#ccc;
-  transition:.2s;
-  border-radius:26px;
+.slot-btn, .split-details > summary{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  text-align: center;
 }
-.slider:before{
-  position:absolute;
-  content:"";
-  height:20px;
-  width:20px;
-  left:3px;
-  top:3px;
-  background-color:white;
-  transition:.2s;
-  border-radius:50%;
-}
-.slider:after{
-  content:"O";
-  color:black;
-  position:absolute;
-  right:8px;
-  top:4px;
-  font-size:14px;
-  font-weight:bold;
-}
-input:checked + .slider{background-color:var(--ok);}
-input:checked + .slider:before{transform:translateX(20px);}
-input:checked + .slider:after{content:"I";left:8px;right:auto;}
-.slider.round{border-radius:26px;}
