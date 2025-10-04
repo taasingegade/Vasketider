@@ -1,30 +1,31 @@
 /* =========================
-   Theme tokens + base
+   BASE OG TEMA
    ========================= */
 :root{
-  --ok:#28a745;
-  --ok-darker:#218838;
-  --service:rgba(255,193,7,0.9);
-  --booked:rgba(220,53,69,0.95);
-  --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
-  --slot-h:48px;
+  --ok: #28a745;
+  --ok-darker: #218838;
+  --service: rgba(255,193,7,0.9);
+  --booked: rgba(220,53,69,0.95);
+  --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
+  --slot-h: 70px;            /* før: 48px — nu tydeligt højere */
 }
-@media (max-width:768px){ :root{ --slot-h:56px; } }
+@media (max-width:768px){ :root{ --slot-h:80px; } }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; margin:0; padding:0; font-family:sans-serif; color:#fff; }
 
 /* =========================
-   Baggrund og grundlayout
+   BAGGRUND OG GRUNDLAYOUT
    ========================= */
 body{
   background:url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size:cover; background-color:#f8f9fa;
-  min-height:100vh; overflow-x:hidden;
+  background-size:cover;
+  background-color:#f8f9fa;
+  min-height:100vh;
 }
 
 /* =========================
-   Toppanel
+   TOPPANEL
    ========================= */
 .toppanel{
   position:fixed; top:0; left:0; right:0;
@@ -33,7 +34,7 @@ body{
   padding:10px 20px;
   border-bottom:1px solid rgba(255,255,255,0.2);
   backdrop-filter:blur(6px);
-  z-index:3000000; /* over alt indhold */
+  z-index:3000;
 }
 .toppanel .brand{margin-right:auto;font-weight:700;}
 .toppanel .brand a{color:#fff;text-decoration:none;}
@@ -47,224 +48,204 @@ body{
 .toppanel-knap:hover{background:rgba(255,255,255,0.3); transform:scale(1.03);}
 
 /* =========================
-   Wrapper + Main
+   WRAPPER OG MAIN
    ========================= */
 .wrapper{
   width:100%; max-width:1100px;
-  margin:100px auto 24px; padding:20px;
+  margin:100px auto 24px;
+  padding:25px;
   background:rgba(255,255,255,0.05);
   border-radius:10px;
-  overflow:visible; position:relative; z-index:0;
+  overflow:visible;
 }
-.main{
-  padding-top:80px; width:100%; max-width:1000px; margin:0 auto;
-  overflow:visible; position:relative; z-index:0;
-}
+.main{padding-top:80px;width:100%;max-width:1000px;margin:0 auto;overflow:visible;}
 
 .slot-btn:focus-visible,
 .toppanel-knap:focus-visible,
-.split-details>summary:focus-visible{
+.split-details > summary:focus-visible{
   outline:none; box-shadow:var(--focus);
 }
 
 /* =========================
-   Kalenderlayout (8 kolonner: tid + 7 dage)
+   KALENDER
    ========================= */
 .calendar{
   display:grid;
-  grid-template-columns:110px repeat(7,1fr);
+  grid-template-columns:140px repeat(7, 1fr);
   grid-auto-rows:var(--slot-h);
-  gap:8px;
-  align-items:stretch; justify-items:stretch;
-  overflow:visible; position:relative; z-index:0;
+  gap:18px;                               /* før: 8px — mere luft */
+  align-items:stretch;
+  justify-items:stretch;
+  overflow:visible;
 }
 
-/* Header (første 8) – ugedag over dato */
+/* Header (ugedag + dato) */
 .calendar > div:nth-child(-n+8){
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:2px; padding:8px 6px;
-  background:rgba(0,0,0,0.28);
-  border-radius:10px; line-height:1.2; font-weight:600;
-  overflow:visible; position:relative; z-index:0;
+  gap:3px; padding:8px 6px;
+  background:rgba(0,0,0,0.3);
+  border-radius:10px;
+  font-weight:600; line-height:1.2;
 }
-.calendar > div:nth-child(-n+8) span:first-child{ font-size:15px; }
-.calendar > div:nth-child(-n+8) span:last-child { font-size:13px; opacity:.9; }
+.calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
+.calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
 
 /* Venstre tidskolonne */
 .calendar > div:nth-child(8n+1){
   display:flex; align-items:center; justify-content:flex-end;
+  font-weight:700; font-size:16px;
+  padding-right:12px;
+  line-height:1.2;
   height:var(--slot-h);
-  padding:0 10px 0 0; margin:0;
-  font-weight:700; letter-spacing:.2px; line-height:1.2;
-  overflow:visible; position:relative; z-index:0;
-}
-
-/* Øvrige celler – VIGTIGT: relative + overflow:visible */
-.calendar > div{
-  padding:0; margin:0;
-  display:flex; align-items:center; justify-content:center;
-  position:relative; z-index:0; overflow:visible;
-}
-.calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
-
-/* ——— Kritisk: hæv cellen med åben dropdown over naboer ——— */
-.calendar > div:has(.split-details[open]){
-  z-index:2000000; /* selve cellen over alle andre celler */
 }
 
 /* =========================
-   Slots (knapper/summary)
+   SLOT-KNAPPER OG MENU
    ========================= */
-.slot-btn,.split-details>summary{
+.slot-btn, .split-details > summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
-  padding:0 12px;
-  border-radius:8px; border:1px solid transparent;
-  line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
-  cursor:pointer; position:relative; z-index:1; gap:8px;
+  padding:0 18px;
+  font-size:16px;
+  border:none;
+  border-radius:10px;
+  line-height:1.2;
+  white-space:nowrap;
+  cursor:pointer;
+  position:relative;
+  gap:8px;
+  box-shadow:0 3px 6px rgba(0,0,0,0.25);
+  transition:transform .1s ease, box-shadow .2s ease;
 }
-.slot-btn :is(.time,.label,.brugernavn,[data-user]),
-.split-details>summary :is(.time,.label,.brugernavn,[data-user]){
-  display:inline-block; vertical-align:middle; line-height:1.2;
+.slot-btn:hover, .split-details > summary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 5px 12px rgba(0,0,0,0.35);
 }
 
-/* =========================
-   Slots – tilstande
-   ========================= */
-/* LEDIG – fuldt grøn (også når den ligger i form til /book) */
-.ledig-knap,.slot-btn.ledig,
-.split-details.ledig>summary,
-.split-details[data-state="free"]>summary,
-.slot-btn[data-state="free"],
-.calendar form[action$="/book"] > .slot-btn,
-.calendar form[action$="/book"] button.slot-btn{
-  background:#28a745 !important; color:#fff !important;
-  border:none !important; opacity:1 !important; filter:none !important; background-image:none !important;
+/* LEDIG – fuldt grøn */
+.ledig-knap, .slot-btn.ledig, .split-details.ledig > summary,
+.split-details[data-state="free"] > summary, .slot-btn[data-state="free"],
+.calendar form[action$="/book"] > .slot-btn{
+  background:#28a745 !important;
+  color:#fff !important;
+  opacity:1 !important;
+  filter:none !important;
 }
-.ledig-knap:hover,.slot-btn.ledig:hover,
-.split-details.ledig>summary:hover,
-.split-details[data-state="free"]>summary:hover,
-.slot-btn[data-state="free"]:hover,
-.calendar form[action$="/book"] > .slot-btn:hover,
-.calendar form[action$="/book"] button.slot-btn:hover{
+.ledig-knap:hover, .slot-btn.ledig:hover,
+.split-details.ledig > summary:hover,
+.calendar form[action$="/book"] > .slot-btn:hover{
   background:#218838 !important;
 }
 
-/* OPTAGET */
-.slot-btn.optaget,.optaget-knap,.split-details.booked>summary{
-  background:rgba(0,0,0,0.28);
-  color:#fff; border:1px solid rgba(255,255,255,0.25);
-}
-
 /* SERVICE – gul */
-.slot-btn.service,.split-details.service>summary,
-.slot-btn[data-state="service"],.split-details[data-state="service"]>summary{
+.slot-btn.service, .split-details.service > summary,
+.slot-btn[data-state="service"]{
   background:var(--service) !important;
-  color:#000 !important; border:1px solid rgba(0,0,0,0.2) !important;
+  color:#000 !important;
+  border:1px solid rgba(0,0,0,0.2) !important;
 }
 
-/* =========================
-   Split-menu (Tidlig/Sen)
-   ========================= */
+/* OPTAGET – rød/grå */
+.slot-btn.optaget, .optaget-knap, .split-details.booked > summary{
+  background:rgba(0,0,0,0.3);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.25);
+}
+
+/* Dropdown (Tidlig/Sen) foran alt */
 .split-details{
-  position:relative; display:inline-block;
-  overflow:visible; z-index:0;
+  position:relative;
+  display:inline-block;
+  overflow:visible;
 }
-.split-details[open]{ z-index:2000001 !important; } /* over cellen */
-.split-details>summary::-webkit-details-marker{ display:none; }
-
-/* Selve menuen – ALTID forrest over kalenderen */
+.split-details[open]{ z-index:9999; }
 .split-panel{
   position:absolute;
-  top:calc(100% + 6px);
+  top:calc(100% + 8px);
   left:50%;
   transform:translateX(-50%);
-  min-width:220px;
-  background:#1f1f1f; color:#fff;
-  border:1px solid #444; border-radius:10px; padding:8px;
-  z-index:2000002 !important; /* over summary/celle */
-  box-shadow:0 12px 28px rgba(0,0,0,0.45);
-  pointer-events:auto;
+  min-width:240px;
+  background:#1f1f1f;
+  color:#fff;
+  border:1px solid #444;
+  border-radius:10px;
+  padding:10px;
+  box-shadow:0 14px 28px rgba(0,0,0,.45);
+  z-index:10000;
 }
-.split-details:not([open]) .split-panel{ display:none; pointer-events:none; }
-
+.split-details:not([open]) .split-panel{display:none;}
 .menu-btn{
-  width:100%; padding:10px 12px; border-radius:8px;
-  border:1px solid #666; background:#2b2b2b; color:#fff; cursor:pointer;
-  font-size:14px; margin:5px 0; transition:background .2s ease;
+  width:100%;
+  padding:12px 14px;
+  border-radius:8px;
+  border:1px solid #666;
+  background:#2b2b2b;
+  color:#fff;
+  cursor:pointer;
+  font-size:15px;
+  margin:5px 0;
+  transition:background .2s ease;
 }
-.menu-btn:hover,.menu-btn:focus{ background:#343434; }
-.menu-sep{ border:none; border-top:1px solid #444; margin:6px 0; opacity:.7; }
+.menu-btn:hover{background:#343434;}
 
 /* =========================
-   Status & diverse
+   STATUS OG ØVRIGE
    ========================= */
 .status{
-  margin-top:15px; background:rgba(0,0,0,0.5); color:#fff;
-  padding:8px 12px; border-radius:8px;
-  display:flex; flex-wrap:wrap; gap:8px; align-content:center; font-size:14px;
+  margin-top:15px;
+  background:rgba(0,0,0,0.5);
+  color:#fff;
+  padding:10px 14px;
+  border-radius:8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-content:center;
+  font-size:15px;
 }
-.status-label{font-weight:700;} .status-time{color:#ffcc00;}
-.glassbox{
-  background:rgba(255,255,255,0.2); border-radius:16px; padding:20px;
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  box-shadow:0 4px 20px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.3);
-}
-.center-knap{display:flex;justify-content:center;}
-.form-box{
-  text-align:center; display:flex; flex-direction:column; justify-content:center;
-  background:rgba(0,0,0,0.7); padding:20px; border-radius:10px;
-  width:100%; max-width:400px; margin:10vh auto 0;
-}
-button:not(.slot-btn){
-  background:rgba(220,220,220,0.9); color:#000; border:none;
-  padding:10px 15px; border-radius:5px; margin:8px 0; cursor:pointer;
-}
-button:not(.slot-btn):hover{ background:rgba(180,180,180,0.9); }
-input{ margin:5px 10px 5px 0; padding:6px; border-radius:5px; border:1px solid #ccc; }
+.status-label{font-weight:bold;}
+.status-time{color:#ffcc00;}
 
 /* =========================
-   Toggle switch (slider)
+   SLIDER
    ========================= */
-.switch{position:relative; display:inline-block; width:46px; height:26px;}
+.switch{position:relative;display:inline-block;width:46px;height:26px;}
 .switch input{display:none;}
-.slider{position:absolute; cursor:pointer; inset:0; background:#ccc; transition:.2s; border-radius:26px;}
-.slider:before{position:absolute; content:""; height:20px; width:20px; left:3px; top:3px; background:#fff; transition:.2s; border-radius:50%;}
-.slider:after{content:"O"; color:#000; position:absolute; right:8px; top:4px; font-size:14px; font-weight:700;}
+.slider{position:absolute;cursor:pointer;inset:0;background:#ccc;transition:.2s;border-radius:26px;}
+.slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;transition:.2s;border-radius:50%;}
+.slider:after{content:"O";color:#000;position:absolute;right:8px;top:4px;font-size:14px;font-weight:700;}
 input:checked + .slider{background:var(--ok);}
 input:checked + .slider:before{transform:translateX(20px);}
-input:checked + .slider:after{content:"I"; left:8px; right:auto;}
+input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .slider.round{border-radius:26px;}
 
 /* =========================
-   Footer
+   FOOTER
    ========================= */
 footer{
-  position:fixed; bottom:10px; left:10px;
-  color:#fff; font-size:12px; z-index:3000000; margin:0; padding:0;
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  color:#fff;
+  font-size:12px;
+  z-index:3000;
+  margin:0;
+  padding:0;
 }
 
 /* =========================
-   Mobil
+   MOBIL
    ========================= */
 @media (max-width:768px){
   .calendar{
-    grid-template-columns:90px repeat(7,minmax(120px,1fr));
-    gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    grid-template-columns:100px repeat(7, minmax(140px,1fr));
+    gap:14px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
   }
-  .slot-btn,.split-details>summary{ font-size:16px; }
-  .toppanel-links{ display:none!important; }
-  .toppanel-auth .toppanel-knap{ font-size:16px; padding:10px 14px; }
-  .wrapper{ margin-top:110px; }
-  .main{ padding-top:100px; }
-  .split-panel{ left:0; transform:none; min-width:100%; }
-}
-
-/* =========================
-   Print
-   ========================= */
-@media print{
-  .toppanel, footer{ display:none!important; }
-  .wrapper{ background:transparent; box-shadow:none; }
+  .slot-btn, .split-details > summary{
+    font-size:18px;
+  }
+  .wrapper{margin-top:110px;}
+  .main{padding-top:100px;}
 }
