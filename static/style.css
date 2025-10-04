@@ -1,510 +1,105 @@
-/* =========================
-   Theme tokens + base
-   ========================= */
+/* ====== SLOTS: ét regelsæt til alle varianter (ledig/optaget/split/service) ====== */
 :root{
-  --ok: #28a745;
-  --ok-darker: #218838;
-  --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
+  --slot-h: 48px;           /* ens højde; justér til smag (44–56px) */
+  --slot-pad-x: 12px;       /* vandret luft i knappen */
 }
 
-*{ box-sizing: border-box; }
-html, body { height: 100%; }
-
-/* =========================
-   Baggrund og grundlayout
-   ========================= */
-body {
-  margin: 0;
-  padding: 0;
-  background: url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size: cover;
-  background-color: #f8f9fa;
-  font-family: sans-serif;
-  color: white;
-  display: block;
-  min-height: 100vh;
-}
-
-/* Tastaturvenlig fokus */
-.slot-btn:focus-visible,
-.toppanel-knap:focus-visible,
-.split-details > summary:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
-}
-
-/* =========================
-   Topmenu
-   ========================= */
-.toppanel {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  display: flex;
-  gap: 15px;
-  background-color: rgba(0, 0, 0, 0.6);
-  padding: 10px 20px;
-  z-index: 1000;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(6px);
-  flex-wrap: wrap;
-}
-
-.toppanel .brand { 
-  margin-right: auto; 
-  font-weight: 700; 
-}
-.toppanel .brand a { 
-  color: #fff; 
-  text-decoration: none; 
-}
-
-/* Desktop: vis alle links */
-.toppanel-links { 
-  display: flex; 
-  gap: 10px; 
-}
-
-/* Auth-område (login/logud/profil) – altid synligt */
-.toppanel-auth { 
-  display: flex; 
-  gap: 10px; 
-  align-items: center; 
-}
-.hello { opacity: .85; }
-
-/* Knapper i topmenu */
-.toppanel-knap {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: black !important;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.1s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.7);
-}
-.toppanel-knap:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  transform: scale(1.03);
-}
-
-/* =========================
-   Wrapper + Main
-   ========================= */
-.wrapper {
-  width: 100%;
-  max-width: 1100px;
-  margin: 100px auto 24px;
-  padding: 20px;
-  background-color: rgba(255,255,255,0.05);
-  border-radius: 10px;
-}
-
-/* Hovedindhold centreret (enkel, ikke duplikeret) */
-.main {
-  padding-top: 80px;
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* =========================
-   Kalenderlayout
-   ========================= */
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 5px;
-}
-
-.calendar div {
-  padding: 5px;
-  text-align: center;
-  min-height: 60px;
-}
-
-/* Slot-knapper */
-.slot-btn {
-  display: inline-block;
-  padding: 5px 10px;
-  font-size: 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.slot-btn[disabled] { cursor: not-allowed; }
-
-/* Ledig-knap (grøn) */
-.ledig-knap {
-  background-color: var(--ok) !important;
-  color: white !important;
-  transition: background-color 0.3s ease;
-}
-.ledig-knap:hover {
-  background-color: var(--ok-darker) !important;
-}
-
-/* =========================
-   Status
-   ========================= */
-.status {
-  margin-top: 15px;
-  background: rgba(0,0,0,0.5);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: center;
-  font-size: 14px;
-}
-.status-label { font-weight: bold; }
-.status-time  { color: #ffcc00; }
-
-/* =========================
-   Øvrige elementer
-   ========================= */
-.glassbox {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.center-knap { display: flex; justify-content: center; }
-
-.form-box {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background-color: rgba(0, 0, 0, 0.7);
-  padding: 20px;
-  border-radius: 10px;
-  width: 100%;
-  max-width: 400px;
-  margin: 10vh auto 0;
-}
-.form-box h2 { text-align: center; }
-
-button:not(.slot-btn) {
-  background-color: rgba(220, 220, 220, 0.9);
-  color: black;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  margin: 8px 0;
-  cursor: pointer;
-}
-button:not(.slot-btn):hover { background-color: rgba(180, 180, 180, 0.9); }
-
-input {
-  margin: 5px 10px 5px 0;
-  padding: 6px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
-
-.page-container { position: relative; width: 100%; height: 100vh; }
-
-.btn-login, .btn-opret, .btn-skiftkode {
-  width: 80%;
-  text-align: center;
-}
-
-/* =========================
-   Tilgængelighedsvenlig visning (kiosk)
-   ========================= */
-.kiosk-tilgaengelig {
-  font-size: 1.5em;
-  color: #ffffff;
-  background-color: #000000;
-}
-.kiosk-tilgaengelig button {
-  font-size: 1.4em;
-  padding: 15px 20px;
-  background-color: #0066cc;
-  color: white;
-  border: 2px solid white;
-}
-.kiosk-tilgaengelig button:hover { background-color: #004080; }
-.kiosk-tilgaengelig .panel,
-.kiosk-tilgaengelig .tabel {
-  border: 2px solid white;
-  padding: 15px;
-  background-color: #111111;
-}
-
-/* =========================
-   Toggle switch
-   ========================= */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 26px;
-}
-.switch input { display: none; }
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: #ccc;
-  transition: .2s;
-  border-radius: 26px;
-}
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  top: 3px;
-  background-color: white;
-  transition: .2s;
-  border-radius: 50%;
-}
-.slider:after {
-  content: "O";
-  color: black;
-  position: absolute;
-  right: 8px;
-  top: 4px;
-  font-size: 14px;
-  font-weight: bold;
-}
-input:checked + .slider { background-color: var(--ok); }
-input:checked + .slider:before { transform: translateX(20px); }
-input:checked + .slider:after { content: "I"; left: 8px; right: auto; }
-.slider.round { border-radius: 26px; }
-
-.checkbox-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-}
-.notif-label { font-size: 14px; color: white; }
-
-/* =========================
-   Lister
-   ========================= */
-ol {
-  margin-left: 20px;
-  margin-top: 15px;
-  margin-bottom: 15px;
-}
-ol li {
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-/* =========================
-   Service-varianter (gul)
-   ========================= */
-.slot-btn.service{
-  background-color: rgba(255,193,7,0.9) !important;
-  color: #000 !important;
-  border: 1px solid rgba(0,0,0,0.2) !important;
-}
-.split-details.service > summary{
-  background-color: rgba(255,193,7,0.9) !important;
-  color:#000 !important;
-}
-.split-details.service > summary:hover,
-.split-details.service > summary:focus{
-  background-color: rgba(230,174,6,0.95) !important;
-}
-.split-details.service .split-panel{ border-color:#b38b00; }
-
-/* =========================
-   Split menu (details/summary)
-   ========================= */
-.split-details{
-  position: relative;
-  display: inline-block;
-  min-width: 110px;
-}
-.split-details > summary{
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  outline: none;
-  border: none;
-  display: inline-block;
-  padding: 5px 10px;
-  font-size: 14px;
-  border-radius: 6px;
-  background: var(--ok);
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.35);
-}
-.split-details > summary::-webkit-details-marker{ display: none; }
-.split-details > summary:hover,
-.split-details > summary:focus{ background: var(--ok-darker); }
-
-.split-panel{
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 200px;
-  background: #1f1f1f;
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 10px;
-  padding: 8px;
-  z-index: 1100;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
-}
-.split-details:not([open]) .split-panel{ display: none; }
-
-.menu-btn{
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #666;
-  background: #2b2b2b;
-  color: #fff;
-  cursor: pointer;
-  font-size: 14px;
-  margin: 5px 0;
-  transition: background .2s ease;
-}
-.menu-btn:hover,
-.menu-btn:focus{ background: #343434; }
-.menu-sep{
-  border: none;
-  border-top: 1px solid #444;
-  margin: 6px 0;
-  opacity: .7;
-}
-
-/* =========================
-   Responsive
-   ========================= */
-@media (max-width: 768px){
-  .calendar{ display: block; width: 100%; overflow-x: hidden; }
-  .calendar div{
-    display: block; width: 100%;
-    font-size: 16px; margin-bottom: 10px; text-align: center;
-  }
-  .slot-btn{
-    width: 100%;
-    font-size: 18px;
-    padding: 14px;
-    box-sizing: border-box;
-    margin-top: 5px;
-  }
-
-  .toppanel-links{ display: none !important; }
-  .toppanel-auth .toppanel-knap{
-    font-size: 16px; padding: 10px 14px;
-  }
-
-  .wrapper { margin-top: 110px; }
-  .main { padding-top: 100px; }
-
-  .split-details > summary{
-    width: 100%;
-    text-align: center;
-    padding: 12px 14px;
-    font-size: 16px;
-  }
-  .split-panel{
-    left: 0; transform: none; min-width: 100%;
-  }
-}
-
-/* =========================
-   Footer
-   ========================= */
-footer {
-  position: fixed;
-  bottom: 10px;
-  left: 10px;
-  color: white;
-  font-size: 12px;
-  z-index: 1000;
-  margin: 0;
-  padding: 0;
-}
-
-/* =========================================================
-   OVERRIDES: Ens centrering + ens højde for alle tider
-   ========================================================= */
-:root {
-  --slot-h: 44px;
-}
-@media (max-width: 768px){
-  :root { --slot-h: 52px; }
-}
-
+/* Cellen: lidt luft, men højde styres af selve slot-elementet */
 .calendar div{
-  padding: 0;
+  padding: 4px;             /* var 0 – lidt mere luft så det ikke ser “sampresset” ud */
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Baseline for alle slottyper */
+/* FÆLLES base for alle typer slots (knapper OG summary) */
 .slot-btn,
-.timeslot,
+.ledig-knap,
+.optaget-knap,
 .slot-cell,
-.booking-time{
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.booking-time,
+.timeslot,
+.split-details,
+.split-details > summary{
+  /* layout */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: var(--slot-h) !important;
+  min-height: var(--slot-h) !important;
+  box-sizing: border-box !important;
+  padding: 0 var(--slot-pad-x) !important;
 
-  height: var(--slot-h);
-  min-height: var(--slot-h);
-  width: 100%;
+  /* tekstopførsel: aldrig 2 linjer */
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1 !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
 
-  border: 2px solid transparent;
-  box-sizing: border-box;
-  padding: 0 10px;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  /* hold samme “kasse” uanset state */
+  border-width: 2px !important;
+  border-style: solid !important;
 }
 
-/* Samme border i alle states */
+/* details-wrapper skal ikke indføre ekstra højde */
+.split-details{
+  margin: 0 !important;
+  border-color: transparent !important;   /* vi farver kun summary */
+}
+
+/* summary skal ligne en knap (samme radius og skygge som dine knapper) */
+.split-details > summary{
+  background: var(--ok);                  /* base som dine grønne knapper – overskrives af service/optaget */
+  color: #fff;
+  border-color: transparent;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.35);
+}
+
+/* sørg for at hover/focus IKKE ændrer højde (kun farver) */
 .slot-btn:hover,
 .slot-btn:focus,
-.slot-btn[disabled],
-.slot-btn.service,
-.ledig-knap{
-  border-width: 2px;
-  border-style: solid;
+.split-details > summary:hover,
+.split-details > summary:focus,
+.ledig-knap:hover{
+  border-width: 2px !important; /* samme tykkelse */
 }
 
-/* Ledig (grøn) */
+/* LEDIG (grøn) – samme boks, kun farver */
 .ledig-knap{
   background-color: var(--ok) !important;
   color: #fff !important;
-  border-color: transparent;
+  border-color: transparent !important;
 }
-.ledig-knap:hover{ background-color: var(--ok-darker) !important; }
 
-/* Service (gul) */
-.slot-btn.service{
+/* OPTAGET – hvis du bruger en klasse, farv kanten let, men rør ikke højde/padding */
+.optaget-knap,
+.slot-btn.optaget,
+.split-details.booked > summary{
+  background: rgba(0,0,0,0.25) !important;        /* eksempel */
+  border-color: rgba(255,255,255,0.25) !important;
+  color: #fff !important;
+}
+
+/* SERVICE (gul) – brug stadig 2px border som de andre */
+.slot-btn.service,
+.split-details.service > summary{
   background-color: rgba(255,193,7,0.9) !important;
   color: #000 !important;
   border-color: rgba(0,0,0,0.2) !important;
 }
 
-/* Optaget (tilpas farve hvis du bruger en anden klasse) */
-.slot-btn.optaget,
-.optaget-knap{
-  border-color: rgba(255,255,255,0.25);
+/* Ikoner/emoji i slots må ikke skubbe højden */
+.slot-btn svg,
+.split-details > summary svg{
+  width: 1em; height: 1em; flex: 0 0 auto;
+}
+
+/* MOBIL: lidt højere slots hvis ønsket */
+@media (max-width: 768px){
+  :root{ --slot-h: 56px; }
 }
