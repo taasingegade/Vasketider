@@ -425,3 +425,122 @@ footer {
   margin: 0;
   padding: 0;
 }
+
+/************* FIX PACK: slots skal være synlige og klikbare *************/
+
+/* 1) Kun selve slot-elementerne styres (knap + summary) */
+.slot-btn,
+.split-details > summary{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 48px !important;           /* justér hvis du vil */
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  padding: 0 12px !important;
+
+  border: 2px solid transparent !important;
+  border-radius: 6px !important;
+
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
+
+  /* VIGTIGT: de skal være klikbare */
+  pointer-events: auto !important;
+  cursor: pointer !important;
+
+  /* Neutral base-baggrund hvis ingen variant rammer */
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+}
+
+/* 2) Cellen må ikke gøre dem gennemsigtige eller stjæle clicks */
+.calendar > div{
+  padding: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 0 !important;
+  position: relative !important;
+  z-index: 0 !important;
+}
+
+/* 3) Forms rundt om knappen: stræk, men uden at blokere klik */
+.calendar > div > form{
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  width: 100% !important;
+  height: 48px !important;
+  display: flex !important;
+}
+.calendar > div > form > *{
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 4) LEDIG skal være tydeligt grøn og klikbar */
+.ledig-knap{
+  background-color: var(--ok) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+.ledig-knap:hover{ background-color: var(--ok-darker) !important; }
+
+/* 5) SERVICE og BOOKED – farver, men samme “kasse” */
+.slot-btn.service,
+.split-details.service > summary{
+  background-color: rgba(255,193,7,0.9) !important;
+  color: #000 !important;
+  border-color: rgba(0,0,0,0.2) !important;
+}
+.slot-btn.optaget,
+.optaget-knap,
+.split-details.booked > summary{
+  background: rgba(0,0,0,0.25) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.25) !important;
+}
+
+/* 6) Summary må ikke arve gennemsigtighed */
+.split-details > summary{
+  background-clip: padding-box !important;
+}
+
+/* 7) Drop de brede overrides vi havde (sørg for at ALT andet ikke vinder) */
+.calendar > div > :where(a,span,div){
+  /* tillad visning, men rør ikke baggrunden længere */
+  background: initial !important;
+  border-color: transparent !important;
+}
+
+/* 8) Dropdown-panelet må ikke ligge oven på knappen */
+.split-panel{
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 10 !important;        /* over cellen… */
+}
+.split-details:not([open]) .split-panel{ display: none !important; }
+
+/* 9) Ikoner/emoji må ikke ændre højde eller klik */
+.slot-btn svg,
+.split-details > summary svg{
+  width: 1em; height: 1em; flex: 0 0 auto;
+}
+
+/* 10) Ens border-tykkelse i alle states (ingen hop) */
+.slot-btn:hover,
+.slot-btn:focus,
+.split-details > summary:hover,
+.split-details > summary:focus{
+  border-width: 2px !important;
+}
