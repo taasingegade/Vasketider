@@ -11,12 +11,16 @@
 }
 @media (max-width:768px){ :root{ --slot-h:56px; } }
 
-*{box-sizing:border-box;}
-html,body{height:100%;margin:0;padding:0;font-family:sans-serif;color:#fff;}
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; padding:0; font-family:sans-serif; color:#fff; }
+
+/* =========================
+   Baggrund og grundlayout
+   ========================= */
 body{
   background:url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size:cover; background-color:#f8f9fa; min-height:100vh;
-  overflow-x:hidden;
+  background-size:cover; background-color:#f8f9fa;
+  min-height:100vh; overflow-x:hidden;
 }
 
 /* =========================
@@ -29,7 +33,7 @@ body{
   padding:10px 20px;
   border-bottom:1px solid rgba(255,255,255,0.2);
   backdrop-filter:blur(6px);
-  z-index:3000000; /* helt øverst */
+  z-index:3000000; /* over alt indhold */
 }
 .toppanel .brand{margin-right:auto;font-weight:700;}
 .toppanel .brand a{color:#fff;text-decoration:none;}
@@ -50,7 +54,6 @@ body{
   margin:100px auto 24px; padding:20px;
   background:rgba(255,255,255,0.05);
   border-radius:10px;
-  /* VIGTIGT: ingen clipping og lav stacking så børn kan gå over */
   overflow:visible; position:relative; z-index:0;
 }
 .main{
@@ -58,7 +61,9 @@ body{
   overflow:visible; position:relative; z-index:0;
 }
 
-.slot-btn:focus-visible,.toppanel-knap:focus-visible,.split-details>summary:focus-visible{
+.slot-btn:focus-visible,
+.toppanel-knap:focus-visible,
+.split-details>summary:focus-visible{
   outline:none; box-shadow:var(--focus);
 }
 
@@ -74,7 +79,7 @@ body{
   overflow:visible; position:relative; z-index:0;
 }
 
-/* Header (første 8): ugedag + dato */
+/* Header (første 8) – ugedag over dato */
 .calendar > div:nth-child(-n+8){
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:2px; padding:8px 6px;
@@ -82,10 +87,10 @@ body{
   border-radius:10px; line-height:1.2; font-weight:600;
   overflow:visible; position:relative; z-index:0;
 }
-.calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
-.calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
+.calendar > div:nth-child(-n+8) span:first-child{ font-size:15px; }
+.calendar > div:nth-child(-n+8) span:last-child { font-size:13px; opacity:.9; }
 
-/* Venstre tidskolonne (hver 8n+1) */
+/* Venstre tidskolonne */
 .calendar > div:nth-child(8n+1){
   display:flex; align-items:center; justify-content:flex-end;
   height:var(--slot-h);
@@ -94,13 +99,18 @@ body{
   overflow:visible; position:relative; z-index:0;
 }
 
-/* Øvrige celler */
+/* Øvrige celler – VIGTIGT: relative + overflow:visible */
 .calendar > div{
   padding:0; margin:0;
   display:flex; align-items:center; justify-content:center;
-  overflow:visible; position:relative; z-index:0;
+  position:relative; z-index:0; overflow:visible;
 }
 .calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
+
+/* ——— Kritisk: hæv cellen med åben dropdown over naboer ——— */
+.calendar > div:has(.split-details[open]){
+  z-index:2000000; /* selve cellen over alle andre celler */
+}
 
 /* =========================
    Slots (knapper/summary)
@@ -112,8 +122,7 @@ body{
   border-radius:8px; border:1px solid transparent;
   line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
-  cursor:pointer;
-  position:relative; z-index:1; gap:8px;
+  cursor:pointer; position:relative; z-index:1; gap:8px;
 }
 .slot-btn :is(.time,.label,.brugernavn,[data-user]),
 .split-details>summary :is(.time,.label,.brugernavn,[data-user]){
@@ -123,12 +132,11 @@ body{
 /* =========================
    Slots – tilstande
    ========================= */
-/* LEDIG – tving fuldt grøn uanset andre regler */
+/* LEDIG – fuldt grøn (også når den ligger i form til /book) */
 .ledig-knap,.slot-btn.ledig,
 .split-details.ledig>summary,
 .split-details[data-state="free"]>summary,
 .slot-btn[data-state="free"],
-/* også når ledig-fuldbooking er en form til /book */
 .calendar form[action$="/book"] > .slot-btn,
 .calendar form[action$="/book"] button.slot-btn{
   background:#28a745 !important; color:#fff !important;
@@ -157,29 +165,30 @@ body{
 }
 
 /* =========================
-   Split-menu (dropdown for Tidlig/Sen)
+   Split-menu (Tidlig/Sen)
    ========================= */
-/* Gør selve "details" til det højeste lag NÅR åben */
 .split-details{
   position:relative; display:inline-block;
   overflow:visible; z-index:0;
 }
-.split-details[open]{ z-index:2000000 !important; } /* hæv hele elementet når åbent */
-.split-details>summary::-webkit-details-marker{display:none;}
+.split-details[open]{ z-index:2000001 !important; } /* over cellen */
+.split-details>summary::-webkit-details-marker{ display:none; }
 
-/* Selve dropdown-panelet – altid foran alt andet kalenderindhold */
+/* Selve menuen – ALTID forrest over kalenderen */
 .split-panel{
-  position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
   min-width:220px;
   background:#1f1f1f; color:#fff;
   border:1px solid #444; border-radius:10px; padding:8px;
-  z-index:2500000 !important; /* foran alle celler/knapper */
+  z-index:2000002 !important; /* over summary/celle */
   box-shadow:0 12px 28px rgba(0,0,0,0.45);
   pointer-events:auto;
 }
 .split-details:not([open]) .split-panel{ display:none; pointer-events:none; }
 
-/* Knapper i dropdown */
 .menu-btn{
   width:100%; padding:10px 12px; border-radius:8px;
   border:1px solid #666; background:#2b2b2b; color:#fff; cursor:pointer;
