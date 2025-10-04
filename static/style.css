@@ -159,9 +159,9 @@ button:not(.slot-btn):hover{ background-color:rgba(180,180,180,0.9); }
 .calendar .split-details > summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
-  padding:0 18px;
-  font-size:16px;
-  border:none; border-radius:10px;
+  padding:0 10px;
+  font-size:14px;
+  border:none; border-radius:6px;
   line-height:1.2;
   cursor:pointer;
   position:relative; gap:8px;
@@ -200,12 +200,12 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .calendar .slot-btn[data-state="free"],
 .calendar form[action$="/book"] .slot-btn,
 .calendar .ledig-knap{
-  background:#28a745 !important;
-  background-image:none !important;
+  background:rgba(40, 167, 69, 0.4) !important;
   color:#fff !important;
-  border:none !important;
-  opacity:1 !important;
-  filter:none !important;
+  border: 1px solid rgba(255,255,255,0.25) !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 4px 15px rgba(40,167,69,0.25) !important;
+  transition: all 0.3s ease;
 }
 
 /* NYT: Få også det u-klassede summary (din HTML: <summary>Ledig</summary>) til at være grøn */
@@ -221,7 +221,8 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .calendar .split-details.ledig > summary:hover,
 .calendar .split-details:not(.service):not(.booked) > summary:hover,
 .calendar form[action$="/book"] .slot-btn:hover{
-  background:#218838 !important;
+  background: rgba(40, 167, 69, 0.65) !important;
+  box-shadow: 0 6px 20px rgba(40,167,69,0.35) !important;
 }
 
 /* SERVICE */
