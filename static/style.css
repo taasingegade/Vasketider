@@ -1,19 +1,143 @@
-/* ====== SLOTS: ét regelsæt til alle varianter (ledig/optaget/split/service) ====== */
+/* =========================
+   Theme tokens + base
+   ========================= */
 :root{
-  --slot-h: 48px;           /* ens højde; justér til smag (44–56px) */
-  --slot-pad-x: 12px;       /* vandret luft i knappen */
+  --ok: #28a745;
+  --ok-darker: #218838;
+  --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
+
+  /* Ens slot-højde på tværs af varianter */
+  --slot-h: 48px;          /* justér 44–56px efter smag */
+  --slot-pad-x: 12px;      /* vandret luft i slots */
 }
 
-/* Cellen: lidt luft, men højde styres af selve slot-elementet */
-.calendar div{
-  padding: 4px;             /* var 0 – lidt mere luft så det ikke ser “sampresset” ud */
-  min-height: 0;
+@media (max-width: 768px){
+  :root{ --slot-h: 56px; } /* lidt højere på mobil */
+}
+
+*{ box-sizing: border-box; }
+html, body { height: 100%; }
+
+/* =========================
+   Baggrund og grundlayout
+   ========================= */
+body {
+  margin: 0;
+  padding: 0;
+  background: url('/static/Bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+  background-color: #f8f9fa;
+  font-family: sans-serif;
+  color: white;
+  display: block;
+  min-height: 100vh;
+}
+
+/* Tastaturvenlig fokus */
+.slot-btn:focus-visible,
+.toppanel-knap:focus-visible,
+.split-details > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* =========================
+   Topmenu
+   ========================= */
+.toppanel {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  gap: 15px;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 10px 20px;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  flex-wrap: wrap;
+}
+
+.toppanel .brand { 
+  margin-right: auto; 
+  font-weight: 700; 
+}
+.toppanel .brand a { 
+  color: #fff; 
+  text-decoration: none; 
+}
+
+/* Desktop: vis alle links */
+.toppanel-links { 
+  display: flex; 
+  gap: 10px; 
+}
+
+/* Auth-område (login/logud/profil) – altid synligt */
+.toppanel-auth { 
+  display: flex; 
+  gap: 10px; 
+  align-items: center; 
+}
+.hello { opacity: .85; }
+
+/* Knapper i topmenu */
+.toppanel-knap {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: black !important;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+}
+.toppanel-knap:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.03);
+}
+
+/* =========================
+   Wrapper + Main
+   ========================= */
+.wrapper {
+  width: 100%;
+  max-width: 1100px;
+  margin: 100px auto 24px;
+  padding: 20px;
+  background-color: rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+
+.main {
+  padding-top: 80px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* =========================
+   Kalenderlayout
+   ========================= */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+}
+
+/* Kalender-celler: lidt luft – men højde styres af slot-elementet */
+.calendar > div{
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+  text-align: center;
 }
 
-/* FÆLLES base for alle typer slots (knapper OG summary) */
+/* =========================
+   Slots: fælles baseline for ALLE varianter
+   (ledig/optaget/split/service) – inkl. <summary>
+   ========================= */
 .slot-btn,
 .ledig-knap,
 .optaget-knap,
@@ -21,71 +145,101 @@
 .booking-time,
 .timeslot,
 .split-details,
-.split-details > summary{
-  /* layout */
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100% !important;
-  height: var(--slot-h) !important;
-  min-height: var(--slot-h) !important;
-  box-sizing: border-box !important;
-  padding: 0 var(--slot-pad-x) !important;
+.split-details > summary,
+.calendar > div > :where(button,a,summary,span,div){
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  /* tekstopførsel: aldrig 2 linjer */
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  line-height: 1 !important;
-  font-variant-numeric: tabular-nums !important;
-  font-feature-settings: "tnum" 1 !important;
+  width: 100%;
+  height: var(--slot-h);
+  min-height: var(--slot-h);
+  box-sizing: border-box;
 
-  /* hold samme “kasse” uanset state */
-  border-width: 2px !important;
-  border-style: solid !important;
-}
-
-/* details-wrapper skal ikke indføre ekstra højde */
-.split-details{
-  margin: 0 !important;
-  border-color: transparent !important;   /* vi farver kun summary */
-}
-
-/* summary skal ligne en knap (samme radius og skygge som dine knapper) */
-.split-details > summary{
-  background: var(--ok);                  /* base som dine grønne knapper – overskrives af service/optaget */
-  color: #fff;
-  border-color: transparent;
+  padding: 0 var(--slot-pad-x);
+  border: 2px solid transparent;
   border-radius: 6px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Hvis der er <form> rundt om slots: gør den gennemsigtig og stræk indholdet */
+.calendar > div > form{
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+  height: var(--slot-h);
+  display: flex;
+}
+.calendar > div > form > *{
+  width: 100%;
+  height: 100%;
+}
+
+/* details/summary – fjern alt der kan give ekstra højde; ens skygge som knapper */
+.split-details{
+  position: relative;
+  margin: 0;
+  border-color: transparent;
+}
+.split-details > summary{
+  list-style: none;
+  outline: none;
+  background: inherit; /* farver styres i varianter */
   box-shadow: 0 2px 4px rgba(0,0,0,0.35);
 }
+.split-details > summary::-webkit-details-marker{ display: none; }
 
-/* sørg for at hover/focus IKKE ændrer højde (kun farver) */
-.slot-btn:hover,
-.slot-btn:focus,
-.split-details > summary:hover,
-.split-details > summary:focus,
-.ledig-knap:hover{
-  border-width: 2px !important; /* samme tykkelse */
+/* dropdown-panel (må ikke påvirke slot-højde) */
+.split-panel{
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  background: #1f1f1f;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 8px;
+  z-index: 1100;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
+.split-details:not([open]) .split-panel{ display: none; }
 
-/* LEDIG (grøn) – samme boks, kun farver */
+/* Ikoner i slots må ikke skubbe højden */
+.slot-btn svg,
+.split-details > summary svg{ width: 1em; height: 1em; flex: 0 0 auto; }
+
+/* =========================
+   Slot-varianter (kun farver/kant – ikke højde)
+   ========================= */
+
+/* Ledig (grøn) */
 .ledig-knap{
   background-color: var(--ok) !important;
   color: #fff !important;
   border-color: transparent !important;
 }
+.ledig-knap:hover{ background-color: var(--ok-darker) !important; }
 
-/* OPTAGET – hvis du bruger en klasse, farv kanten let, men rør ikke højde/padding */
+/* Optaget */
 .optaget-knap,
 .slot-btn.optaget,
 .split-details.booked > summary{
-  background: rgba(0,0,0,0.25) !important;        /* eksempel */
-  border-color: rgba(255,255,255,0.25) !important;
+  background: rgba(0,0,0,0.25) !important;
   color: #fff !important;
+  border-color: rgba(255,255,255,0.25) !important;
 }
 
-/* SERVICE (gul) – brug stadig 2px border som de andre */
+/* Service (gul) */
 .slot-btn.service,
 .split-details.service > summary{
   background-color: rgba(255,193,7,0.9) !important;
@@ -93,13 +247,181 @@
   border-color: rgba(0,0,0,0.2) !important;
 }
 
-/* Ikoner/emoji i slots må ikke skubbe højden */
-.slot-btn svg,
-.split-details > summary svg{
-  width: 1em; height: 1em; flex: 0 0 auto;
+/* Samme border-tykkelse i alle states (ingen hop) */
+.slot-btn:hover,
+.slot-btn:focus,
+.split-details > summary:hover,
+.split-details > summary:focus,
+.ledig-knap:hover{
+  border-width: 2px;
 }
 
-/* MOBIL: lidt højere slots hvis ønsket */
+/* =========================
+   Status
+   ========================= */
+.status {
+  margin-top: 15px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: center;
+  font-size: 14px;
+}
+.status-label { font-weight: bold; }
+.status-time  { color: #ffcc00; }
+
+/* =========================
+   Øvrige elementer
+   ========================= */
+.glassbox {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.center-knap { display: flex; justify-content: center; }
+
+.form-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 400px;
+  margin: 10vh auto 0;
+}
+.form-box h2 { text-align: center; }
+
+button:not(.slot-btn) {
+  background-color: rgba(220, 220, 220, 0.9);
+  color: black;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+button:not(.slot-btn):hover { background-color: rgba(180, 180, 180, 0.9); }
+
+input {
+  margin: 5px 10px 5px 0;
+  padding: 6px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.page-container { position: relative; width: 100%; height: 100vh; }
+
+.btn-login, .btn-opret, .btn-skiftkode {
+  width: 80%;
+  text-align: center;
+}
+
+/* =========================
+   Tilgængelighedsvenlig visning (kiosk)
+   ========================= */
+.kiosk-tilgaengelig {
+  font-size: 1.5em;
+  color: #ffffff;
+  background-color: #000000;
+}
+.kiosk-tilgaengelig button {
+  font-size: 1.4em;
+  padding: 15px 20px;
+  background-color: #0066cc;
+  color: white;
+  border: 2px solid white;
+}
+.kiosk-tilgaengelig button:hover { background-color: #004080; }
+.kiosk-tilgaengelig .panel,
+.kiosk-tilgaengelig .tabel {
+  border: 2px solid white;
+  padding: 15px;
+  background-color: #111111;
+}
+
+/* =========================
+   Split-menu knapper i dropdown
+   ========================= */
+.menu-btn{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #2b2b2b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 5px 0;
+  transition: background .2s ease;
+}
+.menu-btn:hover,
+.menu-btn:focus{ background: #343434; }
+.menu-sep{
+  border: none;
+  border-top: 1px solid #444;
+  margin: 6px 0;
+  opacity: .7;
+}
+
+/* =========================
+   Responsive
+   ========================= */
 @media (max-width: 768px){
-  :root{ --slot-h: 56px; }
+  .calendar{ display: block; width: 100%; overflow-x: hidden; }
+
+  /* Celler stacker – stadig samme slot-højde */
+  .calendar > div{
+    display: block;
+    padding: 6px 0;
+  }
+
+  .slot-btn,
+  .ledig-knap,
+  .optaget-knap,
+  .split-details,
+  .split-details > summary{
+    width: 100%;
+    font-size: 18px;
+  }
+
+  /* Topmenu: kun auth */
+  .toppanel-links{ display: none !important; }
+  .toppanel-auth .toppanel-knap{
+    font-size: 16px; padding: 10px 14px;
+  }
+
+  /* Ekstra plads under toppanel */
+  .wrapper { margin-top: 110px; }
+  .main { padding-top: 100px; }
+
+  /* Split-panel i fuld bredde på mobil */
+  .split-panel{
+    left: 0; transform: none; min-width: 100%;
+  }
+}
+
+/* =========================
+   Footer
+   ========================= */
+footer {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  color: white;
+  font-size: 12px;
+  z-index: 1000;
+  margin: 0;
+  padding: 0;
 }
