@@ -1271,62 +1271,58 @@ def bookinger_json():
 @app.post("/book")
 def book_full():
     if "brugernavn" not in session:
-        # Ikke logget ind
-        conn = get_db_connection(); cur = conn.cursor()
+        # log afvist forsøg
         try:
+            conn = get_db_connection(); cur = conn.cursor()
             log_booking_attempt(cur, "", request.form.get("dato",""), int(request.form.get("tid", -1)), "afvist:ikke_logget_ind")
             conn.commit()
+        except Exception:
+            pass
         finally:
-            cur.close(); conn.close()
+            try: cur.close(); conn.close()
+            except Exception: pass
         return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
+    valgt_uge  = request.form.get("valgt_uge", "").strip()
 
-    # --- LÆS INPUT FØRST (før vi bruger dem) ---
-    raw_dato  = request.form.get("dato", "").strip()
-    valgt_uge = request.form.get("valgt_uge", "")
+    # Input
     try:
-        dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # ISO -> date
-    except ValueError:
-        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldig dato"))
-
-    try:
-        tid = int(request.form.get("tid"))
+        dato = datetime.strptime(request.form.get("dato","").strip(), "%Y-%m-%d").date()
+        slot = int(request.form.get("tid","-1"))
     except Exception:
-        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldigt tids-slot"))
+        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # 1) Er slot optaget? (fuld eller begge halvdele optaget)
+        # Optaget? (fuld eller begge halvdele)
         cur.execute("""
             SELECT
               SUM(CASE WHEN COALESCE(sub_slot,'full')='full' THEN 1 ELSE 0 END) AS fulls,
-              SUM(CASE WHEN sub_slot='early' AND brugernavn IS NOT NULL THEN 1 ELSE 0 END) AS early_taken,
-              SUM(CASE WHEN sub_slot='late'  AND brugernavn IS NOT NULL THEN 1 ELSE 0 END) AS late_taken
+              SUM(CASE WHEN sub_slot='early' AND brugernavn IS NOT NULL THEN 1 ELSE 0 END) AS e_taken,
+              SUM(CASE WHEN sub_slot='late'  AND brugernavn IS NOT NULL THEN 1 ELSE 0 END) AS l_taken
             FROM bookinger
-            WHERE dato_rigtig = %s AND slot_index = %s
-        """, (dato, tid))
-        fulls, early_taken, late_taken = [x or 0 for x in cur.fetchone()]
-        if fulls > 0 or (early_taken > 0 and late_taken > 0):
-            log_booking_attempt(cur, brugernavn, dato, tid, "afvist:taget")
+            WHERE dato_rigtig=%s AND slot_index::int=%s
+        """, (dato, slot))
+        fulls, e_taken, l_taken = [x or 0 for x in cur.fetchone()]
+        if fulls > 0 or (e_taken > 0 and l_taken > 0):
+            log_booking_attempt(cur, brugernavn, dato, slot, "afvist:taget")
             conn.commit()
             return redirect(url_for("index", uge=valgt_uge, fejl="Tiden er allerede optaget."))
 
-        # 2) Max 2 bookinger samme dag
+        # Max 2 samme dag
         cur.execute("""
             SELECT COUNT(*) FROM bookinger
             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
         """, (dato, brugernavn))
         if (cur.fetchone()[0] or 0) >= 2:
-            log_booking_attempt(cur, brugernavn, dato, tid, "afvist:max2")
+            log_booking_attempt(cur, brugernavn, dato, slot, "afvist:max2")
             conn.commit()
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # --- Opret fuld booking med aktiveringsvindue (30 min) ---
-        slot_start, slot_end = slot_start_end(dato.strftime("%Y-%m-%d"), tid)
-        activation_required = True
+        # 30 min aktiveringsvindue (gem naivt—kolonne er TIMESTAMP uden tz)
+        slot_start, _ = slot_start_end(dato.strftime("%Y-%m-%d"), slot)
         activation_deadline = slot_start + timedelta(minutes=30)
-        # >>> Gør timestamp naiv (uden tz), så det matcher TIMESTAMP-kolonnen
         activation_deadline_naive = activation_deadline.replace(tzinfo=None) if getattr(activation_deadline, "tzinfo", None) else activation_deadline
 
         cur.execute("""
@@ -1334,37 +1330,21 @@ def book_full():
               dato_rigtig, slot_index, brugernavn,
               sub_slot, status, activation_required, activation_deadline, created_at
             )
-           VALUES (%s,%s,%s,'full','pending_activation',%s,%s, NOW())
-           RETURNING id
-        """, (dato, tid, brugernavn, activation_required, activation_deadline_naive))
-        _ = cur.fetchone()
+            VALUES (%s,%s,%s,'full','pending_activation',TRUE,%s,NOW())
+        """, (dato, slot, brugernavn, activation_deadline_naive))
 
-        # Log succes
-        log_booking_attempt(cur, brugernavn, dato, tid, "success")
+        log_booking_attempt(cur, brugernavn, dato, slot, "success:full")
         conn.commit()
-
-        # Kæde-registrering (må IKKE give fejl hvis dato er date-objekt)
-        try:
-            with get_db_connection() as _c:
-                registrer_kæde_hvis_nødvendigt(_c, dato_iso=dato.strftime("%Y-%m-%d"), bruger_slot=tid, brugernavn=brugernavn)
-        except Exception:
-            current_app.logger.exception("Kæde-registrering fejlede (ignoreret)")
-
-        return redirect(url_for(
-            "index",
-            uge=valgt_uge,
-            besked="Tid booket. Start maskinen inden 30 min, ellers frigives tiden automatisk."
-        ))
-
+        return redirect(url_for("index", uge=valgt_uge,
+                                besked="Tid booket. Start maskinen inden 30 min, ellers frigives tiden automatisk."))
     except Exception as e:
         conn.rollback()
-        current_app.logger.exception("BOOK FEJL")
         try:
-            log_booking_attempt(cur, brugernavn, dato, tid if 'tid' in locals() else -1, f"afvist:ukendt:{e}")
+            log_booking_attempt(cur, brugernavn, dato, slot, f"afvist:ukendt:{e}")
             conn.commit()
         except Exception:
             pass
-        return redirect(url_for("index", uge=valgt_uge, fejl=f"DB-fejl: {str(e)}"))
+        return redirect(url_for("index", uge=valgt_uge, fejl="Fejl under fuld booking."))
     finally:
         cur.close(); conn.close()
 
@@ -1372,8 +1352,7 @@ def book_full():
 def auto_release():
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        now = datetime.now()
-        # Markér udløbne fuld-bookinger
+        now = datetime.now()  # naiv
         cur.execute("""
             UPDATE bookinger
                SET status='expired'
@@ -1381,7 +1360,6 @@ def auto_release():
                AND status='pending_activation'
                AND activation_deadline < %s
         """, (now,))
-        # Slet de udløbne (så slot bliver ledig)
         cur.execute("DELETE FROM bookinger WHERE status='expired'")
         conn.commit()
     finally:
@@ -1393,44 +1371,47 @@ def slet_booking():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    raw_dato = request.form["dato"]
-    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()   # ISO -> date
-    tid   = int(request.form["tid"])
-    sub   = request.form.get("sub")        # None | 'early' | 'late'
-    valgt_uge = request.form.get("valgt_uge","")
+    valgt_uge  = request.form.get("valgt_uge","")
+    try:
+        dato = datetime.strptime(request.form.get("dato","").strip(), "%Y-%m-%d").date()
+        slot = int(request.form.get("tid","-1"))
+    except Exception:
+        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige felter."))
+
+    sub = request.form.get("sub")  # None | 'early' | 'late'
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        if sub in ("early", "late"):
-            # Slet kun egen halvdel
+        if sub in ("early","late"):
+            # Slet egen halvdel
             cur.execute("""
                 DELETE FROM bookinger
-                WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND LOWER(brugernavn)=LOWER(%s)
+                WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s AND LOWER(brugernavn)=LOWER(%s)
                 RETURNING 1
-            """, (dato, tid, sub, brugernavn))
+            """, (dato, slot, sub, brugernavn))
             deleted = cur.fetchone() is not None
 
-            # (valgfrit) ryd den anden halvdel hvis den var en tom placeholder
+            # Ryd evt. tom placeholder på den anden halvdel
             if deleted:
+                other = "late" if sub=="early" else "early"
                 cur.execute("""
                     DELETE FROM bookinger
-                    WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND brugernavn IS NULL
-                """, (dato, tid, "late" if sub == "early" else "early"))
+                    WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s AND brugernavn IS NULL
+                """, (dato, slot, other))
 
             conn.commit()
             if deleted:
                 return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende halv-booking at aflyse."))
-
         else:
-            # Fuld booking
+            # Slet fuld
             cur.execute("""
                 DELETE FROM bookinger
-                WHERE dato_rigtig=%s AND slot_index=%s AND LOWER(brugernavn)=LOWER(%s)
+                WHERE dato_rigtig=%s AND slot_index::int=%s AND LOWER(brugernavn)=LOWER(%s)
                   AND COALESCE(sub_slot,'full')='full'
                 RETURNING 1
-            """, (dato, tid, brugernavn))
+            """, (dato, slot, brugernavn))
             deleted = cur.fetchone() is not None
             conn.commit()
             if deleted:
@@ -1446,225 +1427,112 @@ def book_half():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    raw_dato = request.form["dato"]
-    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()
-    tid   = int(request.form["tid"])
-    sub   = request.form["sub"]            # 'early' eller 'late'
-    valgt_uge = request.form.get("valgt_uge","")
+    valgt_uge  = request.form.get("valgt_uge","").strip()
 
-    if sub not in ("early", "late"):
-        flash("Ugyldigt valg.", "error")
-        return redirect(url_for("index", uge=valgt_uge))
+    try:
+        dato = datetime.strptime(request.form.get("dato","").strip(), "%Y-%m-%d").date()
+        slot = int(request.form.get("tid","-1"))
+        sub  = (request.form.get("sub") or "").strip()  # 'early' | 'late'
+    except Exception:
+        return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
+    if sub not in ("early","late"):
+        return redirect(url_for("index", uge=valgt_uge, fejl="Vælg 'tidlig' eller 'sen'."))
 
     other = "late" if sub == "early" else "early"
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # 1) Forsøg at claim'e en eksisterende placeholder for valgte halvdel
+        # Max 2 samme dag
+        cur.execute("""
+            SELECT COUNT(*) FROM bookinger
+            WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
+        """, (dato, brugernavn))
+        if (cur.fetchone()[0] or 0) >= 2:
+            return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
+
+        # Bloker hvis fuld findes
+        cur.execute("""
+            SELECT 1 FROM bookinger
+            WHERE dato_rigtig=%s AND slot_index::int=%s
+              AND COALESCE(sub_slot,'full')='full' AND brugernavn IS NOT NULL
+            LIMIT 1
+        """, (dato, slot))
+        if cur.fetchone():
+            return redirect(url_for("index", uge=valgt_uge, fejl="Slot er fuldt booket."))
+
+        # Claim placeholder for min halvdel
         cur.execute("""
             UPDATE bookinger
                SET brugernavn=%s
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND brugernavn IS NULL
+             WHERE dato_rigtig=%s AND slot_index::int=%s
+               AND sub_slot=%s AND brugernavn IS NULL
              RETURNING id
-        """, (brugernavn, dato, tid, sub))
+        """, (brugernavn, dato, slot, sub))
         row = cur.fetchone()
         if row:
-            log_booking_attempt(cur, brugernavn, dato, tid, f"success:half_claim:{sub}")
-            conn.commit()
-            flash("Halv tid booket.", "success")
-            return redirect(url_for("index", uge=valgt_uge))
-
-        # 2) Ingen placeholder → brug samme robuste flow som /book_split
-        # Bloker fuld booking
-        cur.execute("""
-            SELECT 1 FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s AND COALESCE(sub_slot,'full')='full'
-             LIMIT 1
-        """, (dato, tid))
-        if cur.fetchone():
-            log_booking_attempt(cur, brugernavn, dato, tid, "afvist:taget_full")
-            conn.commit()
-            flash("Slot er optaget.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
-
-        # Tjek at den halvdel ikke er taget
-        cur.execute("""
-            SELECT 1 FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND brugernavn IS NOT NULL
-             LIMIT 1
-        """, (dato, tid, sub))
-        if cur.fetchone():
-            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:{sub}_taget")
-            conn.commit()
-            flash("Halvdelen blev taget af en anden.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
-
-        # Opret din halvdel
-        cur.execute("""
-            INSERT INTO bookinger (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
-            VALUES (%s,%s,%s,%s,'active',FALSE,NOW())
-            RETURNING id
-        """, (dato, tid, brugernavn, sub))
-        _ = cur.fetchone()
-
-        # Sørg for præcis én placeholder for mod-halvdelen
-        cur.execute("""
-            SELECT id FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s
-             LIMIT 2
-        """, (dato, tid, other))
-        rows = cur.fetchall()
-        if not rows:
+            # Sikr max 1 placeholder for modsatte halvdel
             cur.execute("""
-                INSERT INTO bookinger (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
-                VALUES (%s,%s,NULL,%s,'active',FALSE,NOW())
-            """, (dato, tid, other))
-        elif len(rows) > 1:
-            keep_id = rows[0][0]
-            cur.execute("""
-                DELETE FROM bookinger
-                 WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND id<>%s AND brugernavn IS NULL
-            """, (dato, tid, other, keep_id))
-
-        log_booking_attempt(cur, brugernavn, dato, tid, f"success:half_insert:{sub}")
-        conn.commit()
-        flash("Halv tid booket.", "success")
-        return redirect(url_for("index", uge=valgt_uge))
-
-    except Exception:
-        conn.rollback()
-        try:
-            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:half_{sub}:ukendt")
-            conn.commit()
-        except: pass
-        flash("Fejl ved booking af halv tid.", "error")
-        return redirect(url_for("index", uge=valgt_uge))
-    finally:
-        cur.close(); conn.close()
-
-@app.post("/book_split")
-def book_split():
-    if "brugernavn" not in session:
-        return redirect(url_for("login"))
-
-    brugernavn = session["brugernavn"]
-    raw_dato = request.form["dato"]
-    dato = datetime.strptime(raw_dato, "%Y-%m-%d").date()
-    tid    = int(request.form["tid"])
-    # accepter både 'del' og 'sub' fra formen
-    choice = request.form.get("del") or request.form.get("sub")
-    if choice not in ("early", "late"):
-        flash("Ugyldigt valg.", "error")
-        return redirect(url_for("index", uge=request.form.get("valgt_uge","")))
-    valgt_uge = request.form.get("valgt_uge","")
-
-    other = "late" if choice == "early" else "early"
-
-    conn = get_db_connection(); cur = conn.cursor()
-    try:
-        # Bloker hvis fuld booking findes
-        cur.execute("""
-            SELECT 1
-              FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s
-               AND COALESCE(sub_slot,'full')='full'
-             LIMIT 1
-        """, (dato, tid))
-        if cur.fetchone():
-            log_booking_attempt(cur, brugernavn, dato, tid, "afvist:taget_full")
-            conn.commit()
-            flash("Slot er optaget.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
-
-        # 1) Prøv først at CLAIM'E eksisterende placeholder for den valgte halvdel
-        cur.execute("""
-            UPDATE bookinger
-               SET brugernavn=%s
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s
-               AND brugernavn IS NULL
-             RETURNING id
-        """, (brugernavn, dato, tid, choice))
-        row = cur.fetchone()
-        if row:
-            # Sørg for at mod-halvdelen har højst én placeholder
-            cur.execute("""
-                SELECT id, brugernavn IS NULL AS is_null
-                  FROM bookinger
-                 WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s
-                 LIMIT 2
-            """, (dato, tid, other))
-            rows = cur.fetchall()
-            if not rows:
+                SELECT id FROM bookinger
+                 WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s
+                 ORDER BY id ASC
+            """, (dato, slot, other))
+            ids = [r[0] for r in (cur.fetchall() or [])]
+            if not ids:
                 cur.execute("""
                     INSERT INTO bookinger (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
                     VALUES (%s,%s,NULL,%s,'active',FALSE,NOW())
-                """, (dato, tid, other))
-            elif len(rows) > 1:
-                # ryd evt. dubletter af placeholders og bevar én
-                keep_id = rows[0][0]
+                """, (dato, slot, other))
+            elif len(ids) > 1:
+                keep = ids[0]
                 cur.execute("""
                     DELETE FROM bookinger
-                     WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND id<>%s AND brugernavn IS NULL
-                """, (dato, tid, other, keep_id))
+                     WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s
+                       AND id<>%s AND brugernavn IS NULL
+                """, (dato, slot, other, keep))
 
-            log_booking_attempt(cur, brugernavn, dato, tid, f"success:claim_placeholder:{choice}")
             conn.commit()
-            flash(f"Du har booket {'tidlig' if choice=='early' else 'sen'} halvdel.", "success")
-            return redirect(url_for("index", uge=valgt_uge))
+            return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
 
-        # 2) Ellers: tjek om den valgte halvdel allerede er taget
+        # Min halvdel må ikke være taget
         cur.execute("""
-            SELECT 1
-              FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND brugernavn IS NOT NULL
+            SELECT 1 FROM bookinger
+             WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s AND brugernavn IS NOT NULL
              LIMIT 1
-        """, (dato, tid, choice))
+        """, (dato, slot, sub))
         if cur.fetchone():
-            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:{choice}_taget")
-            conn.commit()
-            flash("Halvdelen blev taget af en anden.", "error")
-            return redirect(url_for("index", uge=valgt_uge))
+            return redirect(url_for("index", uge=valgt_uge, fejl="Den valgte halvdel er allerede taget."))
 
-        # 3) Opret din halvdel
+        # Opret min halvdel
         cur.execute("""
             INSERT INTO bookinger (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
             VALUES (%s,%s,%s,%s,'active',FALSE,NOW())
-            RETURNING id
-        """, (dato, tid, brugernavn, choice))
-        _ = cur.fetchone()
+        """, (dato, slot, brugernavn, sub))
 
-        # 4) Sørg for præcis én placeholder for mod-halvdelen
+        # Præcis én placeholder for modsatte halvdel
         cur.execute("""
             SELECT id FROM bookinger
-             WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s
-             LIMIT 2
-        """, (dato, tid, other))
-        rows = cur.fetchall()
-        if not rows:
+             WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s
+             ORDER BY id ASC
+        """, (dato, slot, other))
+        ids = [r[0] for r in (cur.fetchall() or [])]
+        if not ids:
             cur.execute("""
                 INSERT INTO bookinger (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
                 VALUES (%s,%s,NULL,%s,'active',FALSE,NOW())
-            """, (dato, tid, other))
-        elif len(rows) > 1:
-            keep_id = rows[0][0]
+            """, (dato, slot, other))
+        elif len(ids) > 1:
+            keep = ids[0]
             cur.execute("""
                 DELETE FROM bookinger
-                 WHERE dato_rigtig=%s AND slot_index=%s AND sub_slot=%s AND id<>%s AND brugernavn IS NULL
-            """, (dato, tid, other, keep_id))
+                 WHERE dato_rigtig=%s AND slot_index::int=%s AND sub_slot=%s
+                   AND id<>%s AND brugernavn IS NULL
+            """, (dato, slot, other, keep))
 
-        log_booking_attempt(cur, brugernavn, dato, tid, f"success:split:{choice}")
         conn.commit()
-        flash(f"Du har booket {'tidlig' if choice=='early' else 'sen'} halvdel. Den anden halvdel er ledig for andre.", "success")
-        return redirect(url_for("index", uge=valgt_uge))
-
+        return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
     except Exception:
         conn.rollback()
-        try:
-            log_booking_attempt(cur, brugernavn, dato, tid, f"afvist:split_{choice}:ukendt")
-            conn.commit()
-        except: pass
-        flash("Fejl under split-booking.", "error")
-        return redirect(url_for("index", uge=valgt_uge))
+        return redirect(url_for("index", uge=valgt_uge, fejl="Fejl under halv booking."))
     finally:
         cur.close(); conn.close()
 
