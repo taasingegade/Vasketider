@@ -106,7 +106,7 @@
     {% set has_early = cell and (cell.early is not none) %}
     {% set has_late  = cell and (cell.late  is not none) %}
     <details class="split-details {% if (cell and (cell.early and cell.early.navn=='service')) or (cell and (cell.late and cell.late.navn=='service')) %}service{% endif %}">
-  <summary>Book</summary>
+  <summary>Ledig</summary>
   <div class="split-panel">
     {# FULD (disabled hvis begge halvdele er taget) #}
     {% set fuld_disabled = has_early and has_late %}
@@ -185,7 +185,6 @@
   {% endif %}
 </div>
           {% endfor %}
-        {% endfor %}
       </div>
 
       <hr>
