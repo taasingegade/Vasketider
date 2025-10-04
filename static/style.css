@@ -2,26 +2,25 @@
    Theme tokens + base
    ========================= */
 :root{
-  --ok: #28a745;
-  --ok-darker: #218838;
-  --service: rgba(255,193,7,0.9);
-  --booked: rgba(220,53,69,0.95);
-  --focus: 0 0 0 2px #fff, 0 0 0 4px rgba(106,160,255,.95);
-  --slot-h: 48px;                    /* standard slot-højde */
+  --ok:#28a745;
+  --ok-darker:#218838;
+  --service:rgba(255,193,7,0.9);
+  --booked:rgba(220,53,69,0.95);
+  --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
+  --slot-h:48px;
 }
-@media (max-width:768px){ :root{ --slot-h: 56px; } }
+@media (max-width:768px){ :root{ --slot-h:56px; } }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; margin:0; padding:0; font-family:sans-serif; color:white; }
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;padding:0;font-family:sans-serif;color:#fff;}
 
 /* =========================
    Baggrund og grundlayout
    ========================= */
 body{
   background:url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size:cover;
-  background-color:#f8f9fa;
-  min-height:100vh;
+  background-size:cover; background-color:#f8f9fa; min-height:100vh;
+  overflow-x:hidden;
 }
 
 /* =========================
@@ -34,37 +33,40 @@ body{
   padding:10px 20px;
   border-bottom:1px solid rgba(255,255,255,0.2);
   backdrop-filter:blur(6px);
-  z-index:1000;
+  z-index:3000;                /* topbar over alt indhold */
 }
-.toppanel .brand{ margin-right:auto; font-weight:700; }
-.toppanel .brand a{ color:#fff; text-decoration:none; }
-.toppanel-links{ display:flex; gap:10px; }
-.toppanel-auth{ display:flex; gap:10px; align-items:center; }
+.toppanel .brand{margin-right:auto;font-weight:700;}
+.toppanel .brand a{color:#fff;text-decoration:none;}
+.toppanel-links{display:flex;gap:10px;}
+.toppanel-auth{display:flex;gap:10px;align-items:center;}
 .toppanel-knap{
-  background:rgba(255,255,255,0.2);
-  color:black !important;
-  border:none; padding:10px 15px; border-radius:8px;
-  cursor:pointer; transition:background-color .3s, transform .1s;
-  box-shadow:0 2px 4px rgba(0,0,0,0.7);
+  background:rgba(255,255,255,0.2); color:#000!important; border:none;
+  padding:10px 15px; border-radius:8px; cursor:pointer;
+  transition:.3s; box-shadow:0 2px 4px rgba(0,0,0,.7);
 }
-.toppanel-knap:hover{ background:rgba(255,255,255,0.3); transform:scale(1.03); }
+.toppanel-knap:hover{background:rgba(255,255,255,0.3); transform:scale(1.03);}
 
 /* =========================
    Wrapper + Main
    ========================= */
 .wrapper{
   width:100%; max-width:1100px;
-  margin:100px auto 24px;
-  padding:20px;
+  margin:100px auto 24px; padding:20px;
   background:rgba(255,255,255,0.05);
   border-radius:10px;
+  overflow:visible;            /* VIGTIG: må ikke klippe dropdown */
+  position:relative;
+  z-index:1;
 }
-.main{ padding-top:80px; width:100%; max-width:1000px; margin:0 auto; }
+.main{
+  padding-top:80px; width:100%; max-width:1000px; margin:0 auto;
+  overflow:visible;            /* VIGTIG */
+  position:relative;
+  z-index:1;
+}
 
-/* Tastatur-fokus */
-.slot-btn:focus-visible,
-.toppanel-knap:focus-visible,
-.split-details > summary:focus-visible{
+/* Fokus-stil */
+.slot-btn:focus-visible,.toppanel-knap:focus-visible,.split-details>summary:focus-visible{
   outline:none; box-shadow:var(--focus);
 }
 
@@ -78,40 +80,45 @@ body{
   gap:8px;
   align-items:stretch;
   justify-items:stretch;
+  overflow:visible;            /* VIGTIG */
+  position:relative;
+  z-index:1;
 }
 
-/* Header: ugedag + dato under */
+/* Header: ugedag + dato under (første 8) */
 .calendar > div:nth-child(-n+8){
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:2px; padding:8px 6px;
   background:rgba(0,0,0,0.28);
   border-radius:10px; line-height:1.2; font-weight:600;
+  overflow:visible;
 }
-.calendar > div:nth-child(-n+8) span:first-child{ font-size:15px; }
-.calendar > div:nth-child(-n+8) span:last-child { font-size:13px; opacity:.9; }
 
-/* Venstre tidskolonne (hver 8n+1) – på linje med slots */
+/* Venstre tidskolonne (hver 8n+1) – på linje */
 .calendar > div:nth-child(8n+1){
   display:flex; align-items:center; justify-content:flex-end;
   height:var(--slot-h);
   padding:0 10px 0 0; margin:0;
   font-weight:700; letter-spacing:.2px; line-height:1.2;
+  overflow:visible;
 }
 
 /* Øvrige celler */
 .calendar > div{
   padding:0; margin:0;
   display:flex; align-items:center; justify-content:center;
+  overflow:visible;            /* VIGTIG */
+  position:relative;
+  z-index:1;
 }
 .calendar > div > *{
   width:100%; height:100%; margin:0; box-sizing:border-box;
 }
 
 /* =========================
-   Slots (knapper og summary – samme kasse)
+   Slots (knapper/summary)
    ========================= */
-.slot-btn,
-.split-details > summary{
+.slot-btn,.split-details>summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
   padding:0 12px;
@@ -119,147 +126,144 @@ body{
   line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
   cursor:pointer;
-  position:relative; z-index:1;        /* så de kan klikkes */
+  position:relative; z-index:2;      /* over cellens baggrund */
+  gap:8px;
 }
-
-/* Indholdet synker ikke */
-.slot-btn, .split-details > summary{ gap:8px; }
 .slot-btn :is(.time,.label,.brugernavn,[data-user]),
-.split-details > summary :is(.time,.label,.brugernavn,[data-user]){
+.split-details>summary :is(.time,.label,.brugernavn,[data-user]){
   display:inline-block; vertical-align:middle; line-height:1.2;
 }
 
 /* =========================
-   Slots – farver/tilstande
+   Slots – tilstande
    ========================= */
-
-/* LEDIG – tving altid fuld grøn, aldrig gennemsigtig */
-.ledig-knap,
-.slot-btn.ledig,
-.split-details.ledig > summary,
-.split-details[data-state="free"] > summary,
-.slot-btn[data-state="free"]{
-  background:#28a745 !important;      /* solid grøn */
-  color:#fff !important;
-  border:none !important;
-  opacity:1 !important;
-  filter:none !important;
-  background-image:none !important;
+/* LEDIG – fuldt grøn (også når markeret via form/action eller data-attr) */
+.ledig-knap,.slot-btn.ledig,
+.split-details.ledig>summary,
+.split-details[data-state="free"]>summary,
+.slot-btn[data-state="free"],
+.calendar form[action$="/book"] > .slot-btn,
+.calendar form[action$="/book"] button.slot-btn{
+  background:#28a745 !important; color:#fff !important;
+  border:none !important; opacity:1 !important; filter:none !important; background-image:none !important;
 }
-.ledig-knap:hover,
-.slot-btn.ledig:hover,
-.split-details.ledig > summary:hover,
-.split-details[data-state="free"] > summary:hover,
-.slot-btn[data-state="free"]:hover{
+.ledig-knap:hover,.slot-btn.ledig:hover,
+.split-details.ledig>summary:hover,
+.split-details[data-state="free"]>summary:hover,
+.slot-btn[data-state="free"]:hover,
+.calendar form[action$="/book"] > .slot-btn:hover,
+.calendar form[action$="/book"] button.slot-btn:hover{
   background:#218838 !important;
 }
 
-/* OPTAGET (rød) */
-.slot-btn.optaget,
-.optaget-knap,
-.split-details.booked > summary{
-  background:var(--booked);
+/* OPTAGET */
+.slot-btn.optaget,.optaget-knap,.split-details.booked>summary{
+  background:rgba(0,0,0,0.28);
   color:#fff;
   border:1px solid rgba(255,255,255,0.25);
 }
 
-/* SERVICE (gul) */
-.slot-btn.service,
-.split-details.service > summary,
-.slot-btn[data-state="service"],
-.split-details[data-state="service"] > summary{
+/* SERVICE – gul */
+.slot-btn.service,.split-details.service>summary,
+.slot-btn[data-state="service"],.split-details[data-state="service"]>summary{
   background:var(--service) !important;
   color:#000 !important;
   border:1px solid rgba(0,0,0,0.2) !important;
 }
 
 /* =========================
-   Split-menu (dropdown)
+   Split-menu (dropdown for tidlig/sen)
    ========================= */
-.split-details{ position:relative; display:inline-block; z-index:1; }
-.split-details > summary::-webkit-details-marker{ display:none; }
+.split-details{
+  position:relative; display:inline-block;
+  overflow:visible;                 /* VIGTIG */
+  z-index:2000;                     /* over slots */
+}
+.split-details>summary::-webkit-details-marker{display:none;}
+
+/* Selve menuen – altid foran og klikbar */
 .split-panel{
-  position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
-  min-width:200px; background:#1f1f1f; color:#fff;
-  border:1px solid #444; border-radius:10px; padding:8px; z-index:10;
-  box-shadow:0 10px 24px rgba(0,0,0,0.35);
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  min-width:220px;
+  background:#1f1f1f; color:#fff;
+  border:1px solid #444; border-radius:10px; padding:8px;
+  z-index:2500;                     /* foran alt indhold i wrapper */
+  box-shadow:0 12px 28px rgba(0,0,0,0.45);
+  pointer-events:auto;
 }
-/* Lukket panel må aldrig blokere klik på fuld booking */
-.split-details:not([open]) .split-panel{
-  display:none; pointer-events:none;
+.split-details:not([open]) .split-panel{ display:none; pointer-events:none; }
+
+/* Knapper i menuen */
+.menu-btn{
+  width:100%; padding:10px 12px;
+  border-radius:8px; border:1px solid #666;
+  background:#2b2b2b; color:#fff; cursor:pointer;
+  font-size:14px; margin:5px 0; transition:background .2s ease;
 }
+.menu-btn:hover,.menu-btn:focus{ background:#343434; }
+.menu-sep{ border:none; border-top:1px solid #444; margin:6px 0; opacity:.7; }
 
 /* =========================
-   Status
+   Status & øvrige elementer
    ========================= */
 .status{
-  margin-top:15px; background:rgba(0,0,0,0.5); color:white;
+  margin-top:15px; background:rgba(0,0,0,0.5); color:#fff;
   padding:8px 12px; border-radius:8px;
   display:flex; flex-wrap:wrap; gap:8px; align-content:center; font-size:14px;
 }
-.status-label{ font-weight:bold; }
-.status-time { color:#ffcc00; }
-
-/* =========================
-   Øvrige elementer
-   ========================= */
+.status-label{font-weight:700;} .status-time{color:#ffcc00;}
 .glassbox{
   background:rgba(255,255,255,0.2); border-radius:16px; padding:20px;
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   box-shadow:0 4px 20px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.3);
 }
-.center-knap{ display:flex; justify-content:center; }
+.center-knap{display:flex;justify-content:center;}
 .form-box{
   text-align:center; display:flex; flex-direction:column; justify-content:center;
-  background-color:rgba(0,0,0,0.7); padding:20px; border-radius:10px;
+  background:rgba(0,0,0,0.7); padding:20px; border-radius:10px;
   width:100%; max-width:400px; margin:10vh auto 0;
 }
 button:not(.slot-btn){
-  background-color:rgba(220,220,220,0.9); color:black; border:none;
+  background:rgba(220,220,220,0.9); color:#000; border:none;
   padding:10px 15px; border-radius:5px; margin:8px 0; cursor:pointer;
 }
-button:not(.slot-btn):hover{ background-color:rgba(180,180,180,0.9); }
+button:not(.slot-btn):hover{ background:rgba(180,180,180,0.9); }
 input{ margin:5px 10px 5px 0; padding:6px; border-radius:5px; border:1px solid #ccc; }
 
 /* =========================
    Toggle switch (slider)
    ========================= */
-.switch{ position:relative; display:inline-block; width:46px; height:26px; }
-.switch input{ display:none; }
-.slider{
-  position:absolute; cursor:pointer; inset:0; background:#ccc; transition:.2s; border-radius:26px;
-}
-.slider:before{
-  position:absolute; content:""; height:20px; width:20px; left:3px; top:3px;
-  background:white; transition:.2s; border-radius:50%;
-}
-.slider:after{
-  content:"O"; color:black; position:absolute; right:8px; top:4px; font-size:14px; font-weight:bold;
-}
-input:checked + .slider{ background:var(--ok); }
-input:checked + .slider:before{ transform:translateX(20px); }
-input:checked + .slider:after{ content:"I"; left:8px; right:auto; }
-.slider.round{ border-radius:26px; }
+.switch{position:relative; display:inline-block; width:46px; height:26px;}
+.switch input{display:none;}
+.slider{position:absolute; cursor:pointer; inset:0; background:#ccc; transition:.2s; border-radius:26px;}
+.slider:before{position:absolute; content:""; height:20px; width:20px; left:3px; top:3px; background:#fff; transition:.2s; border-radius:50%;}
+.slider:after{content:"O"; color:#000; position:absolute; right:8px; top:4px; font-size:14px; font-weight:700;}
+input:checked + .slider{background:var(--ok);}
+input:checked + .slider:before{transform:translateX(20px);}
+input:checked + .slider:after{content:"I"; left:8px; right:auto;}
+.slider.round{border-radius:26px;}
 
 /* =========================
    Footer
    ========================= */
 footer{
   position:fixed; bottom:10px; left:10px;
-  color:white; font-size:12px; z-index:1000; margin:0; padding:0;
+  color:#fff; font-size:12px; z-index:3000; margin:0; padding:0;
 }
 
 /* =========================
    Mobil
    ========================= */
 @media (max-width:768px){
-  /* Behold ugevisning med horisontal scroll for overblik */
   .calendar{
     grid-template-columns:90px repeat(7,minmax(120px,1fr));
     gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
-  .slot-btn, .split-details > summary{ font-size:16px; }
-  .toppanel-links{ display:none !important; }
+  .slot-btn,.split-details>summary{ font-size:16px; }
+  .toppanel-links{ display:none!important; }
   .toppanel-auth .toppanel-knap{ font-size:16px; padding:10px 14px; }
   .wrapper{ margin-top:110px; }
   .main{ padding-top:100px; }
@@ -270,6 +274,6 @@ footer{
    Print
    ========================= */
 @media print{
-  .toppanel, footer { display:none !important; }
+  .toppanel, footer{ display:none!important; }
   .wrapper{ background:transparent; box-shadow:none; }
 }
