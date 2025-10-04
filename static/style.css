@@ -440,3 +440,52 @@ footer {
   margin: 0;
   padding: 0;
 }
+
+/* =========================================================
+   OVERRIDES: Ens centrering af tider/slots (indsat nederst)
+   ========================================================= */
+.calendar div{
+  display: flex;                /* center vertikalt + horisontalt */
+  align-items: center;
+  justify-content: center;
+}
+
+/* Gør tider/knapper helt centrerede og ens i højde */
+.slot-btn{
+  display: flex;                /* var inline-block */
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  line-height: 1;               /* undgå baseline-hop */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  vertical-align: middle;       /* hvis nogle gengives inline i nogle browsere */
+  border-width: 2px;            /* fast i alle states → ingen hop */
+}
+.slot-btn:hover,
+.slot-btn:focus,
+.slot-btn[disabled]{
+  border-width: 2px;            /* match ovenfor */
+}
+
+/* Hvis slots ikke er knapper men fx <span>/<a> */
+.timeslot, .slot-cell, .booking-time{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Service-varianten: fasthold samme border-bredde */
+.slot-btn.service{
+  border-width: 2px !important; /* matcher .slot-btn */
+}
+
+/* Lidt ekstra komfort på mobil */
+@media (max-width: 768px){
+  .calendar div{ min-height: 52px; }
+}
