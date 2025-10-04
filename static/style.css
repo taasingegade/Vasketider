@@ -306,9 +306,6 @@ ol li {
 /* =========================
    Service-varianter (gul)
    ========================= */
-/* (Valgfrit) Fjern denne hvis du kun vil farve knapper:
-.service { background-color: rgba(255, 193, 7, 0.9) !important; color: black !important; }
-*/
 .slot-btn.service{
   background-color: rgba(255,193,7,0.9) !important;
   color: #000 !important;
@@ -350,7 +347,6 @@ ol li {
 .split-details > summary:hover,
 .split-details > summary:focus{ background: var(--ok-darker); }
 
-/* Panel der folder ud */
 .split-panel{
   position: absolute;
   top: calc(100% + 6px);
@@ -362,7 +358,7 @@ ol li {
   border: 1px solid #444;
   border-radius: 10px;
   padding: 8px;
-  z-index: 1100; /* løft over topmenu osv. */
+  z-index: 1100;
   box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
 .split-details:not([open]) .split-panel{ display: none; }
@@ -405,17 +401,14 @@ ol li {
     margin-top: 5px;
   }
 
-  /* Mobil: kun login/logud i topmenu */
   .toppanel-links{ display: none !important; }
   .toppanel-auth .toppanel-knap{
     font-size: 16px; padding: 10px 14px;
   }
 
-  /* Ekstra plads under toppanel */
   .wrapper { margin-top: 110px; }
   .main { padding-top: 100px; }
 
-  /* Split-menu på mobil */
   .split-details > summary{
     width: 100%;
     text-align: center;
@@ -442,50 +435,76 @@ footer {
 }
 
 /* =========================================================
-   OVERRIDES: Ens centrering af tider/slots (indsat nederst)
+   OVERRIDES: Ens centrering + ens højde for alle tider
    ========================================================= */
+:root {
+  --slot-h: 44px;
+}
+@media (max-width: 768px){
+  :root { --slot-h: 52px; }
+}
+
 .calendar div{
-  display: flex;                /* center vertikalt + horisontalt */
-  align-items: center;
-  justify-content: center;
-}
-
-/* Gør tider/knapper helt centrerede og ens i højde */
-.slot-btn{
-  display: flex;                /* var inline-block */
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 44px;
-  line-height: 1;               /* undgå baseline-hop */
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  vertical-align: middle;       /* hvis nogle gengives inline i nogle browsere */
-  border-width: 2px;            /* fast i alle states → ingen hop */
-}
-.slot-btn:hover,
-.slot-btn:focus,
-.slot-btn[disabled]{
-  border-width: 2px;            /* match ovenfor */
-}
-
-/* Hvis slots ikke er knapper men fx <span>/<a> */
-.timeslot, .slot-cell, .booking-time{
+  padding: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+}
+
+/* Baseline for alle slottyper */
+.slot-btn,
+.timeslot,
+.slot-cell,
+.booking-time{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  height: var(--slot-h);
+  min-height: var(--slot-h);
+  width: 100%;
+
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  padding: 0 10px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
-/* Service-varianten: fasthold samme border-bredde */
-.slot-btn.service{
-  border-width: 2px !important; /* matcher .slot-btn */
+/* Samme border i alle states */
+.slot-btn:hover,
+.slot-btn:focus,
+.slot-btn[disabled],
+.slot-btn.service,
+.ledig-knap{
+  border-width: 2px;
+  border-style: solid;
 }
 
-/* Lidt ekstra komfort på mobil */
-@media (max-width: 768px){
-  .calendar div{ min-height: 52px; }
+/* Ledig (grøn) */
+.ledig-knap{
+  background-color: var(--ok) !important;
+  color: #fff !important;
+  border-color: transparent;
+}
+.ledig-knap:hover{ background-color: var(--ok-darker) !important; }
+
+/* Service (gul) */
+.slot-btn.service{
+  background-color: rgba(255,193,7,0.9) !important;
+  color: #000 !important;
+  border-color: rgba(0,0,0,0.2) !important;
+}
+
+/* Optaget (tilpas farve hvis du bruger en anden klasse) */
+.slot-btn.optaget,
+.optaget-knap{
+  border-color: rgba(255,255,255,0.25);
 }
