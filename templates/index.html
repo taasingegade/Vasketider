@@ -77,28 +77,26 @@
   {% if cell and cell.full %}
   {% set f = cell.full %}
 
-  {% if f.navn if f and f.navn else '' == 'service' %}
+  {% if f and f.navn == 'service' %}
     <!-- Service = GUL (styres af .slot-btn.service i CSS) -->
     <button class="slot-btn service" disabled>
       Service
-      <!--{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
     </button>
 
-  {% elif f.navn if f and f.navn else '' == bruger %}
+  {% elif f and f.navn == bruger %}
     <!-- Egen fuld booking = kan aflyses -->
     <form method="POST" action="/slet">
       <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
       <input type="hidden" name="tid" value="{{ i }}">
       <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
       <button type="submit" class="slot-btn" style="background-color:crimson;">
-        <!--{{ f.navn }} (fuld){% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
       </button>
     </form>
 
   {% else %}
     <!-- Anden bruger = rød, disabled -->
     <button class="slot-btn" style="background-color:crimson;" disabled>
-      <!--{{ f.navn }}{% if f.status == 'pending_activation' %} · venter aktivering{% endif %}-->
+      {{ f.navn if f and f.navn else '' }}
     </button>
   {% endif %}
 
