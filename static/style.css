@@ -7,7 +7,7 @@
   --service:rgba(255,193,7,0.9);
   --booked:rgba(220,53,69,0.95);
   --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
-  --slot-h:25px; /* ↑ højere rækker for tydelige halvtider */
+  --slot-h:40px; /* ↑ højere rækker for tydelige halvtider */
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
@@ -159,7 +159,7 @@ button:not(.slot-btn):hover{ background-color:rgba(180,180,180,0.9); }
 .calendar .split-details > summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
-  padding:0 14px;
+  padding:0 10px;
   font-size:14px;
   border:none; border-radius:6px;
   line-height:1.2;
