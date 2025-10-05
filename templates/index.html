@@ -29,7 +29,7 @@
       <button class="toppanel-knap">Regler</button>
     </form>
 
-    <div class="status" id="miele-status" data-remaining="{{ miele_minutes_left or 0 }}">
+    <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
       <span class="status-label">🧺 Status:</span>
       <span class="status-value">{{ miele_status | capitalize }}</span>
       <span class="status-sep">•</span>
@@ -82,11 +82,9 @@
           {% set f = cell.full %}
 
           {% if f and f.navn == 'service' %}
-            <!-- Service = gul -->
             <button class="slot-btn service" disabled>Service</button>
 
           {% elif f and f.navn == bruger %}
-            <!-- Egen fuld booking = kan aflyses -->
             <form method="POST" action="/slet">
               <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
               <input type="hidden" name="tid" value="{{ i }}">
@@ -97,7 +95,6 @@
             </form>
 
           {% else %}
-            <!-- Anden brugers fulde booking = rød, disabled -->
             <button class="slot-btn" style="background-color:crimson;" disabled>
               {{ f.navn }}
             </button>
@@ -257,7 +254,6 @@
     if (!box || !etaSpan) return;
 
     let mins = parseInt(box.dataset.remaining || '0', 10);
-  
     if (!Number.isFinite(mins) || mins <= 0) {
       etaSpan.style.display = 'none';
       return;
@@ -276,7 +272,7 @@
     if (!box) return;
     let mins = parseInt(box.dataset.remaining || '0', 10);
     if (!Number.isFinite(mins) || mins <= 0) return;
-    mins -= 1;
+    mins = Math.max(0, mins - 1);
     box.dataset.remaining = String(mins);
     renderETA();
   }
@@ -291,7 +287,8 @@
     const popupErr = document.getElementById('popup-fejl');
     if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
 
-    renderETA();     
+    // ETA
+    renderETA();
     setInterval(tickETA, 60000);
   };
 </script>
