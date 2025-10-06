@@ -657,6 +657,20 @@ def send_sms_twilio(modtager, besked):
 def _truthy(v) -> bool:
     return str(v or "").strip().lower() in {"ja","true","1","on","yes"}
 
+def _normalize_dk_sms(s: str) -> str:
+    s = (s or "").strip()
+    # tillad "12 34 56 78" -> +4512345678
+    only_digits = "".join(ch for ch in s if ch.isdigit() or ch == '+')
+    if not only_digits:
+        return ""
+    if only_digits.startswith('+'):
+        return only_digits
+    # Hvis 8-cifret DK-nummer, prepender vi +45
+    if len(only_digits) == 8:
+        return "+45" + only_digits
+    # fallback: returnér som er
+    return only_digits
+
 def get_kontaktinfo(cur, brugernavn: str):
     cur.execute("""
         SELECT COALESCE(email,''), COALESCE(sms,''), COALESCE(notifikation,'nej')
@@ -664,40 +678,67 @@ def get_kontaktinfo(cur, brugernavn: str):
         WHERE LOWER(brugernavn)=LOWER(%s)
     """, (brugernavn,))
     row = cur.fetchone() or ("","","nej")
-    email, sms, notif_raw = row[0], row[1], row[2]
+    email, sms_raw, notif_raw = row[0], row[1], row[2]
+    sms = _normalize_dk_sms(sms_raw)
     return email, sms, _truthy(notif_raw)
 
-def slot_tekst(cur, slot_index: int):
-    cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (slot_index,))
+def slot_tekst(cur, slot_index: int) -> str:
+    cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
     r = cur.fetchone()
     return r[0] if r and r[0] else f"Slot {slot_index}"
 
 def send_booking_notice(cur, brugernavn: str, dato, slot_index: int, sub: str|None, action: str):
+    """
+    action: 'booked' | 'cancelled'
+    sender både e-mail og SMS (hvis registreret og brugeren har notifikation = ja)
+    """
     email, sms, må = get_kontaktinfo(cur, brugernavn)
     if not må:
-        print(f"ℹ️ Notifikation slået fra for {brugernavn}")
+        print(f"ℹ️ Notifikation slået fra for {brugernavn} (notifikation != ja)")
         return
+
     tid_txt  = slot_tekst(cur, int(slot_index))
-    dato_txt = dato.strftime("%d-%m-%Y") if hasattr(dato,"strftime") else str(dato)
+    dato_txt = dato.strftime("%d-%m-%Y") if hasattr(dato, "strftime") else str(dato)
+    halv_txt = ""
+    if sub in ("early","late"):
+        halv_txt = f"\nHalv slot: {'tidlig' if sub=='early' else 'sen'}"
 
     if action == "booked":
         emne = "Bekræftelse: vasketid booket"
-        body = f"Hej {brugernavn}\n\nDin vasketid er booket:\nDato: {dato_txt}\nTid: {tid_txt}\n"
-        if sub in ("early","late"):
-            body += f"Halv slot: {'tidlig' if sub=='early' else 'sen'}\n"
-        body += "\nHusk: start maskinen inden 30 min – ellers frigives tiden automatisk.\n— Vasketider"
+        body = (
+            f"Hej {brugernavn}\n\nDin vasketid er booket:"
+            f"\nDato: {dato_txt}\nTid: {tid_txt}{halv_txt}"
+            "\n\nHusk: start maskinen inden 30 min – ellers frigives tiden automatisk.\n— Vasketider"
+        )
+        sms_txt = f"Vasketid booket {dato_txt} {tid_txt}" + (" (tidlig)" if sub=='early' else " (sen)" if sub=='late' else "")
     elif action == "cancelled":
         emne = "Bekræftelse: vasketid aflyst"
-        body = f"Hej {brugernavn}\n\nDin vasketid er aflyst:\nDato: {dato_txt}\nTid: {tid_txt}\n— Vasketider"
+        body = f"Hej {brugernavn}\n\nDin vasketid er aflyst:\nDato: {dato_txt}\nTid: {tid_txt}{halv_txt}\n— Vasketider"
+        sms_txt = f"Vasketid aflyst {dato_txt} {tid_txt}" + (" (tidlig)" if sub=='early' else " (sen)" if sub=='late' else "")
     else:
+        print("⚠️ send_booking_notice: ukendt action:", action)
         return
 
-    print(f"🔔 Mail-klar: {brugernavn} <{email}> | {action} | slot={slot_index} | sub={sub}")
+    print(f"🔔 Notif → {brugernavn} | email={bool(email)} sms={bool(sms)} | {action} | slot={slot_index} sub={sub}")
+
+    # Forsøg e-mail
     if email:
-        ok = send_email(email, emne, body)
-        print("📧 send_email:", ok)
+        try:
+            ok = send_email(email, emne, body)
+            print("📧 send_email:", ok)
+        except Exception as e:
+            print("❌ send_email fejl:", e)
     else:
-        print(f"ℹ️ Ingen e-mail registreret for {brugernavn}")
+        print("ℹ️ Ingen e-mail registreret.")
+
+    # Forsøg SMS
+    if sms:
+        try:
+            send_sms_twilio(sms, sms_txt)
+        except Exception as e:
+            print("❌ SMS fejl:", e)
+    else:
+        print("ℹ️ Intet SMS-nummer registreret.")
 
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
