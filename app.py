@@ -27,7 +27,7 @@ from flask import abort
 import os
 import secrets
 import pytz
-import smtplib
+import smtplib, socket
 import hashlib
 import threading
 import time
@@ -577,29 +577,61 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = (os.environ.get("SMTP_USER") or "u7769513932@gmail.com").strip()
+    """
+    Kræver ENV:
+      SMTP_USER = din Gmail (fx u7769513932@gmail.com)
+      SMTP_PASS = Gmail App Password (16 tegn, ikke din normale kode)
+    OBS: 'From' SKAL matche SMTP_USER ved Gmail.
+    """
+    afsender = (os.environ.get("SMTP_USER") or "").strip()
     adgangskode = (os.environ.get("SMTP_PASS") or "").strip()
 
     if not afsender or not adgangskode:
-        print(f"❌ send_email: Mangler SMTP_USER ({bool(afsender)}) eller SMTP_PASS ({bool(adgangskode)})")
+        print(f"❌ send_email: Mangler ENV. SMTP_USER set? {bool(afsender)} | SMTP_PASS set? {bool(adgangskode)}")
         return False
 
     msg = MIMEText(besked or "", "plain", "utf-8")
     msg["Subject"] = emne or ""
-    msg["From"] = f"No Reply Vasketid <{afsender}>"
+    msg["From"] = f"No Reply Vasketid <{afsender}>"   # skal matche SMTP_USER for Gmail
     msg["To"] = modtager
     msg.add_header("Reply-To", "noreply@vasketider.dk")
 
+    # Før vi forsøger: tjek DNS & TCP
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
+        socket.gethostbyname("smtp.gmail.com")
+    except Exception as e:
+        print("❌ DNS lookup fejlede for smtp.gmail.com:", e)
+        return False
+
+    # 1) SSL (465) med debug
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            server.set_debuglevel(1)  # <- verbose logs i console
             server.login(afsender, adgangskode)
             server.sendmail(afsender, [modtager], msg.as_string())
         print(f"📧 (SSL) sendt til {modtager} – {emne}")
         return True
     except smtplib.SMTPAuthenticationError as e:
-        print("❌ Auth-fejl: Tjek SMTP_USER og App Password (2FA kræves).", e)
+        print("❌ SMTPAuthenticationError (SSL) – forkert App Password? 2FA slået til?:", e)
+        return False
     except Exception as e:
-        print("❌ Fejl ved afsendelse:", e)
+        print("⚠️ SSL fejlede, prøver STARTTLS…", repr(e))
+
+    # 2) STARTTLS (587) med debug
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+            server.set_debuglevel(1)  # <- verbose logs
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(afsender, adgangskode)
+            server.sendmail(afsender, [modtager], msg.as_string())
+        print(f"📧 (TLS) sendt til {modtager} – {emne}")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print("❌ SMTPAuthenticationError (TLS) – forkert App Password?:", e)
+    except Exception as e:
+        print("❌ Fejl ved afsendelse (TLS):", repr(e))
     return False
 
 def send_sms_twilio(modtager, besked):
@@ -1121,6 +1153,46 @@ def logout():
     return redirect('/login')
 
 # Admin
+
+@app.get("/admin/test_email")
+def admin_test_email():
+    if session.get("brugernavn","").lower() != "admin":
+        return redirect("/login")
+    ok = send_email("hornsbergmorten@gmail.com", "Test fra Vasketider", "Det virker ✅")
+    return ("OK – sendt" if ok else "FEJL – se server logs for SMTP-debug"), 200
+
+@app.get("/admin/email_diag")
+def admin_email_diag():
+    if session.get("brugernavn","").lower() != "admin":
+        return redirect("/login")
+
+    # Viser KUN om variabler er sat (ikke værdier)
+    u = bool(os.environ.get("SMTP_USER"))
+    p = bool(os.environ.get("SMTP_PASS"))
+
+    # Tjek TCP
+    tcp_ok_465 = False
+    tcp_ok_587 = False
+    import socket
+    try:
+        with socket.create_connection(("smtp.gmail.com", 465), timeout=5) as s:
+            tcp_ok_465 = True
+    except Exception:
+        pass
+    try:
+        with socket.create_connection(("smtp.gmail.com", 587), timeout=5) as s:
+            tcp_ok_587 = True
+    except Exception:
+        pass
+
+    return jsonify({
+        "env_SMTP_USER_set": u,
+        "env_SMTP_PASS_set": p,
+        "tcp_465": tcp_ok_465,
+        "tcp_587": tcp_ok_587,
+        "from_matches_user_hint": "send_email bruger From=<SMTP_USER>; det er krævet for Gmail",
+        "tip": "Brug Gmail App Password (16 tegn) – almindelig adgangskode virker ikke."
+    }), 200
 
 @app.route('/admin')
 def admin():
