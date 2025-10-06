@@ -577,8 +577,8 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = "vasketider.dk@gmail.com"
-    adgangskode = os.environ.get("Gmail_vasketider.dk")
+    afsender = "SMTP_PASS"
+    adgangskode = os.environ.get("Gmail_vasketider")
 
     if not adgangskode:
         print("❌ Gmail adgangskode mangler i miljøvariabler!")
