@@ -1277,48 +1277,80 @@ def reset_direkte():
 
 # Bookninger
 
-@app.route('/bookinger_json')
+@app.get('/bookinger_json')
 def bookinger_json():
     # Kun admin må hente statistik-feed
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
-        return redirect('/login')
+    user = (session.get('brugernavn') or '').lower()
+    if user != 'admin':
+        return jsonify({"error": "Unauthorized"}), 401  # JSON i stedet for redirect
 
-    idag = datetime.today().date()
+    # Param: ?days=14 (default 14)
+    try:
+        days = int(request.args.get('days', 14))
+        days = max(1, min(days, 60))  # værn mod alt for store vinduer
+    except ValueError:
+        days = 14
+
+    # Brug lokal tidszone
+    from pytz import timezone
+    tz = timezone("Europe/Copenhagen")
+    idag = datetime.now(tz).date()
+    slutdato = idag + timedelta(days=days)
 
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Hent tiderne (tekst) fra vasketider
-    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
-    tider = dict(cur.fetchall())  # {0: '07–11', 1: '11–15', ...}
+    # (Ydelse) – sørg for disse indexes i din DB én gang:
+    # CREATE INDEX IF NOT EXISTS idx_bookinger_dato ON bookinger(dato_rigtig);
+    # CREATE INDEX IF NOT EXISTS idx_bookinger_dato_slot ON bookinger(dato_rigtig, slot_index);
 
-    # Hent bookinger 14 dage frem (ingen DELETE her)
+    # Hent alle bookinger i interval – med flere felter
+    # NB: bookinger.slot_index er TEXT hos dig → vi caster til INT for join/tekst.
     cur.execute("""
-        SELECT brugernavn, dato_rigtig, slot_index
-        FROM bookinger
-        WHERE dato_rigtig >= %s AND dato_rigtig <= %s
-        ORDER BY dato_rigtig ASC, slot_index ASC
-    """, (idag, idag + timedelta(days=14)))
-    alle_14 = cur.fetchall()
-
+        SELECT
+            b.brugernavn,
+            b.dato_rigtig,
+            b.slot_index,                 -- behold rå (TEXT) til JSON
+            COALESCE(v.tekst, CONCAT('Slot ', b.slot_index)) AS slot_tekst,
+            COALESCE(b.status, 'booked')  AS status,
+            b.activation_deadline,
+            b.activated_at,
+            b.created_at
+        FROM bookinger b
+        LEFT JOIN vasketider v
+               ON v.slot_index = CAST(b.slot_index AS INTEGER)
+        WHERE b.dato_rigtig >= %s
+          AND b.dato_rigtig <= %s
+        ORDER BY b.dato_rigtig ASC, CAST(b.slot_index AS INTEGER) ASC
+    """, (idag, slutdato))
+    rows = cur.fetchall()
     conn.close()
 
     result = []
-    for brugernavn, dato, slot_index in alle_14:
-        # behold dd-mm-YYYY så din JS-gruppering er uændret
-        dato_str = dato.strftime('%d-%m-%Y')
-        # robust opslag af tidstekst
-        try:
-            tekst = tider[int(slot_index)]
-        except (KeyError, ValueError, TypeError):
-            tekst = f"Slot {slot_index}"
+    for brugernavn, dato, slot_index_raw, slot_tekst, status, deadline, activated_at, created_at in rows:
+        # Behold dit dd-mm-YYYY format + original “tid:” tekstfelt,
+        # men tilføj også ISO felter (hjælper Excel/HA/JS)
         result.append({
-            "dato": dato_str,
-            "tid": tekst,
-            "navn": brugernavn
+            "dato": dato.strftime('%d-%m-%Y'),
+            "dato_iso": dato.isoformat(),
+            "tid": slot_tekst,
+            "slot_index": slot_index_raw,          # rå fra DB (TEXT)
+            "slot_index_int": _safe_int(slot_index_raw),  # hjælper i UI
+            "navn": brugernavn,
+            "status": status,
+            "activation_deadline": deadline.isoformat() if deadline else None,
+            "activated_at": activated_at.isoformat() if activated_at else None,
+            "created_at": created_at.isoformat() if created_at else None
         })
 
     return jsonify(result)
+
+
+def _safe_int(x):
+    try:
+        return int(x)
+    except Exception:
+        return None
 
 @app.post("/book")
 def book_full():
