@@ -577,7 +577,7 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = "hornsbergmorten@gmail.com"
+    afsender = "vasketider.dk@gmail.com"
     adgangskode = os.environ.get("Gmail_adgangskode")
 
     if not adgangskode:
@@ -1799,7 +1799,7 @@ def opret():
         token = generer_token(brugernavn)
         link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
         besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
-        send_email("hornsbergmorten@gmail.com", "Godkend ny bruger", besked)
+        send_email("vasketider.dk@gmail.com", "Godkend ny bruger", besked)
 
         return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
 
