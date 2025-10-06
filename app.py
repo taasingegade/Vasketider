@@ -577,11 +577,11 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = os.environ.get("u7769513932@gmail.com", "").strip()
-    adgangskode = os.environ.get("SMTP_PASS", "").strip()
+    afsender = (os.environ.get("SMTP_USER") or "u7769513932@gmail.com").strip()
+    adgangskode = (os.environ.get("SMTP_PASS") or "").strip()
 
     if not afsender or not adgangskode:
-        print("❌ send_email: Mangler SMTP_PASS (Gmail App Password).")
+        print(f"❌ send_email: Mangler SMTP_USER ({bool(afsender)}) eller SMTP_PASS ({bool(adgangskode)})")
         return False
 
     msg = MIMEText(besked or "", "plain", "utf-8")
@@ -594,25 +594,12 @@ def send_email(modtager, emne, besked):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
             server.login(afsender, adgangskode)
             server.sendmail(afsender, [modtager], msg.as_string())
-            print(f"📧 (SSL) sendt til {modtager} – {emne}")
+        print(f"📧 (SSL) sendt til {modtager} – {emne}")
         return True
     except smtplib.SMTPAuthenticationError as e:
-        print("❌ Auth-fejl (SSL). Tjek Gmail App Password:", e)
-        return False
+        print("❌ Auth-fejl: Tjek SMTP_USER og App Password (2FA kræves).", e)
     except Exception as e:
-        print("⚠️ SSL fejlede, prøver STARTTLS…", e)
-
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=12) as server:
-            server.ehlo(); server.starttls(); server.ehlo()
-            server.login(afsender, adgangskode)
-            server.sendmail(afsender, [modtager], msg.as_string())
-        print(f"📧 (TLS) sendt til {modtager} – {emne}")
-        return True
-    except smtplib.SMTPAuthenticationError as e:
-        print("❌ Auth-fejl (TLS). Tjek App Password:", e)
-    except Exception as e:
-        print("❌ Fejl ved afsendelse (TLS):", e)
+        print("❌ Fejl ved afsendelse:", e)
     return False
 
 def send_sms_twilio(modtager, besked):
