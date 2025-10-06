@@ -577,7 +577,7 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = os.environ.get("SMTP_USER", "").strip()
+    afsender = os.environ.get("u7769513932@gmail.com", "").strip()
     adgangskode = os.environ.get("SMTP_PASS", "").strip()
 
     if not afsender or not adgangskode:
@@ -1027,7 +1027,7 @@ def login():
             conn.close()
 
             if antal >= 5:
-                send_email("hornsbergmorten@gmail.com", "Advarsel: Fejllogin", f"{antal} fejllogin fra IP {ip} – Enhed:\n{enhed}")
+                send_email("u7769513932@gmail.com", "Advarsel: Fejllogin", f"{antal} fejllogin fra IP {ip} – Enhed:\n{enhed}")
 
             return redirect('/login?fejl=Forkert+adgangskode')
 
