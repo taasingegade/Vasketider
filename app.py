@@ -577,26 +577,43 @@ def uge_for(dato_iso, valgt_uge):
         return datetime.today().isocalendar().week
 
 def send_email(modtager, emne, besked):
-    afsender = "SMTP_PASS"
-    adgangskode = os.environ.get("Gmail_vasketider")
+    afsender = os.environ.get("SMTP_USER", "").strip()
+    adgangskode = os.environ.get("SMTP_PASS", "").strip()
 
-    if not adgangskode:
-        print("❌ Gmail adgangskode mangler i miljøvariabler!")
-        return
+    if not afsender or not adgangskode:
+        print("❌ send_email: Mangler SMTP_USER eller SMTP_PASS (Gmail App Password).")
+        return False
 
-    msg = MIMEText(besked, "plain", "utf-8")
-    msg["Subject"] = emne
+    msg = MIMEText(besked or "", "plain", "utf-8")
+    msg["Subject"] = emne or ""
     msg["From"] = f"No Reply Vasketid <{afsender}>"
     msg["To"] = modtager
     msg.add_header("Reply-To", "noreply@vasketider.dk")
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
             server.login(afsender, adgangskode)
             server.sendmail(afsender, [modtager], msg.as_string())
-            print(f"📧 E-mail sendt til {modtager} med emne: {emne}")
+            print(f"📧 (SSL) sendt til {modtager} – {emne}")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print("❌ Auth-fejl (SSL). Tjek SMTP_USER og Gmail App Password:", e)
+        return False
     except Exception as e:
-        print(f"❌ Fejl ved afsendelse af e-mail: {e}")
+        print("⚠️ SSL fejlede, prøver STARTTLS…", e)
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=12) as server:
+            server.ehlo(); server.starttls(); server.ehlo()
+            server.login(afsender, adgangskode)
+            server.sendmail(afsender, [modtager], msg.as_string())
+        print(f"📧 (TLS) sendt til {modtager} – {emne}")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print("❌ Auth-fejl (TLS). Tjek App Password:", e)
+    except Exception as e:
+        print("❌ Fejl ved afsendelse (TLS):", e)
+    return False
 
 def send_sms_twilio(modtager, besked):
     account_sid = os.environ.get("Twilio_SID")
