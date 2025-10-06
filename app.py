@@ -581,7 +581,7 @@ def send_email(modtager, emne, besked):
     adgangskode = os.environ.get("SMTP_PASS", "").strip()
 
     if not afsender or not adgangskode:
-        print("❌ send_email: Mangler SMTP_USER eller SMTP_PASS (Gmail App Password).")
+        print("❌ send_email: Mangler SMTP_PASS (Gmail App Password).")
         return False
 
     msg = MIMEText(besked or "", "plain", "utf-8")
@@ -597,7 +597,7 @@ def send_email(modtager, emne, besked):
             print(f"📧 (SSL) sendt til {modtager} – {emne}")
         return True
     except smtplib.SMTPAuthenticationError as e:
-        print("❌ Auth-fejl (SSL). Tjek SMTP_USER og Gmail App Password:", e)
+        print("❌ Auth-fejl (SSL). Tjek Gmail App Password:", e)
         return False
     except Exception as e:
         print("⚠️ SSL fejlede, prøver STARTTLS…", e)
