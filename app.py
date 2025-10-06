@@ -805,13 +805,10 @@ def _geo_debug():
 def ha_webhook():
     try:
         data = request.get_json(force=True)
-        status = data.get("status", "Ukendt")
-        remaining_time = data.get("remaining_time", "")
-        opdateret = data.get("opdateret", datetime.now())
 
-        # Rå status fra HA
+        # --- Input parsing ---
         raw_status = str(data.get("status", "Ukendt")).strip()
-        remaining_time = str(data.get("remaining_time", "")).strip()  # f.eks. "0:45:00" eller ""
+        remaining_time = str(data.get("remaining_time", "")).strip()  # "0:45:00" eller ""
         opdateret = data.get("opdateret", datetime.now())
 
         # Konverter streng til datetime hvis nødvendigt
@@ -821,19 +818,19 @@ def ha_webhook():
             except ValueError:
                 opdateret = datetime.now()
 
-        # Oversæt status til dansk med set_miele_status()
-        norm_status = set_miele_status(raw_status)
+        # Normaliser/oversæt status til dansk (din eksisterende helper)
+        norm_status = set_miele_status(raw_status)  # f.eks. "kørende", "færdig", "standby", ...
 
-        # Hvis der er resttid → omregn til "xx min"
+        # Resttid → "xx min"
         if remaining_time:
             try:
                 h, m, s = map(int, remaining_time.split(":"))
                 total_min = h * 60 + m
                 remaining_time = f"{total_min} min"
             except ValueError:
-                pass  # Hvis formatet ikke kan parses, bevar original streng
+                pass  # bevar original hvis parsning fejler
 
-        # Gem i DB
+        # --- Gem seneste status (overstyrer single-row tabel) ---
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -845,45 +842,100 @@ def ha_webhook():
             )
         """)
         cur.execute("DELETE FROM miele_status")
-        cur.execute("INSERT INTO miele_status (status, remaining_time, opdateret) VALUES (%s, %s, %s)",
-                    (norm_status, remaining_time, opdateret))
+        cur.execute("""
+            INSERT INTO miele_status (status, remaining_time, opdateret)
+            VALUES (%s, %s, %s)
+        """, (norm_status, remaining_time, opdateret))
         conn.commit()
+        cur.close()
         conn.close()
 
-        # ------------------- NYT: log "kører"-aktivitet i historik -------------------
+        # --- Log aktivitet i historik (append) ---
         try:
-            from pytz import timezone
-            CPH_TZ = timezone("Europe/Copenhagen")
-            opdt = opdateret
-            if getattr(opdt, "tzinfo", None) is None:
-                opdt = CPH_TZ.localize(opdt)
-
-            # minimalt og konservativt "kører"-sæt (udvid evt. hvis nødvendigt)
-            KOERENDE = {"I brug", "kørende", "vask", "hovedvask"}
-
-            if norm_status in KOERENDE:
-                conn2 = get_db_connection()
-                cur2 = conn2.cursor()
-                cur2.execute("""
-                    CREATE TABLE IF NOT EXISTS miele_activity (
-                        id SERIAL PRIMARY KEY,
-                        ts TIMESTAMP NOT NULL,
-                        status TEXT NOT NULL
-                    )
-                """)
-                # (valgfrit) index – gør range-queries hurtige
-                cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
-                cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdt, norm_status))
-                conn2.commit()
-                conn2.close()
+            conn2 = get_db_connection()
+            cur2 = conn2.cursor()
+            cur2.execute("""
+                CREATE TABLE IF NOT EXISTS miele_activity (
+                    id SERIAL PRIMARY KEY,
+                    ts TIMESTAMP NOT NULL,
+                    status TEXT NOT NULL
+                )
+            """)
+            cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
+            cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdateret, norm_status))
+            conn2.commit()
+            cur2.close()
+            conn2.close()
         except Exception:
-            # vi må ikke vælte webhook'en pga. historik – fail-silent
+            # historik må ikke vælte webhook – fortsæt stille
             try:
-                conn2.close()
+                cur2.close(); conn2.close()
             except Exception:
                 pass
-        # ---------------------------------------------------------------------------
-        
+
+        # ===================== NYT: Knyt HA-status til booking ======================
+        # Definér slots som i din app: 0:(07-11), 1:(11-15), 2:(15-19), 3:(19-23)
+        def _current_slot_index(dt):
+            h = dt.hour
+            if   7 <= h < 11:  return 0
+            elif 11 <= h < 15: return 1
+            elif 15 <= h < 19: return 2
+            elif 19 <= h < 23: return 3
+            return None
+
+        # Normaliseret status-sæt (lowercase for robust matching)
+        s = (norm_status or "").strip().lower()
+        RUNNING_STATES  = {"kørende", "i brug", "vask", "washing", "running", "main wash", "hovedvask"}
+        FINISHED_STATES = {"færdig", "finish", "end", "slut", "program ended", "done"}
+
+        slot_idx = _current_slot_index(opdateret)
+        if slot_idx is not None:
+            conn3 = get_db_connection()
+            cur3 = conn3.cursor()
+            try:
+                # 1) START/KØRER → pending_activation -> active
+                if s in RUNNING_STATES:
+                    cur3.execute("""
+                        UPDATE bookinger
+                           SET status='active',
+                               activated_at = NOW(),
+                               activation_required = FALSE
+                         WHERE dato_rigtig = CURRENT_DATE
+                           AND slot_index   = %s
+                           AND status       = 'pending_activation'
+                    """, (slot_idx,))
+                    activated_rows = cur3.rowcount
+
+                    # (Valgfrit) hvis ingen pending, men der findes en "booked" i den aktuelle slot,
+                    # kan du vælge at aktivere den også. Slå til hvis det giver mening i din model:
+                    if activated_rows == 0:
+                        cur3.execute("""
+                            UPDATE bookinger
+                               SET status='active',
+                                   activated_at = NOW(),
+                                   activation_required = FALSE
+                             WHERE dato_rigtig = CURRENT_DATE
+                               AND slot_index   = %s
+                               AND status       = 'booked'
+                        """, (slot_idx,))
+
+                    conn3.commit()
+
+                # 2) FÆRDIG → active -> completed
+                elif s in FINISHED_STATES:
+                    cur3.execute("""
+                        UPDATE bookinger
+                           SET status='completed'
+                         WHERE dato_rigtig = CURRENT_DATE
+                           AND slot_index   = %s
+                           AND status       = 'active'
+                    """, (slot_idx,))
+                    conn3.commit()
+            finally:
+                cur3.close()
+                conn3.close()
+        # ===========================================================================
+
         print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret})")
         return jsonify({
             "status": "ok",
@@ -1538,30 +1590,36 @@ def api_booking_allowed_now():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # vasketider.slot_index er INT hos dig → denne er fin:
+        # Læs slot-tekst (INT i vasketider)
         cur.execute("SELECT tekst FROM vasketider WHERE slot_index = %s", (slot_idx,))
         row = cur.fetchone()
         slot_text = row[0] if row else f"Slot {slot_idx}"
 
-        # bookinger.slot_index er TEXT hos dig → CAST til INT i sammenligningen:
+        # bookinger.slot_index er TEXT → sammenlign med str(slot_idx)
+        slot_idx_str = str(slot_idx)
+
+        # Find relevant booking for nuværende dato/slot
+        # - tilladelig status: pending_activation (hvis frist ikke udløbet), booked, active
+        # - prioritet i visning: active > pending_activation > booked
         cur.execute("""
-            SELECT brugernavn
+            SELECT brugernavn,
+                   status,
+                   COALESCE(activation_deadline, TIMESTAMP 'epoch') AS activation_deadline
             FROM bookinger
             WHERE dato_rigtig = %s
-              AND slot_index = %s
+              AND slot_index   = %s
+              AND status IN ('pending_activation','booked','active')
+            ORDER BY CASE status
+                        WHEN 'active' THEN 0
+                        WHEN 'pending_activation' THEN 1
+                        ELSE 2
+                     END
             LIMIT 1
-        """, (dato_iso, slot_idx))
+        """, (dato_iso, slot_idx_str))
         r = cur.fetchone()
         conn.close()
 
-        if r and r[0]:
-            return jsonify({
-                "allowed": True,
-                "slot_index": slot_idx,
-                "slot_text": slot_text,
-                "booked_by": r[0]
-            }), 200
-        else:
+        if not r:
             return jsonify({
                 "allowed": False,
                 "slot_index": slot_idx,
@@ -1570,12 +1628,46 @@ def api_booking_allowed_now():
                 "reason": "Ingen booking i aktivt tidsrum"
             }), 200
 
+        booked_by, status, activation_deadline = r
+
+        # Logik for allowed:
+        # active → altid OK
+        # booked → OK (du tillader start i hele slotten)
+        # pending_activation → OK kun hvis frist ikke er udløbet
+        if status == "active":
+            allowed = True
+            reason = "Aktiv booking"
+        elif status == "booked":
+            allowed = True
+            reason = "Booket slot"
+        elif status == "pending_activation":
+            # hvis activation_deadline findes og er overskredet → ikke tilladt
+            if activation_deadline and activation_deadline < now:
+                allowed = False
+                reason = "Aktiveringsfrist udløbet"
+            else:
+                allowed = True
+                reason = "Afventer aktivering (inden for frist)"
+        else:
+            allowed = False
+            reason = f"Status '{status}' tillader ikke drift"
+
+        return jsonify({
+            "allowed": allowed,
+            "slot_index": slot_idx,
+            "slot_text": slot_text,
+            "booked_by": booked_by or "",
+            "status": status,
+            "activation_deadline": activation_deadline.isoformat() if activation_deadline else None,
+            "now": now.isoformat(),
+            "reason": reason
+        }), 200
+
     except Exception as e:
         try:
             conn.close()
         except Exception:
             pass
-        # TIP: log evt. e til console
         return jsonify({"error": "DB-fejl", "detail": str(e)}), 500
 
 # Bruger
