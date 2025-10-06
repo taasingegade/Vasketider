@@ -78,6 +78,7 @@ def init_db():
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # ===== Miele-aktivitet =====
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_activity (
                 id SERIAL PRIMARY KEY,
@@ -87,7 +88,7 @@ def init_db():
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
 
-        # booking_log (ændringslog for bookinger)
+        # ===== booking_log =====
         cur.execute("""
             CREATE TABLE IF NOT EXISTS booking_log (
                 id SERIAL PRIMARY KEY,
@@ -100,25 +101,23 @@ def init_db():
                 tidspunkt TIMESTAMP DEFAULT NOW()
             )
         """)
-
         cur.execute("""
             CREATE INDEX IF NOT EXISTS ix_booking_log_time
             ON booking_log(tidspunkt DESC);
         """)
 
-        # --- SCHEMA PATCHES (sikrer kolonner din kode bruger) ---
-        # bookinger
+        # ===== SCHEMA PATCHES: bookinger =====
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")      # 'full'|'direkte'|'split_before'|'split_after' etc.
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")          # 'early'|'late' eller NULL
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
+        cur.execute("ALTER TABLE IF NOT EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
+        cur.execute("ALTER TABLE IF NOT EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
 
-        # booking_attempts (bruges flere steder)
+        # ===== booking_attempts =====
         cur.execute("""
             CREATE TABLE IF NOT EXISTS booking_attempts (
                 id SERIAL PRIMARY KEY,
@@ -130,7 +129,7 @@ def init_db():
             )
         """)
 
-        # login_log (så ip_hash m.fl. findes)
+        # ===== login_log =====
         cur.execute("""
             CREATE TABLE IF NOT EXISTS login_log (
                 id SERIAL PRIMARY KEY,
@@ -150,12 +149,42 @@ def init_db():
                 ip_is_datacenter BOOLEAN DEFAULT FALSE
             )
         """)
+
+        # ===== NYT: notificeringsfelter på brugere =====
+        cur.execute("""
+            ALTER TABLE IF EXISTS brugere
+            ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'
+        """)
+        cur.execute("""
+            ALTER TABLE IF EXISTS brugere
+            ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'
+        """)
+
+        # Migration: hvis gammel kolonne 'notifikation' = 'ja', så sæt begge til 'ja'
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name='brugere' AND column_name='notifikation'
+                ) THEN
+                    UPDATE brugere
+                       SET notif_email = 'ja',
+                           notif_sms   = 'ja'
+                     WHERE COALESCE(notifikation,'nej') = 'ja';
+                END IF;
+            END $$;
+        """)
+
         conn.commit()
         conn.close()
-        print("✅ DB-init færdig")
+        print("✅ DB-init færdig (inkl. notif_email/notif_sms)")
     except Exception as e:
-        try: conn.close()
-        except: pass
+        try:
+            conn.close()
+        except Exception:
+            pass
         print("⚠️ DB-init fejl:", e)
 
 init_db()
@@ -1988,10 +2017,52 @@ def opret():
 
 @app.route("/vis_brugere")
 def vis_brugere():
+    # Kun admin må se brugere
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT brugernavn, kode, email, notifikation, sms, godkendt FROM brugere")
-    brugere = [dict(zip(['brugernavn','adgangskode','email','notifikation','sms','godkendt'], row)) for row in cur.fetchall()]
+
+    try:
+        # Prøv at hente de nye individuelle notifikationsfelter
+        cur.execute("""
+            SELECT brugernavn, kode, email, sms,
+                   COALESCE(notif_email, notifikation, 'ja') AS notif_email,
+                   COALESCE(notif_sms,   notifikation, 'ja') AS notif_sms,
+                   COALESCE(godkendt, FALSE) AS godkendt
+            FROM brugere
+            ORDER BY LOWER(brugernavn)
+        """)
+        rows = cur.fetchall()
+        brugere = [{
+            "brugernavn": r[0],
+            "adgangskode": r[1],
+            "email": r[2],
+            "sms": r[3],
+            "notif_email": r[4],
+            "notif_sms": r[5],
+            "godkendt": bool(r[6])
+        } for r in rows]
+
+    except Exception:
+        # Fallback hvis kolonnerne notif_email / notif_sms ikke findes endnu
+        cur.execute("""
+            SELECT brugernavn, kode, email, notifikation, sms, godkendt
+            FROM brugere
+            ORDER BY LOWER(brugernavn)
+        """)
+        rows = cur.fetchall()
+        brugere = [{
+            "brugernavn": r[0],
+            "adgangskode": r[1],
+            "email": r[2],
+            "notif_email": r[3],
+            "notif_sms": r[3],
+            "sms": r[4],
+            "godkendt": bool(r[5])
+        } for r in rows]
+
     conn.close()
     return render_template("vis_brugere.html", brugere=brugere)
 
@@ -2033,22 +2104,52 @@ def godkend_bruger():
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
-    brugernavn = request.form.get("brugernavn")
-    adgangskode = request.form.get("adgangskode")
-    email = request.form.get("email")
-    sms = request.form.get("sms")
-    notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
-    godkendt     = True if _truthy(request.form.get("godkendt")) else False
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return redirect('/login')
+
+    brugernavn   = request.form.get("brugernavn")
+    adgangskode  = request.form.get("adgangskode")
+    email        = (request.form.get("email") or "").strip()
+    sms          = (request.form.get("sms") or "").strip()
+    if sms and not sms.startswith("+"):
+        sms = "+45" + sms.replace(" ", "")
+
+    # ✅ Læs checkbokse separat
+    notif_email  = "ja" if request.form.get("notif_email") == "on" else "nej"
+    notif_sms    = "ja" if request.form.get("notif_sms") == "on" else "nej"
+    godkendt     = True if request.form.get("godkendt") == "on" else False
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("""
-        UPDATE brugere
-        SET kode = %s, email = %s, sms = %s, notifikation = %s, godkendt = %s
-        WHERE brugernavn = %s
-    """, (adgangskode, email, sms, notifikation, godkendt, brugernavn))
-    conn.commit()
-    conn.close()
+    try:
+        # 🔹 prøv at opdatere nye felter (notif_email + notif_sms)
+        cur.execute("""
+            UPDATE brugere
+               SET kode=%s,
+                   email=%s,
+                   sms=%s,
+                   notif_email=%s,
+                   notif_sms=%s,
+                   godkendt=%s
+             WHERE brugernavn=%s
+        """, (adgangskode, email, sms, notif_email, notif_sms, godkendt, brugernavn))
+        conn.commit()
+    except Exception:
+        # 🔸 fallback hvis kolonnerne ikke findes endnu
+        both = "ja" if (notif_email == "ja" or notif_sms == "ja") else "nej"
+        cur.execute("""
+            UPDATE brugere
+               SET kode=%s,
+                   email=%s,
+                   sms=%s,
+                   notifikation=%s,
+                   godkendt=%s
+             WHERE brugernavn=%s
+        """, (adgangskode, email, sms, both, godkendt, brugernavn))
+        conn.commit()
+    finally:
+        conn.close()
+
     return redirect("/vis_brugere")
 
 @app.route("/godkend/<brugernavn>")

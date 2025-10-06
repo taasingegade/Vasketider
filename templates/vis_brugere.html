@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="UTF-8">
   <title>Vis brugere</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -37,10 +37,26 @@
         Kode: <input type="text" name="adgangskode" value="{{ user.adgangskode }}">
         Email: <input type="email" name="email" value="{{ user.email }}">
         SMS: <input type="text" name="sms" value="{{ user.sms }}">
-        <label><input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}> Notifikation</label>
-        <label><input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}> Godkendt</label>
+
+        <!-- NYT: separate checkbokse for e-mail og sms -->
+        <label style="margin-left:10px;">
+          <input type="checkbox" name="notif_email"
+                 {% if user.notif_email == 'ja' or user.notifikation == 'ja' %}checked{% endif %}>
+          E-mail
+        </label>
+        <label style="margin-left:10px;">
+          <input type="checkbox" name="notif_sms"
+                 {% if user.notif_sms == 'ja' or user.notifikation == 'ja' %}checked{% endif %}>
+          SMS
+        </label>
+
+        <label style="margin-left:10px;">
+          <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
+          Godkendt
+        </label>
         <br><br>
         <button type="submit">Gem</button>
+      </p>
     </form>
 
     <form method="post" action="/slet_bruger" style="display:inline;">
@@ -63,18 +79,23 @@
       Kode: <input type="text" name="adgangskode" required><br>
       E-mail: <input type="text" name="email"><br>
       SMS: <input type="text" name="sms"><br>
-      <label><input type="checkbox" name="notifikation"> Notifikation</label><br>
+
+      <!-- NYT: separate checkbokse ved oprettelse -->
+      <label><input type="checkbox" name="notif_email"> E-mail</label>
+      <label style="margin-left:10px;"><input type="checkbox" name="notif_sms"> SMS</label><br>
+
       <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
       <button type="submit">Opret</button>
     </form>
-  {% if request.args.get('direkte_pw') %}
-<div class="admin-note">Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code>
-<br>Brug det på /login med brugernavn <strong>direkte</strong>.</div>
-{% endif %}
 
-<form method="post" action="/admin/reset_direkte" onsubmit="return confirm('Generér nyt direkte-password?');">
-  <button type="submit">Nulstil “direkte”-password</button>
-</form>
+    {% if request.args.get('direkte_pw') %}
+      <div class="admin-note">Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code>
+      <br>Brug det på /login med brugernavn <strong>direkte</strong>.</div>
+    {% endif %}
+
+    <form method="post" action="/admin/reset_direkte" onsubmit="return confirm('Generér nyt direkte-password?');">
+      <button type="submit">Nulstil “direkte”-password</button>
+    </form>
   </div>
 
   <footer>© Hornsberg Group</footer>
