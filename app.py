@@ -93,7 +93,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS booking_log (
                 id SERIAL PRIMARY KEY,
                 brugernavn TEXT,
-                handling TEXT,              -- fx 'create', 'auto_remove', 'complete', 'fejl:max2' mv.
+                handling TEXT,
                 dato DATE,
                 slot_index INT,
                 booking_type TEXT,
@@ -107,15 +107,15 @@ def init_db():
         """)
 
         # ===== SCHEMA PATCHES: bookinger =====
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE IF NOT EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
-        cur.execute("ALTER TABLE IF NOT EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
+        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
 
         # ===== booking_attempts =====
         cur.execute("""
@@ -151,16 +151,10 @@ def init_db():
         """)
 
         # ===== NYT: notificeringsfelter på brugere =====
-        cur.execute("""
-            ALTER TABLE IF EXISTS brugere
-            ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'
-        """)
-        cur.execute("""
-            ALTER TABLE IF EXISTS brugere
-            ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'
-        """)
+        cur.execute("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'")
+        cur.execute("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'")
 
-        # Migration: hvis gammel kolonne 'notifikation' = 'ja', så sæt begge til 'ja'
+        # Migration fra gammel kolonne 'notifikation'
         cur.execute("""
             DO $$
             BEGIN
@@ -179,7 +173,7 @@ def init_db():
 
         conn.commit()
         conn.close()
-        print("✅ DB-init færdig (inkl. notif_email/notif_sms)")
+        print("✅ DB-init færdig (notif_email/notif_sms OK)")
     except Exception as e:
         try:
             conn.close()
