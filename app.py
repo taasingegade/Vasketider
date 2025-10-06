@@ -1402,9 +1402,35 @@ def book_full():
 
 @app.before_request
 def auto_release():
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
-        now = datetime.now()  # naiv
+        now = datetime.now()
+
+        # --- 1) Tjek for frisk aktivitet i miele_activity (seneste 3 min) ---
+        cur.execute("""
+            SELECT 1 FROM miele_activity
+             WHERE ts > NOW() - INTERVAL '3 minutes'
+             LIMIT 1
+        """)
+        active_recently = bool(cur.fetchone())
+
+        # --- 2) Hvis der er frisk aktivitet, aktiver pending bookinger i stedet for at udløbe dem ---
+        if active_recently:
+            cur.execute("""
+                UPDATE bookinger
+                   SET status='active',
+                       activated_at=NOW(),
+                       activation_required=FALSE
+                 WHERE activation_required=TRUE
+                   AND status='pending_activation'
+                   AND activation_deadline >= NOW() - INTERVAL '10 minutes'
+            """)
+            activated = cur.rowcount
+            if activated > 0:
+                print(f"🟢 auto_release: {activated} pending bookinger aktiveret pga. Miele-aktivitet")
+
+        # --- 3) Udløb og slet dem der reelt er for gamle og ikke er blevet aktiveret ---
         cur.execute("""
             UPDATE bookinger
                SET status='expired'
@@ -1412,10 +1438,20 @@ def auto_release():
                AND status='pending_activation'
                AND activation_deadline < %s
         """, (now,))
+        expired = cur.rowcount
+
         cur.execute("DELETE FROM bookinger WHERE status='expired'")
+        deleted = cur.rowcount
+
         conn.commit()
+        if expired or deleted:
+            print(f"🟠 auto_release: {expired} udløbet → {deleted} slettet")
+
+    except Exception as e:
+        print("❌ Fejl i auto_release:", e)
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
 @app.post("/slet")
 def slet_booking():
