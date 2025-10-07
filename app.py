@@ -748,57 +748,78 @@ def get_slot_text(cur, slot_index: int) -> str:
     defaults = {0:"07–11", 1:"11–15", 2:"15–19", 3:"19–23"}
     return defaults.get(int(slot_index), f"Slot {slot_index}")
 
-def send_booking_notice(conn_or_cur, brugernavn: str, dato, slot_index: int, sub_slot, event: str):
-    cur = conn_or_cur if hasattr(conn_or_cur, "execute") else conn_or_cur.cursor()
-    close_after = hasattr(conn_or_cur, "cursor")
+def send_booking_notice(brugernavn: str, dato, slot_index: int, sub_slot: str | None, action: str):
+    """
+    Henter selv email/SMS + slot-tekst fra DB og sender mail/SMS.
+    Ingen cursor/connection som argument.
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as c:
+            # hent kontaktinfo
+            c.execute("""
+                SELECT email, sms, notifikation
+                FROM brugere
+                WHERE LOWER(brugernavn)=LOWER(%s)
+                LIMIT 1
+            """, (brugernavn,))
+            row = c.fetchone()
+            if not row:
+                print(f"ℹ️ Ingen bruger fundet: {brugernavn}")
+                return
+            email, sms, notifikation = row or (None, None, 'nej')
+            allow = (str(notifikation or '').strip().lower() == 'ja')
 
-    # slot-tekst
-    cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
-    row = cur.fetchone()
-    slot_tekst = row[0] if row else f"Slot {slot_index}"
-    if sub_slot == 'early': slot_tekst += " (første halvdel)"
-    if sub_slot == 'late':  slot_tekst += " (sidste halvdel)"
+            # hent slot-tekst
+            c.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
+            r2 = c.fetchone()
+            slot_txt = (r2[0] if r2 and r2[0] else f"Slot {slot_index}")
+    finally:
+        try: conn.close()
+        except: pass
 
-    # prefs
-    email, sms, allow_email, allow_sms = get_kontaktinfo(cur, brugernavn)
+    print(f"🔔 send_booking_notice user={brugernavn} allow={allow} email='{email}' sms='{sms}' action={action} slot={slot_index} date={dato}")
 
-    # besked
-    dato_txt = dato.strftime('%d-%m-%Y') if hasattr(dato, "strftime") else str(dato)
-    if event == "booked":
-        subject = "Bekræftelse: vasketid booket"
-        body    = f"Hej {brugernavn}\n\nDin vasketid er booket: {dato_txt} – {slot_tekst}.\n\n— Vasketider"
-        smsmsg  = f"Vasketid booket {dato_txt} {slot_tekst}"
+    if not allow:
+        print(f"ℹ️ Notifikation slået fra for '{brugernavn}' (notifikation != 'ja'). Intet sendes.")
+        return
+
+    dato_dk = dato.strftime('%d-%m-%Y')
+    del_txt = " (tidlig halvdel)" if sub_slot=="early" else " (sen halvdel)" if sub_slot=="late" else ""
+
+    if action == "booked":
+        subj = "Bekræftelse: vasketid booket"
+        body = f"Hej {brugernavn}\nDin vasketid er booket {dato_dk} {slot_txt}{del_txt}.\n— Vasketider"
+        sms_text = f"Vasketid bekræftet {dato_dk} {slot_txt}{del_txt}"
+    elif action == "cancelled":
+        subj = "Aflysning: vasketid"
+        body = f"Hej {brugernavn}\nDin vasketid er aflyst {dato_dk} {slot_txt}{del_txt}.\n— Vasketider"
+        sms_text = f"Vasketid aflyst {dato_dk} {slot_txt}{del_txt}"
     else:
-        subject = "Bekræftelse: vasketid annulleret"
-        body    = f"Hej {brugernavn}\n\nDin vasketid er annulleret: {dato_txt} – {slot_tekst}.\n\n— Vasketider"
-        smsmsg  = f"Vasketid annulleret {dato_txt} {slot_tekst}"
-
-    print(f"[send_booking_notice] user={brugernavn} event={event} date={dato_txt} slot={slot_tekst} "
-          f"allow_email={allow_email} allow_sms={allow_sms} email='{email}' sms='{sms}'")
+        print(f"⚠️ Ukendt action: {action}")
+        return
 
     sent_any = False
-    if allow_email and email:
-        ok = send_email(email, subject, body)
-        print(f"  → email send_email(...)={ok}")
+
+    if email:
+        ok = send_email(email, subj, body)
+        print(f"📧 send_email(to={email}) -> {ok}")
         sent_any = sent_any or ok
     else:
-        print("  → email SKIPPED")
+        print(f"ℹ️ Ingen email registreret for '{brugernavn}'")
 
-    if allow_sms and sms:
+    if sms:
         try:
-            send_sms_twilio(sms, smsmsg)
-            print("  → sms OK")
+            send_sms_twilio(sms, sms_text)
+            print(f"📱 SMS sendt til {sms}")
             sent_any = True
         except Exception as e:
-            print("  → sms ERROR:", e)
+            print("⚠️ SMS-fejl:", e)
     else:
-        print("  → sms SKIPPED")
+        print(f"ℹ️ Ingen SMS registreret for '{brugernavn}'")
 
     if not sent_any:
-        print("  → ⚠️ ingen kanal sendt (præferencer eller manglende kontaktinfo)")
-
-    if close_after:
-        cur.close()
+        print(f"⚠️ Intet blev sendt for '{brugernavn}' (ingen gyldige kontaktmetoder?).")
 
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
@@ -1552,29 +1573,33 @@ def _safe_int(x):
 @app.post("/book")
 def book_full():
     if "brugernavn" not in session:
-        # log afvist forsøg
         try:
-            conn = get_db_connection(); cur = conn.cursor()
-            log_booking_attempt(cur, "", request.form.get("dato",""), int(request.form.get("tid", -1)), "afvist:ikke_logget_ind")
+            conn = get_db_connection()
+            cur = conn.cursor()
+            log_booking_attempt(cur, "", request.form.get("dato", ""), int(request.form.get("tid", -1)), "afvist:ikke_logget_ind")
             conn.commit()
         except Exception:
             pass
         finally:
-            try: cur.close(); conn.close()
-            except Exception: pass
+            try:
+                cur.close()
+                conn.close()
+            except Exception:
+                pass
         return redirect(url_for("login", fejl="Log ind for at booke en tid"))
 
     brugernavn = session["brugernavn"]
-    valgt_uge  = (request.form.get("valgt_uge") or "").strip()
+    valgt_uge = (request.form.get("valgt_uge") or "").strip()
 
     # Input
     try:
         dato = datetime.strptime((request.form.get("dato") or "").strip(), "%Y-%m-%d").date()
-        slot = int(request.form.get("tid","-1"))
+        slot = int(request.form.get("tid", "-1"))
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
         # Optaget? (fuld eller begge halvdele)
         cur.execute("""
@@ -1601,10 +1626,10 @@ def book_full():
             conn.commit()
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # 30 min aktiveringsvindue (deadline gemmes naive TIMESTAMP)
+        # 30 min aktiveringsvindue
         slot_start, _ = slot_start_end(dato.strftime("%Y-%m-%d"), slot)
         activation_deadline = slot_start + timedelta(minutes=30)
-        activation_deadline_naive = activation_deadline.replace(tzinfo=None) if getattr(activation_deadline, "tzinfo", None) else activation_deadline
+        activation_deadline_naive = activation_deadline.replace(tzinfo=None)
 
         # Opret booking
         cur.execute("""
@@ -1618,18 +1643,15 @@ def book_full():
         log_booking_attempt(cur, brugernavn, dato, slot, "success:full")
         conn.commit()
 
-        # 🔔 Notifikation efter commit
+        # 🔔 Notifikation
         try:
-            # brug en ny connection/cursor (den gamle er OK, men vi vil ikke rulle noget tilbage)
-            conn2 = get_db_connection()
-            with conn2.cursor() as c2:
-                send_booking_notice(c2, brugernavn, dato, slot, None, "booked")
-            conn2.close()
+            send_booking_notice(brugernavn, dato, slot, None, "booked")
         except Exception as e:
-                print("⚠️ Notifikation (book full) fejlede:", e)
+            print("⚠️ Notifikation (book full) fejlede:", e)
 
         return redirect(url_for(
-            "index", uge=valgt_uge,
+            "index",
+            uge=valgt_uge,
             besked="Tid booket. Start maskinen inden 30 min, ellers frigives tiden automatisk."
         ))
 
@@ -1642,8 +1664,11 @@ def book_full():
             pass
         return redirect(url_for("index", uge=valgt_uge, fejl="Fejl under fuld booking."))
     finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 @app.before_request
 def auto_release():
@@ -1704,24 +1729,24 @@ def slet_booking():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    valgt_uge  = request.form.get("valgt_uge", "")
+    valgt_uge = request.form.get("valgt_uge", "")
 
-    # Læs felter
     try:
-        dato_str  = (request.form.get("dato") or "").strip()
-        tid_str   = (request.form.get("tid") or "-1").strip()
-        dato      = datetime.strptime(dato_str, "%Y-%m-%d").date()
-        slot_int  = int(tid_str)
+        dato_str = (request.form.get("dato") or "").strip()
+        tid_str = (request.form.get("tid") or "-1").strip()
+        dato = datetime.strptime(dato_str, "%Y-%m-%d").date()
+        slot_int = int(tid_str)
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige felter."))
 
     sub = request.form.get("sub")  # None | 'early' | 'late'
     other = "late" if sub == "early" else "early"
 
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
         if sub in ("early", "late"):
-            # --- SLET EGEN HALV BOOKING ---
+            # Slet egen halv booking
             cur.execute("""
                 DELETE FROM bookinger
                 WHERE dato_rigtig = %s
@@ -1732,7 +1757,6 @@ def slet_booking():
             """, (dato, str(slot_int), sub, brugernavn))
             deleted = cur.fetchone() is not None
 
-            # --- RYD PLACEHOLDER PÅ MODSAT HALVDEL (hvis tom) ---
             if deleted:
                 cur.execute("""
                     DELETE FROM bookinger
@@ -1741,21 +1765,19 @@ def slet_booking():
                       AND sub_slot = %s
                       AND brugernavn IS NULL
                 """, (dato, slot_int, str(slot_int), other))
-
             conn.commit()
 
             if deleted:
                 try:
-                    conn2 = get_db_connection()
-                    with conn2.cursor() as c2:
-                        send_booking_notice(cur, brugernavn, dato, slot_int, sub, "cancelled")
+                    send_booking_notice(brugernavn, dato, slot_int, sub, "cancelled")
                 except Exception as e:
                     print("⚠️ Notifikation (slet_half) fejlede:", e)
                 return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende halv-booking at aflyse."))
+
         else:
-            # --- SLET FULD BOOKING ---
+            # Slet fuld booking
             cur.execute("""
                 DELETE FROM bookinger
                 WHERE dato_rigtig = %s
@@ -1770,19 +1792,18 @@ def slet_booking():
 
             if deleted:
                 try:
-                    conn2 = get_db_connection()
-                    with conn2.cursor() as c2:
-                        send_booking_notice(cur, brugernavn, dato, slot_int, None, "cancelled")
-                    conn2.close()
+                    send_booking_notice(brugernavn, dato, slot_int, None, "cancelled")
                 except Exception as e:
                     print("⚠️ Notifikation (slet_full) fejlede:", e)
-
                 return redirect(url_for("index", uge=valgt_uge, besked="Din fulde booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende fuld booking at aflyse."))
     finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 @app.post("/book_half")
 def book_half():
@@ -1790,20 +1811,22 @@ def book_half():
         return redirect(url_for("login"))
 
     brugernavn = session["brugernavn"]
-    valgt_uge  = (request.form.get("valgt_uge") or "").strip()
+    valgt_uge = (request.form.get("valgt_uge") or "").strip()
 
     try:
         dato_str = (request.form.get("dato") or "").strip()
-        tid_str  = (request.form.get("tid") or "").strip()
-        sub      = (request.form.get("sub") or "").strip()  # 'early' | 'late'
+        tid_str = (request.form.get("tid") or "").strip()
+        sub = (request.form.get("sub") or "").strip()  # 'early' | 'late'
         if sub not in ("early", "late"):
             return redirect(url_for("index", uge=valgt_uge, fejl="Vælg 'tidlig' eller 'sen'."))
+
         dato = datetime.strptime(dato_str, "%Y-%m-%d").date()
-        slot_str = str(int(tid_str))   # i DB kan slot_index være TEXT → brug string
+        slot_str = str(int(tid_str))
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
         # Loft: max 2 pr. dag
         cur.execute("""
@@ -1837,7 +1860,7 @@ def book_half():
         if cur.fetchone():
             return redirect(url_for("index", uge=valgt_uge, fejl="Den valgte halvdel er allerede taget."))
 
-        # Opret kun min halvdel
+        # Opret halv booking
         cur.execute("""
             INSERT INTO bookinger
                 (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
@@ -1848,10 +1871,7 @@ def book_half():
 
         # 🔔 Notifikation
         try:
-            conn2 = get_db_connection()
-            with conn2.cursor() as c2:
-                send_booking_notice(c2, brugernavn, dato, int(slot_str), sub, "booked")
-            conn2.close()
+            send_booking_notice(brugernavn, dato, int(slot_str), sub, "booked")
         except Exception as e:
             print("⚠️ Notifikation (book half) fejlede:", e)
 
@@ -1860,8 +1880,11 @@ def book_half():
         conn.rollback()
         return redirect(url_for("index", uge=valgt_uge, fejl=f"Fejl under halv booking: {e}"))
     finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 @app.get("/api/booking_allowed_now")
 def api_booking_allowed_now():
