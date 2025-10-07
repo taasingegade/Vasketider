@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="UTF-8">
   <title>Adminpanel</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
     .grid-4 {
@@ -30,6 +30,9 @@
     th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .muted { opacity:.8; font-size:12px; }
+    .pull-right { margin-left:auto; }
+    .topnote { opacity:.8; margin:6px 0 0; }
+
     /* Skjul hele admin på mobil */
     .mobile-block {
       display: none; position: fixed; inset:0; background: rgba(0,0,0,0.85);
@@ -67,7 +70,7 @@
     <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Kalender</button></form>
   </div>
 
-  <div class="main" style="max-width:1100px;">
+  <div class="main" style="max-width:1100px; margin-top:110px;">
     <h2>Adminpanel</h2>
     <p class="muted">Fire vinduer med hurtige handlinger, adressevisning, vasketider/service og bookinger/kommentarer. (Skjult på mobil)</p>
 
@@ -85,19 +88,23 @@
             <button class="toppanel-knap">Sluk IoT</button>
           </form>
         </div>
-        <p class="muted" style="margin-top:8px;">Styr Home Assistant/Miele integration.</p>
+        <p class="topnote">Styr Home Assistant/Miele integration (gemmes i <code>iot_flags</code>).</p>
       </div>
 
       <!-- VINDUE 2: Adressevisning i login -->
       <div class="window">
         <h3>🏷️ Adressevisning i login</h3>
         <form method="post" action="/opdater_dropdownvisning">
-          {% for adr in adresser %}
-            <label style="display:block; margin-bottom:6px;">
-              <input type="checkbox" name="vis_{{ adr[0] }}" {% if adr[1] %}checked{% endif %}> {{ adr[0] }}
-            </label>
-          {% endfor %}
-          <button class="toppanel-knap" type="submit">Opdater</button>
+          {% if adresser and adresser|length > 0 %}
+            {% for adr in adresser %}
+              <label style="display:block; margin-bottom:6px;">
+                <input type="checkbox" name="vis_{{ adr[0] }}" {% if adr[1] %}checked{% endif %}> {{ adr[0] }}
+              </label>
+            {% endfor %}
+          {% else %}
+            <p class="muted">Ingen adresser registreret endnu.</p>
+          {% endif %}
+          <button class="toppanel-knap" type="submit" style="margin-top:8px;">Opdater</button>
         </form>
       </div>
 
@@ -112,7 +119,7 @@
             {% for i in range(4) %}
             <tr>
               <td>Slot {{ i }}</td>
-              <td><input type="text" name="slot_{{ i }}" value="{{ tider[i] }}"></td>
+              <td><input type="text" name="slot_{{ i }}" value="{{ (tider[i] if tider and i < tider|length else '') }}"></td>
             </tr>
             {% endfor %}
           </table>
@@ -123,10 +130,10 @@
         <form method="post" action="/admin/book_service" class="row">
           <input type="date" name="dato" required>
           <select name="tid" required>
-            <option value="07–11">07–11</option>
-            <option value="11–15">11–15</option>
-            <option value="15–19">15–19</option>
-            <option value="19–23">19–23</option>
+            {% set opts = ['07–11','11–15','15–19','19–23'] %}
+            {% for t in opts %}
+              <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
           </select>
           <button class="toppanel-knap" type="submit">Book service</button>
         </form>
@@ -136,7 +143,7 @@
       <div class="window">
         <h3>📒 Bookinger & Kommentarer</h3>
 
-        <h4 style="margin:6px 0;">Aktive bookinger</h4>
+        <h4 style="margin:6px 0;">Aktive/kommende bookinger</h4>
         <table>
           <tr><th>Dato</th><th>Slot</th><th>Bruger</th><th>Slet</th></tr>
           {% for booking in bookinger %}
@@ -164,7 +171,7 @@
             <td>{{ kom.brugernavn }}</td>
             <td>{{ kom.tekst }}</td>
             <td>
-              <form method="post" action="/admin/delete_comment" style="display:inline;">
+              <form method="post" action="/admin/delete_comment" style="display:inline;" onsubmit="return confirm('Slette kommentar #{{ kom.id }}?');">
                 <input type="hidden" name="kommentar_id" value="{{ kom.id }}">
                 <button class="toppanel-knap">Slet</button>
               </form>

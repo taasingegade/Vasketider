@@ -1,47 +1,62 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>Dokumenter</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
-
+<body style="background:url('/static/Bg.jpg') no-repeat center center fixed; background-size:cover;">
   <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-    <form method="get" action="{{ '/admin' if admin else '/index' }}">
-      <button class="toppanel-knap">Tilbage</button>
-    </form>
-    <div class="toppanel-ekg"></div>
+    <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
+    <form method="get" action="/index"><button class="toppanel-knap">Kalender</button></form>
+    <form method="get" action="/kommentar"><button class="toppanel-knap">Kommentar</button></form>
+    {% if admin %}
+      <form method="get" action="/admin"><button class="toppanel-knap">Admin</button></form>
+    {% endif %}
   </div>
 
-  <div class="glassbox" style="max-width: 800px; margin: 100px auto 20px auto;">
-    <h2>Dokumenter</h2>
-    <p>Her kan du finde vigtige dokumenter, manualer og retningslinjer:</p>
-
-    {% for fil in filer %}
-    <div style="margin-bottom: 10px;">
-      <a href="{{ url_for('static', filename=fil) }}" target="_blank" style="color: lightblue;">{{ fil }}</a>
-      {% if admin %}
-      <form method="post" style="display: inline;">
-        <input type="hidden" name="slet_fil" value="{{ fil }}">
-        <button type="submit">Slet</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
+  <div class="wrapper" style="max-width:900px; margin-top:110px;">
+    <h2>Dokumenter (PDF)</h2>
 
     {% if admin %}
-    <hr style="margin: 30px 0;">
-    <h3>Upload PDF-filer</h3>
-    <form method="post" enctype="multipart/form-data">
-      <input type="file" name="fil" accept=".pdf" multiple required><br><br>
-      <button type="submit">Upload</button>
-    </form>
+    <div class="glassbox" style="padding:16px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.15); border-radius:12px;">
+      <h3>Upload</h3>
+      <form method="post" action="/dokumenter" enctype="multipart/form-data">
+        <input type="file" name="fil" multiple accept="application/pdf">
+        <button type="submit">Upload</button>
+      </form>
+      <p style="opacity:.8; margin-top:6px;">Kun PDF accepteres. Filer gemmes i uploads-mappen.</p>
+    </div>
     {% endif %}
+
+    <h3 style="margin-top:18px;">Tilgængelige PDF'er</h3>
+    <div style="background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px;">
+      {% if filer %}
+        <table style="width:100%; border-collapse:collapse;">
+          <thead><tr><th style="text-align:left; padding:6px 8px;">Fil</th><th style="width:160px;"></th></tr></thead>
+          <tbody>
+            {% for f in filer %}
+            <tr>
+              <td style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.12);">
+                <a href="{{ url_for('static', filename='uploads/' ~ f) }}" target="_blank" style="color:#fff; text-decoration:underline;">{{ f }}</a>
+              </td>
+              <td style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.12); text-align:right;">
+                {% if admin %}
+                <form method="post" action="/dokumenter" onsubmit="return confirm('Slette {{ f }}?');" style="display:inline;">
+                  <input type="hidden" name="slet_fil" value="{{ f }}">
+                  <button class="toppanel-knap" type="submit">Slet</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p style="opacity:.85;">Ingen PDF'er uploadet endnu.</p>
+      {% endif %}
+    </div>
   </div>
 
   <footer>© Hornsberg Group</footer>

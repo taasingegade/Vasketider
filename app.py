@@ -108,7 +108,9 @@ def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
     # ellers ukendt
     return "Kunne ikke booke halvtid (DB-konflikt)."
 
+# ====================================
 # Definer starter en funktion i python
+# ====================================
 
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
@@ -1202,7 +1204,9 @@ def _geo_debug():
     }
     return jsonify(out), 200
 
+# ===============
 # Miele UI
+# ===============
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
@@ -1351,7 +1355,9 @@ def ha_webhook():
         print("❌ Fejl i ha_webhook:", e)
         return jsonify({"error": str(e)}), 500
 
+# ================
 # Login og Logud
+# ================
 
 @app.route('/')
 def home():
@@ -1478,7 +1484,9 @@ def logout():
     session.clear()
     return redirect('/login')
 
+# ==============
 # Admin
+# ==============
 
 @app.get("/_testmail")
 def _testmail():
@@ -1683,7 +1691,9 @@ def reset_direkte():
     # Vis password til admin via flash/besked (eller redirect med querystring)
     return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
 
+# ===============
 # Bookninger
+# ===============
 
 @app.get("/dag_status_json")
 def dag_status_json():
@@ -2197,7 +2207,9 @@ def api_booking_allowed_now():
             pass
         return jsonify({"error": "DB-fejl", "detail": str(e)}), 500
 
+# ==============
 # Bruger
+# ==============
 
 @app.route("/profil", methods=["GET", "POST"])
 def profil():
@@ -2647,313 +2659,150 @@ def direkte():
         fejl=fejl
     )
 
+# ===============
 # statestik
+# ===============
 
 @app.route("/statistik")
 def statistik():
     # Kun admin
     if "brugernavn" not in session or session["brugernavn"].lower() != "admin":
         return redirect("/login")
+    # Selve siden henter data via /statistik_data (AJAX)
+    return render_template("statistik.html")
 
-    def _safe_int(x, default=0):
-        try:
-            return int(x)
-        except Exception:
-            return default
+@app.get("/statistik_data")
+def statistik_data():
+    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+        return jsonify({"error": "Unauthorized"}), 401
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    days = request.args.get("days", 30, type=int)
+    if days is None:
+        days = 30
+    days = max(1, min(days, 90))
 
-    # ── Sørg for, at hjælpe-tabeller findes ────────────────────────────────────
-    # statistik (bruges til 'direktetid')
-    try:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS statistik (
-                dato DATE NOT NULL,
-                type TEXT NOT NULL,
-                antal INT DEFAULT 0,
-                PRIMARY KEY (dato, type)
-            )
-        """)
-        conn.commit()
-    except Exception as e:
-        print("⚠️ Kunne ikke sikre statistik-tabellen:", e)
-        conn.rollback()
+    conn = get_db_connection(); cur = conn.cursor()
 
-    # miele_status (prøv at sikre kolonner, men tolerér hvis tabellen ikke findes)
-    try:
-        cur.execute("CREATE TABLE IF NOT EXISTS miele_status (id SERIAL PRIMARY KEY)")
-        # bløde schema-patches (OK i Postgres)
-        cur.execute("ALTER TABLE miele_status ADD COLUMN IF NOT EXISTS status TEXT")
-        cur.execute("ALTER TABLE miele_status ADD COLUMN IF NOT EXISTS remaining_time INT")
-        cur.execute("ALTER TABLE miele_status ADD COLUMN IF NOT EXISTS opdateret TIMESTAMP")
-        conn.commit()
-    except Exception as e:
-        print("⚠️ Kunne ikke sikre miele_status-tabellen:", e)
-        conn.rollback()
-
-    # ── KPI’er (næste 14 dage) ────────────────────────────────────────────────
-    # NB: ekskluderer service + aflyste/auto-frigivne/udløbne
-    window_days = 14
+    # Totals
     cur.execute("""
-        SELECT COUNT(*)
-        FROM bookinger
-        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '13 days'
-          AND LOWER(COALESCE(brugernavn,'')) <> 'service'
-          AND COALESCE(status,'booked') NOT IN ('cancelled','auto_removed','expired')
-    """)
-    aktive_14 = _safe_int(cur.fetchone()[0])
-
-    cur.execute("""
-        SELECT COUNT(DISTINCT brugernavn)
-        FROM bookinger
-        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '13 days'
-          AND LOWER(COALESCE(brugernavn,'')) <> 'service'
-          AND COALESCE(status,'booked') NOT IN ('cancelled','auto_removed','expired')
-    """)
-    unikke_brugere = _safe_int(cur.fetchone()[0])
-
-    # total_direkte: brug statistik-opsamlingen, fald tilbage til bookinger
-    try:
-        cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
-        total_direkte = _safe_int(cur.fetchone()[0])
-        if total_direkte == 0:
-            cur.execute("SELECT COUNT(*) FROM bookinger WHERE LOWER(COALESCE(brugernavn,''))='direkte'")
-            total_direkte = _safe_int(cur.fetchone()[0])
-    except Exception as e:
-        print("⚠️ direkte-total fallback:", e)
-        total_direkte = 0
-
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM bookinger
-        WHERE dato_rigtig BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '13 days'
-          AND LOWER(COALESCE(brugernavn,'')) = 'service'
-    """)
-    service_blok = _safe_int(cur.fetchone()[0])
-
-    kpi = {
-        "aktive_14": aktive_14,
-        "unikke_brugere": unikke_brugere,
-        "total_direkte": total_direkte,
-        "service_blok": service_blok,
-    }
-
-    # ── Fejl & blokeringer (booking_log) ─────────────────────────────────────
-    def _count_handling(kode):
-        try:
-            cur.execute("SELECT COUNT(*) FROM booking_log WHERE handling = %s", (kode,))
-            return _safe_int(cur.fetchone()[0])
-        except Exception:
-            return 0
-
-    fejl_stats = {
-        "for_mange": _count_handling("fejl:max2"),
-        "serie": _count_handling("fejl:seriebooking"),
-        "ude_uden_afbud": _count_handling("fejl:blokering_manglende_vask"),
-    }
-
-    # ── Systemstatus + loginforsøg ───────────────────────────────────────────
-    try:
-        cur.execute("""
-            SELECT status, remaining_time, opdateret
-            FROM miele_status
-            ORDER BY opdateret DESC
-            LIMIT 1
-        """)
-        row = cur.fetchone()
-        if row:
-            miele_status = row[0] or "Ukendt"
-            miele_opdateret = row[2].strftime("%Y-%m-%d %H:%M:%S") if row[2] else "—"
-        else:
-            miele_status, miele_opdateret = "Ukendt", "—"
-    except Exception:
-        miele_status, miele_opdateret = "Ukendt", "—"
-
-    # Antal status-logs
-    try:
-        cur.execute("SELECT COUNT(*) FROM miele_activity")
-        miele_logs = _safe_int(cur.fetchone()[0])
-    except Exception:
-        try:
-            cur.execute("SELECT COUNT(*) FROM miele_status")
-            miele_logs = _safe_int(cur.fetchone()[0])
-        except Exception:
-            miele_logs = 0
-
-    # Seneste 100 loginforsøg
-    try:
-        cur.execute("""
-            SELECT brugernavn, ip, enhed, tidspunkt, status, id,
-                   COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
-                   COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''),
-                   COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false)
-            FROM login_log
-            ORDER BY tidspunkt DESC
-            LIMIT 100
-        """)
-        raw_logins = cur.fetchall()
-    except Exception:
-        raw_logins = []
-
-    # Retention for login_log (90 dage)
-    try:
-        cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
-        conn.commit()
-    except Exception as e:
-        print("⚠️ login_log retention:", e)
-        conn.rollback()
-
-    # Omformater login-liste (30 dage) – det format din template bruger
-    try:
-        cur.execute("""
-           SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
-                  brugernavn, status,
-                  COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
-                  COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
-                  CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
-                  CASE WHEN LOWER(status) = 'ok' THEN 1 ELSE 0 END AS indikator_ok
-           FROM login_log
-           WHERE tidspunkt::date BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE
-           ORDER BY tidspunkt DESC
-        """)
-        logins_struct = [{
-           "tidspunkt": r[0], "brugernavn": r[1], "status": r[2],
-           "ua_browser": r[3], "ua_os": r[4], "ua_device": r[5],
-           "ip_country": r[6], "ip_region": r[7], "ip_city": r[8], "ip_org": r[9],
-           "ip_is_datacenter": bool(r[10]),
-           "indikator_label": r[11],
-           "indikator_ok": bool(r[12]),
-        } for r in (cur.fetchall() or [])]
-    except Exception:
-        logins_struct = []
-
-    # ── Ændringslog (seneste 100) ────────────────────────────────────────────
-    try:
-        cur.execute("""
-            SELECT id, brugernavn, handling, dato, slot_index, tidspunkt
-            FROM booking_log
-            ORDER BY tidspunkt DESC
-            LIMIT 100
-        """)
-        booking_log_rows = cur.fetchall() or []
-    except Exception:
-        booking_log_rows = []
-
-    from datetime import date as _d, datetime as _dt
-    booking_log = []
-    for (lid, bnavn, handling, d, slot, ts) in booking_log_rows:
-        d_s = d.strftime('%d-%m-%Y') if isinstance(d, (_d, _dt)) else (d or '')
-        ts_s = ts.strftime('%d-%m-%Y %H:%M:%S') if isinstance(ts, _dt) else (ts or '')
-        booking_log.append((lid, bnavn, handling, d_s, slot, ts_s))
-
-    # ── Direktetid pr. dag (seneste 30) til graf/tabel ───────────────────────
-    try:
-        cur.execute("""
-            SELECT dato, antal
-            FROM statistik
-            WHERE type='direktetid'
-            ORDER BY dato DESC
-            LIMIT 30
-        """)
-        direkte_pr_dag = cur.fetchall() or []
-        if not direkte_pr_dag:
-            cur.execute("""
-                SELECT dato_rigtig::date AS dato, COUNT(*) AS antal
-                FROM bookinger
-                WHERE LOWER(COALESCE(brugernavn,''))='direkte'
-                GROUP BY dato_rigtig::date
-                ORDER BY dato DESC
-                LIMIT 30
-            """)
-            direkte_pr_dag = cur.fetchall() or []
-    except Exception:
-        direkte_pr_dag = []
-
-    direkte_pr_dag = [
-        (
-            (d.strftime('%Y-%m-%d') if isinstance(d, (_d, _dt)) else str(d)),
-            _safe_int(a)
+        WITH d AS (
+          SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
+                 CURRENT_DATE::date AS end_d
         )
-        for (d, a) in direkte_pr_dag
-    ]
+        SELECT
+          (SELECT COUNT(*) FROM bookinger b, d
+            WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d) AS total_bookings,
+          (SELECT COUNT(*) FROM bookinger b, d
+            WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+              AND COALESCE(b.sub_slot,'full')='full'
+              AND b.brugernavn IS NOT NULL) AS full_cnt,
+          (SELECT COUNT(*) FROM bookinger b, d
+            WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+              AND b.sub_slot IN ('early','late')
+              AND b.brugernavn IS NOT NULL) AS half_cnt,
+          (SELECT COUNT(*) FROM booking_log bl, d
+            WHERE bl.tidspunkt::date BETWEEN d.start_d AND d.end_d
+              AND (bl.handling ILIKE 'cancel%%' OR bl.handling ILIKE 'aflys%%')) AS cancel_cnt,
+          (SELECT COUNT(*) FROM booking_log bl, d
+            WHERE bl.tidspunkt::date BETWEEN d.start_d AND d.end_d
+              AND (bl.handling ILIKE 'auto_remove%%'
+                   OR bl.handling ILIKE 'auto_release%%'
+                   OR bl.handling ILIKE 'expired%%')) AS auto_removed_cnt
+    """, (days,))
+    row = cur.fetchone() or (0,0,0,0,0)
+    totals = {
+        "total_bookings": int(row[0] or 0),
+        "full":           int(row[1] or 0),
+        "half":           int(row[2] or 0),
+        "cancellations":  int(row[3] or 0),
+        "auto_removed":   int(row[4] or 0),
+    }
 
-    # ── Booking attempts (30 dage) ───────────────────────────────────────────
-    try:
-        cur.execute("""
-           SELECT ts::date AS dato, brugernavn, COUNT(*) AS forsog
-           FROM booking_attempts
-           WHERE ts::date BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE
-           GROUP BY ts::date, brugernavn
-           ORDER BY dato DESC, brugernavn
-        """)
-        attempts_by_user_day = [{
-            "dato": r[0].strftime('%Y-%m-%d'),
-            "brugernavn": r[1],
-            "forsøg": _safe_int(r[2])
-        } for r in (cur.fetchall() or [])]
+    # Per slot (samlet/early/late)
+    cur.execute("""
+        WITH d AS (
+          SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
+                 CURRENT_DATE::date AS end_d
+        )
+        SELECT
+          COALESCE(v.tekst, CONCAT('Slot ', CAST(b.slot_index AS INT))) AS slot_text,
+          CAST(b.slot_index AS INT) AS slot_int,
+          COUNT(*) FILTER (WHERE b.brugernavn IS NOT NULL) AS count_all,
+          COUNT(*) FILTER (WHERE b.sub_slot='early' AND b.brugernavn IS NOT NULL) AS count_early,
+          COUNT(*) FILTER (WHERE b.sub_slot='late'  AND b.brugernavn IS NOT NULL) AS count_late
+        FROM bookinger b
+        LEFT JOIN vasketider v ON v.slot_index = CAST(b.slot_index AS INT)
+        , d
+        WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+        GROUP BY slot_text, slot_int
+        ORDER BY slot_int ASC
+    """, (days,))
+    by_slot = [{
+        "slot_text": r[0],
+        "slot_index": int(r[1]),
+        "count_all": int(r[2] or 0),
+        "count_early": int(r[3] or 0),
+        "count_late": int(r[4] or 0),
+    } for r in (cur.fetchall() or [])]
 
-        cur.execute("""
-           SELECT ts::date AS dato, brugernavn, COUNT(*) AS forsog
-           FROM booking_attempts
-           WHERE ts::date BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE
-           GROUP BY ts::date, brugernavn
-           HAVING COUNT(*) > 2
-           ORDER BY dato DESC, forsog DESC
-        """)
-        attempts_over_2 = [{
-            "dato": r[0].strftime('%Y-%m-%d'),
-            "brugernavn": r[1],
-            "forsøg": _safe_int(r[2])
-        } for r in (cur.fetchall() or [])]
-    except Exception:
-        attempts_by_user_day = []
-        attempts_over_2 = []
+    # Top brugere (ekskl. service/direkte)
+    cur.execute("""
+        WITH d AS (
+          SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
+                 CURRENT_DATE::date AS end_d
+        )
+        SELECT LOWER(brugernavn) AS u, COUNT(*) AS c
+        FROM bookinger b, d
+        WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+          AND b.brugernavn IS NOT NULL
+          AND LOWER(b.brugernavn) NOT IN ('service','direkte')
+        GROUP BY LOWER(brugernavn)
+        ORDER BY c DESC, u ASC
+        LIMIT 20
+    """, (days,))
+    by_user_top = [{"brugernavn": r[0], "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
 
-    # ── Kæde-KPI (30 dage) – hvis tabellen findes ───────────────────────────
-    try:
-        cur.execute("""
-            SELECT COUNT(*), COALESCE(AVG(score)::numeric,0)
-            FROM direkte_kæder
-            WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-        """)
-        row = cur.fetchone() or (0, 0)
-        kpi["kaeder_30d"] = _safe_int(row[0])
-        kpi["kaede_avg_score"] = round(float(row[1] or 0.0), 1)
+    # Pr dag (line chart)
+    cur.execute("""
+        WITH d AS (
+          SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
+                 CURRENT_DATE::date AS end_d
+        )
+        SELECT b.dato_rigtig::date AS d, COUNT(*) AS c
+        FROM bookinger b, d
+        WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+        GROUP BY b.dato_rigtig::date
+        ORDER BY d ASC
+    """, (days,))
+    by_day = [{"dato": r[0].strftime("%Y-%m-%d"), "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
 
-        cur.execute("""
-            SELECT to_char(created_at,'YYYY-MM-DD') AS d,
-                   direkte_slot, bruger_slot, bruger, score, note, created_at
-            FROM direkte_kæder
-            ORDER BY created_at DESC
-            LIMIT 30
-        """)
-        kaeder_list = [
-            (r[0], r[1], r[2], r[3], _safe_int(r[4]), r[5] or "", r[6])
-            for r in (cur.fetchall() or [])
-        ]
-    except Exception:
-        kpi["kaeder_30d"] = 0
-        kpi["kaede_avg_score"] = 0.0
-        kaeder_list = []
+    # Pr ugedag (bar)
+    cur.execute("""
+        WITH d AS (
+          SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
+                 CURRENT_DATE::date AS end_d
+        )
+        SELECT
+           EXTRACT(DOW FROM b.dato_rigtig)::int AS dow,
+           COUNT(*) AS c
+        FROM bookinger b, d
+        WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
+        GROUP BY EXTRACT(DOW FROM b.dato_rigtig)
+        ORDER BY dow ASC
+    """, (days,))
+    wk_map = ["Sø","Ma","Ti","On","To","Fr","Lø"]
+    by_weekday = [{"weekday": int(r[0]),
+                   "weekday_dk": wk_map[int(r[0])%7],
+                   "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
 
     conn.close()
-
-    return render_template(
-        "statistik.html",
-        kpi=kpi,
-        fejl_stats=fejl_stats,
-        miele_status=miele_status,
-        miele_opdateret=miele_opdateret,
-        miele_logs=miele_logs,
-        logins=logins_struct,
-        booking_log=booking_log,
-        direkte_pr_dag=direkte_pr_dag,
-        total_direkte=total_direkte or 0,
-        attempts_by_user_day=attempts_by_user_day,
-        attempts_over_2=attempts_over_2
-        # tilføj evt. kaeder=kaeder_list hvis din template bruger den
-    )
+    return jsonify({
+        "totals": totals,
+        "by_slot": by_slot,
+        "by_user_top": by_user_top,
+        "by_day": by_day,
+        "by_weekday": by_weekday
+    })
 
 @app.route("/download_valg")
 def download_valg():

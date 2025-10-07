@@ -8,6 +8,10 @@
   --booked:rgba(220,53,69,0.95);
   --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
   --slot-h:40px; /* ↑ højere rækker for tydelige halvtider */
+  --social-size: 48px; /* skift til 40/56/64 for andre størrelser */
+  --frost: rgba(255,255,255,0.12);
+  --frost-border: rgba(255,255,255,0.35);
+  --frost-highlight: rgba(255,255,255,0.22);
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
@@ -75,7 +79,7 @@ body{
   display:flex; flex-direction:column; justify-content:center;
   background-color:rgba(0,0,0,0.7);
   padding:20px;
-  border-radius:10px;
+  border-radius: 10px 60px 30px;
   width:100%; max-width:400px;
   margin:10vh auto 0;
 }
@@ -329,3 +333,68 @@ footer{
 
 .status-eta { color:#ffcc00; font-weight:700; }
 .status-sep { opacity:.6; padding:0 6px; }
+
+.socials{
+  list-style: none;
+  display: flex;
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.socials a{
+  display: inline-flex;
+  text-decoration: none;
+  outline: none;
+}
+
+.icon-wrap{
+  width: var(--social-size);
+  height: var(--social-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;                 /* “glastonet” blød runding */
+  background: linear-gradient(135deg, var(--frost) 0%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid var(--frost-border);
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.icon-wrap img{
+  width: 58%;
+  height: 58%;
+  object-fit: contain;
+  /* gør mørke SVG'er hvide uden at ændre filerne */
+  filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+  pointer-events: none;
+}
+
+/* Hover/focus states – mere glas og et lille “pop” */
+.socials a:focus .icon-wrap,
+.socials a:hover .icon-wrap{
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--frost-highlight) 0%, rgba(255,255,255,0.10) 100%);
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+.socials a:active .icon-wrap{
+  transform: translateY(0) scale(0.97);
+}
+
+/* Dark/light kompatibel – ser crisp ud på både lyse og mørke baggrunde */
+@media (prefers-color-scheme: light){
+  :root{
+    --frost: rgba(255,255,255,0.5);
+    --frost-border: rgba(255,255,255,0.65);
+    --frost-highlight: rgba(255,255,255,0.65);
+  }
+}

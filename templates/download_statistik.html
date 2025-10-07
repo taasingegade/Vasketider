@@ -1,40 +1,44 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <meta charset="UTF-8">
-    <title>Download statistik</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="utf-8">
+  <title>Download logudtræk (PDF)</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <div class="main glassbox">
-        <h2>Vælg statistik at hente som PDF</h2>
-        <form method="post" action="/download_statistik_pdf" class="glassbox" style="max-width:600px">
-    <!-- Toppanel -->
+<body style="background:url('/static/Bg.jpg') no-repeat center center fixed; background-size:cover;">
   <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-    <form method="get" action="/admin">
-      <button class="toppanel-knap">Tilbage til Admin</button>
-    </form>
+    <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
+    <form method="get" action="/admin"><button class="toppanel-knap">Admin</button></form>
+    <form method="get" action="/statistik"><button class="toppanel-knap">Statistik</button></form>
+    <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Kalender</button></form>
   </div>
 
-  <!-- Indhold -->
-  <div style="margin-top:100px; max-width:800px; margin-left:auto; margin-right:auto;">
-    <form method="post" action="/download_statistik_pdf" class="glassbox" style="max-width:600px">
-      <h3>Download logninger som PDF</h3>
+  <div class="wrapper" style="max-width:800px; margin-top:110px;">
+    <h2>Download logudtræk (PDF)</h2>
 
-      <label><input type="checkbox" name="alle" checked> Alle logtyper (booking + login)</label><br>
-      <label><input type="checkbox" name="booking_log"> Kun booking_log</label><br>
-      <label><input type="checkbox" name="login_log"> Kun login_log</label><br><br>
+    <div class="glassbox" style="padding:16px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.15); border-radius:12px;">
+      <form method="post" action="/download_statistik_pdf">
+        <fieldset style="border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:12px;">
+          <legend>Hvilke logs vil du medtage?</legend>
+          <label><input type="checkbox" name="alle"> Alle</label><br>
+          <label><input type="checkbox" name="login_log"> Loginforsøg</label><br>
+          <label><input type="checkbox" name="booking_log"> Ændringsbookninger</label>
+        </fieldset>
 
-      <strong>Datofilter (valgfrit):</strong><br>
-      Fra: <input type="date" name="fra_dato">
-      Til: <input type="date" name="til_dato"><br><br>
+        <fieldset style="border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:12px; margin-top:12px;">
+          <legend>Datointerval (valgfrit)</legend>
+          <label>Fra: <input type="date" name="fra_dato"></label>
+          <label style="margin-left:12px;">Til: <input type="date" name="til_dato"></label>
+          <div style="opacity:.8; font-size:13px; margin-top:6px;">Tomt = alle datoer.</div>
+        </fieldset>
 
-      <button type="submit" class="toppanel-knap">Download PDF</button>
-    </form>
+        <div style="margin-top:14px;">
+          <button type="submit">Download PDF</button>
+        </div>
+      </form>
+    </div>
+
   </div>
 
   <footer>© Hornsberg Group</footer>
