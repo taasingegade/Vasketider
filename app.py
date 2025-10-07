@@ -677,8 +677,8 @@ def send_sms_twilio(modtager, besked):
     except Exception as e:
         print("Twilio fejl:", e)
 
-def _truthy(v) -> bool:
-    return str(v or "").strip().lower() in {"ja","true","1","on","yes"}
+def _truthy(v):
+    return str(v).strip().lower() in {"1","true","ja","på","on","yes","y"}
 
 def _normalize_dk_sms(s: str) -> str:
     s = (s or "").strip()
@@ -695,73 +695,86 @@ def _normalize_dk_sms(s: str) -> str:
     return only_digits
 
 def get_kontaktinfo(cur, brugernavn: str):
+    """
+    Læs kontaktinfo + præferencer.  
+    Returnerer: (email, sms, vil_email, vil_sms)
+    """
     cur.execute("""
-        SELECT COALESCE(email,''), COALESCE(sms,''), COALESCE(notifikation,'nej')
+        SELECT COALESCE(email,''), COALESCE(sms,''),
+               COALESCE(notif_email,'nej'), COALESCE(notif_sms,'nej')
         FROM brugere
         WHERE LOWER(brugernavn)=LOWER(%s)
+        LIMIT 1
     """, (brugernavn,))
-    row = cur.fetchone() or ("","","nej")
-    email, sms_raw, notif_raw = row[0], row[1], row[2]
-    sms = _normalize_dk_sms(sms_raw)
-    return email, sms, _truthy(notif_raw)
+    row = cur.fetchone() or ("","","nej","nej")
+    email, sms, ne, ns = row
+    return email.strip(), sms.strip(), (ne == "ja"), (ns == "ja")
 
-def slot_tekst(cur, slot_index: int) -> str:
-    cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
-    r = cur.fetchone()
-    return r[0] if r and r[0] else f"Slot {slot_index}"
+def get_slot_text(cur, slot_index: int) -> str:
+    """Returner human tekst for et slot (falder tilbage til 07–11 ..)."""
+    try:
+        cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
+        r = cur.fetchone()
+        if r and r[0]:
+            return r[0]
+    except Exception:
+        pass
+    defaults = {0:"07–11", 1:"11–15", 2:"15–19", 3:"19–23"}
+    return defaults.get(int(slot_index), f"Slot {slot_index}")
 
-def send_booking_notice(cur, brugernavn: str, dato, slot_index: int, sub: str|None, action: str):
+def send_booking_notice(conn_or_cur, brugernavn: str, dato, slot_index: int,
+                        sub_slot: str|None, event: str):
     """
-    action: 'booked' | 'cancelled'
-    sender både e-mail og SMS (hvis registreret og brugeren har notifikation = ja)
+    Send bekræftelse/aflysning afhængigt af brugerens valg (notif_email/notif_sms).
+    event = 'booked' | 'cancelled'
+    sub_slot = None | 'early' | 'late'
     """
-    email, sms, må = get_kontaktinfo(cur, brugernavn)
-    if not må:
-        print(f"ℹ️ Notifikation slået fra for {brugernavn} (notifikation != ja)")
-        return
+    # få en cursor, uanset om vi har fået en connection eller cursor
+    cur = conn_or_cur if hasattr(conn_or_cur, "execute") else conn_or_cur.cursor()
+    close_cur = False
 
-    tid_txt  = slot_tekst(cur, int(slot_index))
-    dato_txt = dato.strftime("%d-%m-%Y") if hasattr(dato, "strftime") else str(dato)
-    halv_txt = ""
-    if sub in ("early","late"):
-        halv_txt = f"\nHalv slot: {'tidlig' if sub=='early' else 'sen'}"
+    try:
+        # læs præferencer
+        email, sms, vil_email, vil_sms = get_kontaktinfo(cur, brugernavn)
+        slot_txt = get_slot_text(cur, slot_index)
+        dato_txt = dato.strftime('%d-%m-%Y')
 
-    if action == "booked":
-        emne = "Bekræftelse: vasketid booket"
-        body = (
-            f"Hej {brugernavn}\n\nDin vasketid er booket:"
-            f"\nDato: {dato_txt}\nTid: {tid_txt}{halv_txt}"
-            "\n\nHusk: start maskinen inden 30 min – ellers frigives tiden automatisk.\n— Vasketider"
-        )
-        sms_txt = f"Vasketid booket {dato_txt} {tid_txt}" + (" (tidlig)" if sub=='early' else " (sen)" if sub=='late' else "")
-    elif action == "cancelled":
-        emne = "Bekræftelse: vasketid aflyst"
-        body = f"Hej {brugernavn}\n\nDin vasketid er aflyst:\nDato: {dato_txt}\nTid: {tid_txt}{halv_txt}\n— Vasketider"
-        sms_txt = f"Vasketid aflyst {dato_txt} {tid_txt}" + (" (tidlig)" if sub=='early' else " (sen)" if sub=='late' else "")
-    else:
-        print("⚠️ send_booking_notice: ukendt action:", action)
-        return
+        # tekst
+        if sub_slot in ("early","late"):
+            halv_txt = " (tidlig halvdel)" if sub_slot == "early" else " (sen halvdel)"
+        else:
+            halv_txt = ""
 
-    print(f"🔔 Notif → {brugernavn} | email={bool(email)} sms={bool(sms)} | {action} | slot={slot_index} sub={sub}")
+        if event == "booked":
+            subject = "Bekræftelse: vasketid booket"
+            body = f"Hej {brugernavn}\n\nDin vasketid er booket {dato_txt} {slot_txt}{halv_txt}.\n\n— Vasketider"
+            sms_txt = f"Vasketid bekr.: {dato_txt} {slot_txt}{halv_txt}"
+        elif event == "cancelled":
+            subject = "Bekræftelse: vasketid aflyst"
+            body = f"Hej {brugernavn}\n\nDin vasketid er aflyst {dato_txt} {slot_txt}{halv_txt}.\n\n— Vasketider"
+            sms_txt = f"Vasketid AFLYST: {dato_txt} {slot_txt}{halv_txt}"
+        else:
+            return  # ukendt event
 
-    # Forsøg e-mail
-    if email:
-        try:
-            ok = send_email(email, emne, body)
-            print("📧 send_email:", ok)
-        except Exception as e:
-            print("❌ send_email fejl:", e)
-    else:
-        print("ℹ️ Ingen e-mail registreret.")
+        # send i henhold til brugerens valg
+        if vil_email and email:
+            ok = send_email(email, subject, body)
+            print(f"📧 email→{email} ({'OK' if ok else 'FAIL'})")
+        else:
+            print(f"ℹ️ Email springes over for {brugernavn} (valg={vil_email}, email='{email}')")
 
-    # Forsøg SMS
-    if sms:
-        try:
-            send_sms_twilio(sms, sms_txt)
-        except Exception as e:
-            print("❌ SMS fejl:", e)
-    else:
-        print("ℹ️ Intet SMS-nummer registreret.")
+        if vil_sms and sms:
+            try:
+                send_sms_twilio(sms, sms_txt)
+                print(f"📱 sms→{sms} (OK)")
+            except Exception as e:
+                print("⚠️ SMS fejl:", e)
+        else:
+            print(f"ℹ️ SMS springes over for {brugernavn} (valg={vil_sms}, sms='{sms}')")
+
+    finally:
+        if close_cur and hasattr(cur, "close"):
+            cur.close()
 
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
@@ -1608,9 +1621,13 @@ def book_full():
 
         # 🔔 Notifikation efter commit
         try:
-            send_booking_notice(cur, brugernavn, dato, slot, None, "booked")
+            # brug en ny connection/cursor (den gamle er OK, men vi vil ikke rulle noget tilbage)
+            conn2 = get_db_connection()
+            with conn2.cursor() as c2:
+                send_booking_notice(c2, brugernavn, dato, slot, None, "booked")
+            conn2.close()
         except Exception as e:
-            print("⚠️ Notifikation (book full) fejlede:", e)
+                print("⚠️ Notifikation (book full) fejlede:", e)
 
         return redirect(url_for(
             "index", uge=valgt_uge,
@@ -1730,7 +1747,9 @@ def slet_booking():
 
             if deleted:
                 try:
-                    send_booking_notice(cur, brugernavn, dato, slot_int, sub, "cancelled")
+                    conn2 = get_db_connection()
+                    with conn2.cursor() as c2:
+                        send_booking_notice(cur, brugernavn, dato, slot_int, sub, "cancelled")
                 except Exception as e:
                     print("⚠️ Notifikation (slet_half) fejlede:", e)
                 return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
@@ -1752,9 +1771,13 @@ def slet_booking():
 
             if deleted:
                 try:
-                    send_booking_notice(cur, brugernavn, dato, slot_int, None, "cancelled")
+                    conn2 = get_db_connection()
+                    with conn2.cursor() as c2:
+                        send_booking_notice(cur, brugernavn, dato, slot_int, None, "cancelled")
+                    conn2.close()
                 except Exception as e:
                     print("⚠️ Notifikation (slet_full) fejlede:", e)
+
                 return redirect(url_for("index", uge=valgt_uge, besked="Din fulde booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende fuld booking at aflyse."))
@@ -1826,9 +1849,12 @@ def book_half():
 
         # 🔔 Notifikation
         try:
-            send_booking_notice(cur, brugernavn, dato, int(slot_str), sub, "booked")
+            conn2 = get_db_connection()
+            with conn2.cursor() as c2:
+                send_booking_notice(c2, brugernavn, dato, int(slot_str), sub, "booked")
+            conn2.close()
         except Exception as e:
-            print("⚠️ Notifikation (book_half) fejlede:", e)
+            print("⚠️ Notifikation (book half) fejlede:", e)
 
         return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
     except Exception as e:
@@ -2098,52 +2124,27 @@ def godkend_bruger():
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
-        return redirect('/login')
-
     brugernavn   = request.form.get("brugernavn")
     adgangskode  = request.form.get("adgangskode")
-    email        = (request.form.get("email") or "").strip()
-    sms          = (request.form.get("sms") or "").strip()
-    if sms and not sms.startswith("+"):
-        sms = "+45" + sms.replace(" ", "")
+    email        = request.form.get("email")
+    sms          = request.form.get("sms")
 
-    # ✅ Læs checkbokse separat
-    notif_email  = "ja" if request.form.get("notif_email") == "on" else "nej"
-    notif_sms    = "ja" if request.form.get("notif_sms") == "on" else "nej"
-    godkendt     = True if request.form.get("godkendt") == "on" else False
+    # To afkrydsningsfelter i formularen:
+    notif_email  = 'ja' if _truthy(request.form.get("notif_email")) else 'nej'
+    notif_sms    = 'ja' if _truthy(request.form.get("notif_sms")) else 'nej'
+    godkendt     = True if _truthy(request.form.get("godkendt")) else False
 
     conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        # 🔹 prøv at opdatere nye felter (notif_email + notif_sms)
-        cur.execute("""
-            UPDATE brugere
-               SET kode=%s,
-                   email=%s,
-                   sms=%s,
-                   notif_email=%s,
-                   notif_sms=%s,
-                   godkendt=%s
-             WHERE brugernavn=%s
-        """, (adgangskode, email, sms, notif_email, notif_sms, godkendt, brugernavn))
-        conn.commit()
-    except Exception:
-        # 🔸 fallback hvis kolonnerne ikke findes endnu
-        both = "ja" if (notif_email == "ja" or notif_sms == "ja") else "nej"
-        cur.execute("""
-            UPDATE brugere
-               SET kode=%s,
-                   email=%s,
-                   sms=%s,
-                   notifikation=%s,
-                   godkendt=%s
-             WHERE brugernavn=%s
-        """, (adgangskode, email, sms, both, godkendt, brugernavn))
-        conn.commit()
-    finally:
-        conn.close()
-
+    cur  = conn.cursor()
+    cur.execute("""
+        UPDATE brugere
+        SET kode=%s, email=%s, sms=%s,
+            notif_email=%s, notif_sms=%s,
+            godkendt=%s
+        WHERE brugernavn=%s
+    """, (adgangskode, email, sms, notif_email, notif_sms, godkendt, brugernavn))
+    conn.commit()
+    conn.close()
     return redirect("/vis_brugere")
 
 @app.route("/godkend/<brugernavn>")

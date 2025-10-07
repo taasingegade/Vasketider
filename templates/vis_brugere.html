@@ -81,8 +81,14 @@
       SMS: <input type="text" name="sms"><br>
 
       <!-- NYT: separate checkbokse ved oprettelse -->
-      <label><input type="checkbox" name="notif_email"> E-mail</label>
-      <label style="margin-left:10px;"><input type="checkbox" name="notif_sms"> SMS</label><br>
+      <label>
+  <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
+  Email
+</label>
+<label>
+  <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
+  SMS
+</label>
 
       <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
       <button type="submit">Opret</button>
