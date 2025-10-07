@@ -15,12 +15,12 @@ from pytz import timezone
 from flask import make_response
 from user_agents import parse as ua_parse
 try:
-    from psycopg.errors import UniqueViolation as IntegrityError  # psycopg3
+    from psycopg.errors import UniqueViolation  # psycopg v3
 except Exception:
     try:
-        from psycopg2 import IntegrityError  # psycopg2
+        from psycopg2.errors import UniqueViolation  # psycopg2
     except Exception:
-        IntegrityError = Exception
+        UniqueViolation = None  # fallback
 from flask import current_app
 from functools import wraps
 from flask import abort
@@ -68,6 +68,45 @@ limiter = Limiter(
     default_limits=[]
 )
 limiter.init_app(app)
+
+def _dump_slot_state(cur, dato, slot_txt):
+    """Printer alle rækker for dato/slot, så vi kan se præcis hvad der blokerer."""
+    cur.execute("""
+        SELECT id, dato_rigtig, slot_index::text AS slot, COALESCE(sub_slot,'full') AS del,
+               brugernavn, status, created_at
+        FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+        ORDER BY COALESCE(sub_slot,'full'), id
+    """, (dato, slot_txt))
+    rows = cur.fetchall()
+    print("🧾 SLOT-STATE:", {"dato": str(dato), "slot": slot_txt, "rows": rows})
+
+def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
+    """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
+    # fuld blokkerer?
+    cur.execute("""
+        SELECT 1 FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND COALESCE(sub_slot,'full')='full'
+          AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt))
+    if cur.fetchone():
+        return "Slot er fuldt booket."
+
+    # min halvdel taget?
+    cur.execute("""
+        SELECT brugernavn FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND sub_slot=%s AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt, sub))
+    r = cur.fetchone()
+    if r:
+        return f"Den valgte halvdel er allerede taget (af {r[0]})."
+
+    # ellers ukendt
+    return "Kunne ikke booke halvtid (DB-konflikt)."
 
 # Definer starter en funktion i python
 
@@ -1842,7 +1881,7 @@ def book_half():
             return redirect(url_for("index", uge=valgt_uge, fejl="Vælg 'tidlig' eller 'sen'."))
 
         dato = datetime.strptime(dato_str, "%Y-%m-%d").date()
-        slot_txt = str(int(tid_str))  # brug text-sammenligning hele vejen
+        slot_txt = str(int(tid_str))  # brug text konsekvent
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
@@ -1851,41 +1890,36 @@ def book_half():
         # 0) Max 2 pr. dag
         cur.execute("""
             SELECT COUNT(*) FROM bookinger
-             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
+            WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
         """, (dato, brugernavn))
         if (cur.fetchone()[0] or 0) >= 2:
             print(f"🛑 book_half: afvist:max2 user={brugernavn} dato={dato}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # 1) Bloker hvis der findes en *rigtig* fuld booking i slottet
+        # 1) Fuld booking blokerer
         cur.execute("""
-            SELECT 1
-              FROM bookinger
-             WHERE dato_rigtig=%s
-               AND slot_index::text=%s
-               AND COALESCE(sub_slot,'full')='full'
-               AND brugernavn IS NOT NULL
-             LIMIT 1
+            SELECT 1 FROM bookinger
+            WHERE dato_rigtig=%s AND slot_index::text=%s
+              AND COALESCE(sub_slot,'full')='full'
+              AND brugernavn IS NOT NULL
+            LIMIT 1
         """, (dato, slot_txt))
         if cur.fetchone():
-            print(f"🛑 book_half: afvist:full-taken user={brugernavn} dato={dato} slot={slot_txt}")
+            print(f"🛑 book_half: full_taken user={brugernavn} dato={dato} slot={slot_txt}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Slot er fuldt booket."))
 
-        # 2) Er *min valgte halvdel* allerede taget?
+        # 2) Min halvdel må ikke være taget
         cur.execute("""
-            SELECT 1
-              FROM bookinger
-             WHERE dato_rigtig=%s
-               AND slot_index::text=%s
-               AND sub_slot=%s
-               AND brugernavn IS NOT NULL
-             LIMIT 1
+            SELECT 1 FROM bookinger
+            WHERE dato_rigtig=%s AND slot_index::text=%s
+              AND sub_slot=%s AND brugernavn IS NOT NULL
+            LIMIT 1
         """, (dato, slot_txt, sub))
         if cur.fetchone():
-            print(f"🛑 book_half: afvist:half-taken user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
+            print(f"🛑 book_half: half_taken user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Den valgte halvdel er allerede taget."))
 
-        # 3) Opret *kun* min halvdel
+        # 3) Opret kun min halvdel
         cur.execute("""
             INSERT INTO bookinger
                 (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
@@ -1903,15 +1937,23 @@ def book_half():
 
         return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
 
-    except psycopg.Error as e:
-        conn.rollback()
-        # rammer vi et unikt indeks (to på samme halvdel), får du tydelig log
-        print("❌ DB-fejl i book_half:", getattr(e, "pgcode", ""), getattr(e, "pgerror", ""))
-        return redirect(url_for("index", uge=valgt_uge, fejl="Kunne ikke booke halvtid (DB-konflikt)."))
     except Exception as e:
+        # Fang specifikt UNIQUE-fejl hvis muligt
+        import traceback
         conn.rollback()
-        print("❌ Ukendt fejl i book_half:", e)
-        return redirect(url_for("index", uge=valgt_uge, fejl="Fejl under halv booking."))
+        _dump_slot_state(cur, dato, slot_txt)
+
+        if UniqueViolation and isinstance(e, UniqueViolation):
+            # psycopg3/2: prøv at logge constraint-navn
+            constraint = getattr(getattr(e, "diag", None), "constraint_name", None)
+            print("❌ UniqueViolation i book_half:", repr(e), "constraint=", constraint)
+            reason = _friendly_half_conflict_reason(cur, dato, slot_txt, sub)
+            return redirect(url_for("index", uge=valgt_uge, fejl=reason))
+
+        # Anden db-fejl — log alt
+        print("❌ DB-fejl i book_half:", repr(e))
+        traceback.print_exc()
+        return redirect(url_for("index", uge=valgt_uge, fejl="Kunne ikke booke halvtid (DB-fejl)."))
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
