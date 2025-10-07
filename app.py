@@ -978,6 +978,49 @@ def send_booking_notice(brugernavn: str, dato, slot_index: int, sub_slot: str | 
     if not sent_any:
         print(f"⚠️ Intet blev sendt for '{brugernavn}' – ingen gyldige/valgte kontaktmetoder.", flush=True)
 
+def hent_slot_status_for_dag(cur, dato):
+    """
+    Returnerer dict {slot_index: {
+        "fulls": int, "early_taken": bool, "late_taken": bool,
+        "available_full": bool, "available_early": bool, "available_late": bool,
+        "slot_tekst": str
+    }}
+    """
+    # Hent optællinger pr. slot
+    cur.execute("""
+        SELECT
+          CAST(slot_index AS INT) AS sidx,
+          SUM(CASE WHEN COALESCE(sub_slot,'full')='full' AND brugernavn IS NOT NULL THEN 1 ELSE 0 END) AS fulls,
+          BOOL_OR(sub_slot='early' AND brugernavn IS NOT NULL) AS early_taken,
+          BOOL_OR(sub_slot='late'  AND brugernavn IS NOT NULL) AS late_taken
+        FROM bookinger
+        WHERE dato_rigtig = %s
+        GROUP BY CAST(slot_index AS INT)
+        ORDER BY CAST(slot_index AS INT)
+    """, (dato,))
+
+    rows = cur.fetchall()
+    status = {i: {"fulls":0,"early_taken":False,"late_taken":False} for i in (0,1,2,3)}
+    for sidx, fulls, early_taken, late_taken in rows:
+        status[sidx] = {
+            "fulls": fulls or 0,
+            "early_taken": bool(early_taken),
+            "late_taken":  bool(late_taken),
+        }
+
+    # Hent visningstekster for alle slots
+    cur.execute("SELECT slot_index, tekst FROM vasketider ORDER BY slot_index")
+    labels = {int(s): t for (s, t) in cur.fetchall() or []}
+
+    # Afled tilgængelighed + tekst
+    for i, st in status.items():
+        st["slot_tekst"] = labels.get(i, f"Slot {i}")
+        fully_booked = (st["fulls"] > 0) or (st["early_taken"] and st["late_taken"])
+        st["available_full"]  = not fully_booked
+        st["available_early"] = (not fully_booked) and (not st["early_taken"])
+        st["available_late"]  = (not fully_booked) and (not st["late_taken"])
+    return status
+
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
 
@@ -1641,6 +1684,31 @@ def reset_direkte():
     return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
 
 # Bookninger
+
+@app.get("/dag_status_json")
+def dag_status_json():
+    if "brugernavn" not in session:
+        return jsonify({"error":"unauthorized"}), 401
+
+    dato_str = (request.args.get("dato") or "").strip()
+    if not dato_str:
+        return jsonify({"error":"missing ?dato=YYYY-MM-DD"}), 400
+
+    try:
+        d = datetime.strptime(dato_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error":"invalid date format"}), 400
+
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        status = hent_slot_status_for_dag(cur, d)
+    conn.close()
+
+    # Response: { "dato": "YYYY-MM-DD", "slots": { "0": {...}, "1": {...}, ... } }
+    return jsonify({
+        "dato": d.isoformat(),
+        "slots": {str(k): v for k, v in status.items()}
+    }), 200
 
 @app.get('/bookinger_json')
 def bookinger_json():
