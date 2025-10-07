@@ -147,15 +147,15 @@ def init_db():
         """)
 
         # ===== SCHEMA PATCHES: bookinger =====
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
-        cur.execute("ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
+        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
 
         # ===== booking_attempts =====
         cur.execute("""
@@ -190,9 +190,9 @@ def init_db():
             )
         """)
 
-        # ===== NYT: notificeringsfelter på brugere =====
-        cur.execute("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'")
-        cur.execute("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'")
+        # ===== brugere: notif_email + notif_sms =====
+        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'")
+        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'")
 
         # Migration fra gammel kolonne 'notifikation'
         cur.execute("""
@@ -211,9 +211,43 @@ def init_db():
             END $$;
         """)
 
+        # ===== NYT: drop dårligt unique index og tilføj korrekte partial indexes =====
+        try:
+            cur.execute("DROP INDEX IF EXISTS unique_booking")
+            print("🧹 Dropped legacy index unique_booking")
+        except Exception as e:
+            print("⚠️ Drop legacy index failed:", e)
+
+        # tillad præcis 1 FULL pr. (dato, slot)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_full_only
+            ON bookinger (dato_rigtig, slot_index)
+            WHERE COALESCE(sub_slot,'full') = 'full'
+        """)
+
+        # tillad præcis 1 EARLY og 1 LATE pr. (dato, slot)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_early_only
+            ON bookinger (dato_rigtig, slot_index)
+            WHERE sub_slot = 'early'
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_late_only
+            ON bookinger (dato_rigtig, slot_index)
+            WHERE sub_slot = 'late'
+        """)
+
+        # ekstra sikkerhed for halvtider
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_half_triplet
+            ON bookinger (dato_rigtig, slot_index, sub_slot)
+            WHERE sub_slot IN ('early','late')
+        """)
+
         conn.commit()
         conn.close()
-        print("✅ DB-init færdig (notif_email/notif_sms OK)")
+        print("✅ DB-init færdig (notif_email/notif_sms OK + partial indexes OK)")
+
     except Exception as e:
         try:
             conn.close()
