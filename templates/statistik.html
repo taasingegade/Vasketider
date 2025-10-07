@@ -2,44 +2,50 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Statistik – Vasketider</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    .window { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 18px; backdrop-filter: blur(6px); min-height: 110px; }
+    /* Let, stabil styling til statistik-siderne */
+    body { color: #fff; }
+    .container { max-width: 1180px; margin: 90px auto 40px; padding: 0 16px; }
+    .window { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 18px; backdrop-filter: blur(6px); }
     .window h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 10px; }
-    .muted { font-size: 12px; opacity: .75; }
+    .muted { font-size: 12px; opacity: .8; }
+    .kpis, .grid-2, .grid-3 { display: grid; gap: 16px; }
+    .kpis { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .kpi { padding: 12px; border: 1px solid rgba(255,255,255,.25); border-radius: 12px; background: rgba(255,255,255,.06); }
+    .kpi .t { font-size: 12px; opacity: .85; }
+    .kpi .v { font-size: 24px; font-weight: 700; margin-top: 4px; }
     table { width:100%; border-collapse: collapse; font-size:14px; }
-    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
+    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; vertical-align: top; }
     .badge { display:inline-block; padding:8px 12px; border-radius:12px; background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5); font-weight:600; margin: 8px 0 0 0; }
-    .kpi-row, .kpis { display:flex; flex-wrap:wrap; gap:10px; }
-    .kpi-pill { padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.10); font-size:14px; }
-    .grid-4 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
-    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
-    .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:10px}
-    .tab-btn{ border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);color:#fff; padding:8px 12px;border-radius:10px;cursor:pointer }
-    .tab-btn.active{outline:2px solid rgba(106,160,255,.9)}
-    .page{display:none}
-    .page.active{display:block}
-    .chart-wrap { margin-top: 10px; }
-    canvas { width:100%; max-width: 100%; height: 280px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin: 10px 0 14px; }
+    .tab-btn { border:1px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.10); color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer }
+    .tab-btn.active { outline:2px solid rgba(106,160,255,.9) }
+    .page { display:none }
+    .page.active { display:block }
 
-    /* MOBIL-BLOK (som i din eksisterende) */
-    .mobile-block { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); color: #fff; z-index: 2000; align-items: center; justify-content: center; text-align: center; padding: 24px; }
-    @media (max-width: 1000px) {
-      .toppanel, .main { display: none !important; }
+    /* Topbar */
+    .toppanel { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 10px; padding: 10px 16px;
+      background: rgba(0,0,0,.55); border-bottom: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(6px); z-index: 1000; }
+    .toppanel form { margin: 0; }
+    .toppanel-knap { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.10); color: #fff; cursor: pointer; }
+
+    /* Mobilblok – mere konservativ så desktop ikke blokeres ved small viewport */
+    .mobile-block { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); color: #fff; z-index: 2000; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+    @media (max-width: 820px) {
+      .container { display: none !important; }
       .mobile-block { display: flex; }
       body { overflow: hidden; }
     }
 
-    /* Danger Zone styling */
     .danger { border-color: rgba(255,0,0,0.55) !important; background: rgba(255,0,0,0.08) !important; }
-    .danger h3 { border-bottom-color: rgba(255,0,0,0.35); }
-    .danger label { display:block; margin:6px 0; }
-    .danger small { opacity:.8 }
+    canvas { width:100%; height: 280px; max-width: 100%; }
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -63,12 +69,12 @@
   <!-- Top-panel -->
   <div class="toppanel">
     <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
-    <form method="get" action="/admin"><button class="toppanel-knap">Tilbage til Admin</button></form>
+    <form method="get" action="/admin"><button class="toppanel-knap">Admin</button></form>
     <form method="get" action="/download_valg"><button class="toppanel-knap">Download PDF</button></form>
-    <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Til kalender</button></form>
+    <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Kalender</button></form>
   </div>
 
-  <div class="main" style="max-width:1100px;">
+  <div class="container">
     <h2>Statistik</h2>
     {% if request.args.get("besked") %}
       <div class="badge">{{ request.args.get("besked") }}</div>
@@ -80,27 +86,207 @@
       <button class="tab-btn" data-tab="page3" role="tab" aria-selected="false">Side 3 · Sikkerhed & regler</button>
     </nav>
 
-    <!-- ============== SIDE 1 (din eksisterende overblik-indhold) ============== -->
+    <!-- ===================== SIDE 1 – OVERBLIK ===================== -->
     <section id="page1" class="page active" role="tabpanel" aria-labelledby="tab-page1">
-      <p class="muted">Overblik over nøgletal, ikke-brugte tider og kæder (Direkte → Bruger).</p>
-      <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
+      <div class="kpis">
+        <div class="kpi"><div class="t">Aktive bookinger (næste 14 dage)</div><div class="v">{{ kpi.aktive_14|default(0) }}</div></div>
+        <div class="kpi"><div class="t">Unikke brugere (næste 14 dage)</div><div class="v">{{ kpi.unikke_brugere|default(0) }}</div></div>
+        <div class="kpi"><div class="t">Service-blokke (næste 14 dage)</div><div class="v">{{ kpi.service_blok|default(0) }}</div></div>
+        <div class="kpi"><div class="t">Direktetid i alt</div><div class="v">{{ total_direkte|default(0) }}</div></div>
+      </div>
 
-      <!-- ... resten af side 1 indhold som i din fil ... -->
+      <div class="kpis" style="margin-top:12px;">
+        <div class="kpi"><div class="t">Bookinger (30 dage)</div><div class="v">{{ kpi.bookinger_30d|default(0) }}</div></div>
+        <div class="kpi"><div class="t">Ikke brugt (30 dage)</div><div class="v">{{ kpi.ikke_brugt_30d|default(0) }}</div></div>
+        <div class="kpi"><div class="t">Udnyttelse (30 dage)</div><div class="v">{{ kpi.udnyttelse_30d_pct|default(0) }}%</div></div>
+        <div class="kpi"><div class="t">Kæder (30 dage) – snit</div><div class="v">{{ kpi.kaeder_30d|default(0) }} / {{ kpi.kaede_avg_score|default(0) }}</div></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="window">
+          <h3>Direktetid pr. dag (sidste 30 dage)</h3>
+          <div class="muted">Kilde: `statistik` (fallback: `bookinger` for brugernavn='direkte')</div>
+          <div class="chart-wrap"><canvas id="chartDirekte"></canvas></div>
+        </div>
+
+        <div class="window">
+          <h3>Ikke brugte bookinger</h3>
+          <div class="muted">Seneste 30 auto_remove-hændelser</div>
+          <table>
+            <thead><tr><th>Dato</th><th>Slot</th><th>Brugernavn</th></tr></thead>
+            <tbody>
+              {% if ikke_bruge_tabel and ikke_bruge_tabel|length > 0 %}
+                {% for r in ikke_bruge_tabel %}
+                  <tr><td>{{ r.dato }}</td><td>{{ r.slot }}</td><td>{{ r.brugernavn }}</td></tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen registrerede no-shows i vinduet.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="window" style="margin-top:16px;">
+        <h3>Kæder (Direkte → Bruger)</h3>
+        <table>
+          <thead><tr><th>Dato</th><th>Direkte slot</th><th>Bruger slot</th><th>Bruger</th><th>Score</th><th>Note</th></tr></thead>
+          <tbody>
+            {% if kaeder and kaeder|length > 0 %}
+              {% for k in kaeder %}
+                <tr>
+                  <td>{{ k[0] }}</td>
+                  <td>{{ k[1] }}</td>
+                  <td>{{ k[2] }}</td>
+                  <td>{{ k[3] }}</td>
+                  <td>{{ k[4] }}</td>
+                  <td>{{ k[5] }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="6" class="muted">Ingen kæder i perioden.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- ============== SIDE 2 (din eksisterende brugsmønstre) ============== -->
+    <!-- ===================== SIDE 2 – BRUGSMØNSTRE ===================== -->
     <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2">
-      <!-- ... dit eksisterende side 2 indhold ... -->
+      <div class="grid-2">
+        <div class="window">
+          <h3>Udnyttelse pr. slot (30 dage)</h3>
+          <table>
+            <thead><tr><th>Slot</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
+            <tbody>
+              {% if slot_overblik and slot_overblik|length > 0 %}
+                {% for r in slot_overblik %}
+                  <tr>
+                    <td>{{ r.slot }}</td>
+                    <td>{{ r.brugte }}</td>
+                    <td>{{ r.ikke_brugt }}</td>
+                    <td>{{ r.udnyttelse_pct }}%</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="window">
+          <h3>Udnyttelse pr. ugedag (30 dage)</h3>
+          <table>
+            <thead><tr><th>Dag</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
+            <tbody>
+              {% if weekday_overblik and weekday_overblik|length > 0 %}
+                {% for r in weekday_overblik %}
+                  <tr>
+                    <td>{{ r.dag }}</td>
+                    <td>{{ r.brugte }}</td>
+                    <td>{{ r.ikke_brugt }}</td>
+                    <td>{{ r.udnyttelse_pct }}%</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="window" style="margin-top:16px;">
+        <h3>Bruger-mønstre (Top 15 no-show-rate)</h3>
+        <table>
+          <thead><tr><th>Bruger</th><th>Bookinger</th><th>Ikke brugt</th><th>No-show rate</th></tr></thead>
+          <tbody>
+            {% if bruger_moenstre and bruger_moenstre|length > 0 %}
+              {% for r in bruger_moenstre %}
+                <tr>
+                  <td>{{ r.brugernavn }}</td>
+                  <td>{{ r.bookinger }}</td>
+                  <td>{{ r.ikke_brugt }}</td>
+                  <td>{{ r.ikke_brugt_rate }}%</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4" class="muted">Ingen data.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- ============== SIDE 3 (Sikkerhed & Regler + DANGER ZONE) ============== -->
+    <!-- ===================== SIDE 3 – SIKKERHED & REGLER ===================== -->
     <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3">
-      <!-- ... dit eksisterende side 3 indhold: login-tabel, attempts, booking_log, etc. ... -->
+      <div class="grid-3">
+        <div class="kpi"><div class="t">Miele status</div><div class="v">{{ miele_status|default('Ukendt') }}</div></div>
+        <div class="kpi"><div class="t">Miele opdateret</div><div class="v">{{ miele_opdateret|default('—') }}</div></div>
+        <div class="kpi"><div class="t">Miele log-rækker</div><div class="v">{{ miele_logs|default(0) }}</div></div>
+      </div>
 
-      <div class="window danger" style="margin-top:20px;">
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="window">
+          <h3>Login-aktivitet (30 dage)</h3>
+          <div class="muted">OK/afvist, user agent og IP-geo</div>
+          <table id="loginTable">
+            <thead><tr><th>Tid</th><th>Bruger</th><th>Status</th><th>Browser/OS</th><th>IP (by/org)</th></tr></thead>
+            <tbody>
+              {% if logins and logins|length > 0 %}
+                {% for r in logins %}
+                  <tr data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
+                    <td>{{ r.tidspunkt }}</td>
+                    <td>{{ r.brugernavn }}</td>
+                    <td>{{ r.indikator_label }}</td>
+                    <td>{{ r.ua_browser }} / {{ r.ua_os }}</td>
+                    <td>{{ r.ip_city }} / {{ r.ip_org }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="5" class="muted">Ingen login-aktivitet i perioden.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="window">
+          <h3>Bookingforsøg pr. dag (30 dage)</h3>
+          <table>
+            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
+            <tbody>
+              {% if attempts_by_user_day and attempts_by_user_day|length > 0 %}
+                {% for r in attempts_by_user_day %}
+                  <tr><td>{{ r.dato }}</td><td>{{ r.brugernavn }}</td><td>{{ r.forsøg }}</td></tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen registrerede forsøg.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+
+          <h3 style="margin-top:14px;">Brugere over 2 forsøg/dag (30 dage)</h3>
+          <table>
+            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
+            <tbody>
+              {% if attempts_over_2 and attempts_over_2|length > 0 %}
+                {% for r in attempts_over_2 %}
+                  <tr><td>{{ r.dato }}</td><td>{{ r.brugernavn }}</td><td>{{ r.forsøg }}</td></tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="3" class="muted">Ingen over 2/dag i perioden.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Danger Zone (ryd logninger) – virker sammen med /admin/ryd_logs i app.py -->
+      <div class="window danger" style="margin-top:16px;">
         <h3>⚠️ Ryd logninger (Danger Zone)</h3>
         <form method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker? Dette kan ikke fortrydes.');">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="grid-2">
             <div>
               <label><input type="checkbox" name="slet_login"> Slet <strong>login_log</strong></label>
               <label><input type="checkbox" name="slet_booking"> Slet <strong>booking_log</strong></label>
@@ -110,24 +296,17 @@
             <div>
               <label><input type="checkbox" name="slet_miele_act"> Slet <strong>miele_activity</strong></label>
               <label><input type="checkbox" name="slet_miele_stat"> Slet <strong>miele_status</strong></label>
-              <label><input type="checkbox" name="slet_statistik"> Slet <strong>statistik</strong> (fx direktetid pr. dag)</label>
-              <label style="margin-top:8px;"><input type="checkbox" name="slet_alt"> <strong>TRUNCATE ALT</strong> (alle ovenstående tabeller)</label>
+              <label><input type="checkbox" name="slet_statistik"> Slet <strong>statistik</strong></label>
+              <label style="margin-top:8px;"><input type="checkbox" name="slet_alt"> <strong>TRUNCATE ALT</strong></label>
             </div>
           </div>
 
           <div style="margin-top:12px;">
-            <div class="muted">Valgfrit dato-interval (anbefalet):</div>
+            <div class="muted">Valgfrit dato-interval:</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
-              <div>
-                <label>Fra dato</label>
-                <input type="date" name="fra_dato">
-              </div>
-              <div>
-                <label>Til dato</label>
-                <input type="date" name="til_dato">
-              </div>
+              <div><label>Fra dato</label><br><input type="date" name="fra_dato"></div>
+              <div><label>Til dato</label><br><input type="date" name="til_dato"></div>
             </div>
-            <small>Hvis du angiver et interval, slettes kun rækker inden for perioden. Uden interval slettes alle valgte logninger.</small>
           </div>
 
           <div style="margin-top:14px;">
@@ -138,7 +317,8 @@
     </section>
   </div>
 
-  <!-- Chart.js + scripts (som i din eksisterende fil) -->
+  <footer>© Hornsberg Group</footer>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // Tabs
@@ -146,28 +326,36 @@
     const pages = document.querySelectorAll('.page');
     tabs.forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        tabs.forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+        tabs.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
         const id = btn.dataset.tab;
         pages.forEach(p=>p.classList.toggle('active', p.id===id));
       });
     });
 
-    // Login filter
-    const filterSel = document.getElementById('filterLogin');
-    const loginTable = document.getElementById('loginTable');
-    if(filterSel && loginTable){
-      filterSel.addEventListener('change', ()=>{
-        const want = filterSel.value; // 'alle'|'succes'|'fejl'
-        loginTable.querySelectorAll('tbody tr').forEach(tr=>{
-          const s = tr.getAttribute('data-status') || 'succes';
-          tr.style.display = (want==='alle' || s===want) ? '' : 'none';
-        });
+    // Chart: direkte pr. dag
+    (function(){
+      const el = document.getElementById('chartDirekte');
+      if(!el) return;
+      const labels = {{ direkte_pr_dag|map(attribute=0)|list|tojson }};
+      const dataVals = {{ direkte_pr_dag|map(attribute=1)|list|tojson }};
+      new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: labels.reverse(),
+          datasets: [{
+            label: 'Direktetid',
+            data: dataVals.reverse(),
+            tension: 0.2,
+            fill: false
+          }]
+        },
+        options: {
+          plugins: { legend: { display: true }},
+          scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 10 } } }
+        }
       });
-    }
-
-    // (Behold dit eksisterende Chart.js-setup her)
+    })();
   </script>
-
-  <footer>© Hornsberg Group</footer>
 </body>
 </html>
