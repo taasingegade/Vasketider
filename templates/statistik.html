@@ -2,440 +2,261 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>Statistik – Vasketider</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    /* Basestil (bevarer dit glas-look) */
-    .window {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 14px;
-      padding: 18px;
-      backdrop-filter: blur(6px);
-      min-height: 110px;
-    }
-    .window h3 {
-      margin-top: 0;
-      font-size: 18px;
-      border-bottom: 1px solid rgba(255,255,255,0.2);
-      padding-bottom: 6px;
-      margin-bottom: 10px;
-    }
-    .muted { font-size: 12px; opacity: .75; }
-    table { width:100%; border-collapse: collapse; font-size:14px; }
-    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
-    .badge {
-      display:inline-block; padding:8px 12px; border-radius:12px;
-      background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5);
-      font-weight:600; margin: 8px 0 0 0;
-    }
-    .kpi-row, .kpis { display:flex; flex-wrap:wrap; gap:10px; }
-    .kpi-pill {
-      padding:6px 10px; border-radius:10px;
-      border:1px solid rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.10);
-      font-size:14px;
-    }
-    .grid-4 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
-    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
-    .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
-
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:10px}
-    .tab-btn{
-      border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);color:#fff;
-      padding:8px 12px;border-radius:10px;cursor:pointer
-    }
-    .tab-btn.active{outline:2px solid rgba(106,160,255,.9)}
-
-    .page{display:none}
-    .page.active{display:block}
-
-    .score{font-variant-numeric:tabular-nums}
-    .score.red{color:#ff6b6b;font-weight:600}
-    .score.yellow{color:#ffd166}
-    .score.green{color:#62d394}
-    .pill{
-      display:inline-block;padding:4px 10px;border-radius:999px;
-      border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);font-size:12px
-    }
-    .badge-dot{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);padding:4px 8px;border-radius:8px}
-    .dot{width:8px;height:8px;border-radius:50%}
-    .dot.ok{background:#29a745}.dot.err{background:#e55353}.dot.warn{background:#ffb000}
-    .nowrap{white-space:nowrap}
-
-    .chart-wrap { margin-top: 10px; }
-    canvas { width:100%; max-width: 100%; height: 280px; }
-
-    /* MOBIL-BLOKERING: under 1000px skjules indhold og vises overlay */
-    .mobile-block {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85);
-      color: #fff; z-index: 2000;
-      align-items: center; justify-content: center; text-align: center;
-      padding: 24px;
-    }
-    @media (max-width: 1000px) {
-      .toppanel, .main { display: none !important; }
-      .mobile-block { display: flex; }
-      body { overflow: hidden; }
-    }
+    .wrap{ max-width:1100px; margin:110px auto 40px; padding:20px; background:rgba(255,255,255,0.05); border-radius:12px; color:#fff; }
+    .cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:14px; margin-bottom:20px; }
+    .card{ background:rgba(0,0,0,.5); padding:16px; border-radius:10px; border:1px solid rgba(255,255,255,.12); }
+    .card h3{ margin:0 0 10px; font-size:16px; }
+    .flex{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    canvas{ background:#111; border:1px solid #333; border-radius:8px; padding:6px; }
+    table{ width:100%; border-collapse:collapse; margin-top:8px; }
+    th,td{ padding:8px; border-bottom:1px solid rgba(255,255,255,.12); text-align:left; }
+    .topbar{ position:fixed; top:0; left:0; right:0; z-index:3000; display:flex; gap:10px; background:rgba(0,0,0,.6); padding:10px 20px; }
+    .topbar form{ margin:0; }
+    .topbar button{ background:rgba(255,255,255,.2); color:#000!important; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; }
+    .pull-right{ margin-left:auto; }
+    .note{ opacity:.8; font-size:13px; }
   </style>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/service-worker.js');
-    }
-  </script>
 </head>
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
-
-  <!-- MOBIL-OVERLAY (skjuler hele siden på mobil) -->
-  <div class="mobile-block">
-    <div>
-      <h2>📈 Statistik er kun til desktop</h2>
-      <p>Åbn siden på en desktop computer for at se statistik-vinduerne.</p>
-      <form method="get" action="/index" style="margin-top:16px;">
-        <button class="toppanel-knap">Tilbage til kalender</button>
-      </form>
+  <div class="topbar">
+    <form method="get" action="/admin"><button>Tilbage</button></form>
+    <div class="pull-right flex">
+      <label>Vindue (dage):
+        <select id="daysSelect">
+          <option>7</option>
+          <option selected>30</option>
+          <option>60</option>
+          <option>90</option>
+        </select>
+      </label>
+      <button id="reloadBtn">Genindlæs</button>
     </div>
   </div>
 
-  <!-- Top-panel (desktop) -->
-  <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-    <form method="get" action="/admin">
-      <button class="toppanel-knap">Tilbage til Admin</button>
-    </form>
-    <form method="get" action="/download_valg">
-      <button class="toppanel-knap">Download PDF</button>
-    </form>
-    <form method="get" action="/index" style="margin-left:auto;">
-      <button class="toppanel-knap">Til kalender</button>
-    </form>
-  </div>
+  <div class="wrap">
+    <h2>Statistik (seneste <span id="daysLabel">30</span> dage)</h2>
 
-  <div class="main" style="max-width:1100px;">
-    <h2>Statistik</h2>
-    <nav class="tabs" role="tablist" aria-label="Statistik faner">
-      <button class="tab-btn active" data-tab="page1" role="tab" aria-selected="true">Side 1 · Overblik</button>
-      <button class="tab-btn" data-tab="page2" role="tab" aria-selected="false">Side 2 · Brugsmønstre</button>
-      <button class="tab-btn" data-tab="page3" role="tab" aria-selected="false">Side 3 · Sikkerhed & regler</button>
-    </nav>
+    <div class="cards">
+      <div class="card"><h3>Totalt antal bookinger</h3><div id="totalBookings">–</div></div>
+      <div class="card"><h3>Fuld-tider</h3><div id="fullCount">–</div></div>
+      <div class="card"><h3>Halve tider</h3><div id="halfCount">–</div></div>
+      <div class="card"><h3>Aflysninger</h3><div id="cancelCount">–</div></div>
+      <div class="card"><h3>Auto-frigivet</h3><div id="autoRemoved">–</div></div>
+    </div>
 
-    <!-- ============== SIDE 1: OVERBLIK ============== -->
-    <section id="page1" class="page active" role="tabpanel" aria-labelledby="tab-page1">
-      <p class="muted">Overblik over nøgletal, ikke-brugte tider og kæder (Direkte → Bruger).</p>
-      <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
-
-      <div class="grid-2">
-        <!-- VINDUE: Booking overblik + Chart -->
-        <div class="window">
-          <h3>📊 Booking overblik (seneste 30 dage)</h3>
-          <div class="kpis">
-            <div class="kpi-pill">Bookinger i alt: <strong>{{ kpi.bookinger_30d|default(0) }}</strong></div>
-            <div class="kpi-pill">Ikke brugt: <strong>{{ kpi.ikke_brugt_30d|default(0) }}</strong></div>
-            <div class="kpi-pill">Udnyttelse: <strong>{{ kpi.udnyttelse_30d_pct|default(0) }}%</strong></div>
-            <div class="kpi-pill">Kæder (Direkte→Bruger): <strong>{{ kpi.kaeder_30d|default(0) }}</strong></div>
-            <div class="kpi-pill">Gns. kæde-score: <strong>{{ kpi.kaede_avg_score|default(0) }}</strong></div>
-          </div>
-          <div class="chart-wrap"><canvas id="bookingChart"></canvas></div>
-          <p class="muted">Søjler: bookinger pr. dag. Linje: direktetid pr. dag.</p>
-        </div>
-
-        <!-- VINDUE: Ikke brugte bookinger -->
-        <div class="window">
-          <h3>🚫 Ikke brugte bookinger</h3>
-          <table>
-            <thead><tr><th>Dato</th><th>Slot</th><th>Bruger</th></tr></thead>
-            <tbody>
-              {% for r in (ikke_bruge_tabel or []) %}
-                <tr><td class="nowrap">{{ r.dato }}</td><td>{{ r.slot }}</td><td>{{ r.brugernavn }}</td></tr>
-              {% else %}
-                <tr><td colspan="3" class="muted">Ingen ikke-brugte bookinger i perioden.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <!-- VINDUE: Kæder Direkte→Bruger -->
-        <div class="window">
-          <h3>🔗 Kæder: Direkte → Bruger (seneste 30)</h3>
-          <table>
-            <thead><tr><th>Dato</th><th>Direkte slot</th><th>Bruger slot</th><th>Bruger</th><th>Score</th></tr></thead>
-            <tbody>
-              {% for d, ds, bs, u, sc, note, ts in (kaeder or []) %}
-                {% set cls = 'green' if sc>=0 and sc<50 else ('yellow' if sc<80 else 'red') %}
-                <tr>
-                  <td class="nowrap">{{ d }}</td><td>{{ ds }}</td><td>{{ bs }}</td><td>{{ u }}</td>
-                  <td class="score {{ cls }}">{{ sc }}</td>
-                </tr>
-              {% else %}
-                <tr><td colspan="5" class="muted">Ingen registrerede kæder.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          <p class="muted">Score = hvor tæt booking kom på slotskiftet (+bonus ved Miele-aktivitet).</p>
-        </div>
-
-        <!-- VINDUE: Seneste ændringsbookninger (bevarer dit gamle vindue 3) -->
-        <div class="window">
-          <h3>📝 Ændringsbookninger (seneste)</h3>
-          <table>
-            <thead><tr><th>Bruger</th><th>Handling</th><th>Dato</th><th>Slot</th><th>Tidspunkt</th><th>Slet</th></tr></thead>
-            <tbody>
-            {% for log in (booking_log or []) %}
-              <tr>
-                <td>{{ log[1] }}</td>
-                <td>{{ log[2] }}</td>
-                <td>{{ log[3] }}</td>
-                <td>{{ log[4] }}</td>
-                <td>{{ log[5] }}</td>
-                <td>
-                  <form method="post" action="/slet_bookinglog" style="display:inline;">
-                    <input type="hidden" name="log_id" value="{{ log[0] }}">
-                    <button type="submit">Slet</button>
-                  </form>
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="6" class="muted">Ingen ændringer registreret.</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Udnyttelse pr. slot</h3>
+        <canvas id="slotChart" height="180"></canvas>
+        <div class="note">Viser alle bookede (full+half). Halvdelene vises også separat.</div>
       </div>
-    </section>
-
-    <!-- ============== SIDE 2: BRUGSMØNSTRE ============== -->
-    <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2">
-      <p class="muted">Udnyttelse pr. slot, ugedagsmønstre og brugermønstre.</p>
-      <div class="grid-3">
-        <div class="window">
-          <h3>⏱️ Udnyttelse pr. slot</h3>
-          <table>
-            <thead><tr><th>Slot</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
-            <tbody>
-              {% for r in (slot_overblik or []) %}
-                <tr><td>{{ r.slot }}</td><td>{{ r.brugte }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.udnyttelse_pct }}%</td></tr>
-              {% else %}
-                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="window">
-          <h3>📅 Ugedagsmønster</h3>
-          <table>
-            <thead><tr><th>Dag</th><th>Brugte</th><th>Ikke brugt</th><th>Udnyttelse</th></tr></thead>
-            <tbody>
-              {% for r in (weekday_overblik or []) %}
-                <tr><td>{{ r.dag }}</td><td>{{ r.brugte }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.udnyttelse_pct }}%</td></tr>
-              {% else %}
-                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="window">
-          <h3>👤 Brugermønstre (top 15 efter ikke-brugt-rate)</h3>
-          <table>
-            <thead><tr><th>Bruger</th><th>Bookinger</th><th>Ikke brugt</th><th>Rate</th></tr></thead>
-            <tbody>
-              {% for r in (bruger_moenstre or []) %}
-                <tr><td>{{ r.brugernavn }}</td><td>{{ r.bookinger }}</td><td>{{ r.ikke_brugt }}</td><td>{{ r.ikke_brugt_rate }}%</td></tr>
-              {% else %}
-                <tr><td colspan="4" class="muted">Ingen data.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="card">
+        <h3>Bookinger pr. dag</h3>
+        <canvas id="dayChart" height="180"></canvas>
       </div>
-    </section>
+    </div>
 
-    <!-- ============== SIDE 3: SIKKERHED & REGLER ============== -->
-    <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3">
-      <div class="window">
-        <h3>🔐 Login-aktivitet (indikatorer pr. event)</h3>
-        <div class="kpis">
-          <div class="kpi-pill">Login (30 dage): <strong>{{ (logins or [])|length }}</strong></div>
-        </div>
-        <div class="toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-          <label class="muted" for="filterLogin">Filtrér</label>
-          <select id="filterLogin" class="toppanel-knap" style="padding:6px 10px;">
-            <option value="alle">Alle</option>
-            <option value="succes">Kun succes</option>
-            <option value="fejl">Kun fejl</option>
-          </select>
-        </div>
-        <table id="loginTable">
-          <thead>
-            <tr>
-              <th>Tidspunkt</th>
-              <th>Bruger</th>
-              <th>Status</th>
-              <th>Device/Browser/OS</th>
-              <th>Geo/ISP</th>
-              <th>Indikator</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for e in (logins or []) %}
-              {% set ok = (e.status|lower == 'ok') %}
-              <tr data-status="{{ 'succes' if ok else 'fejl' }}">
-                <td class="nowrap">{{ e.tidspunkt }}</td>
-                <td><span class="badge-dot"><span class="dot {{ 'ok' if ok else 'err' }}"></span>{{ e.brugernavn }}</span></td>
-                <td><span class="pill">{{ e.status }}</span></td>
-                <td>
-                  <span class="pill">{{ e.ua_device }}</span>
-                  <span class="pill">{{ e.ua_browser }}</span>
-                  <span class="pill">{{ e.ua_os }}</span>
-                </td>
-                <td>
-                  <span class="pill">{{ e.ip_country }}{% if e.ip_region %}, {{ e.ip_region }}{% endif %}</span>
-                  {% if e.ip_city %}<span class="pill">{{ e.ip_city }}</span>{% endif %}
-                  {% if e.ip_org %}<span class="pill">{{ e.ip_org }}</span>{% endif %}
-                  {% if e.ip_is_datacenter %}<span class="pill" style="border-color:#b55;color:#ffb4b4">Datacenter</span>{% endif %}
-                </td>
-                <td>{% if ok %}<span class="pill">Godkendt</span>{% else %}<span class="pill" style="border-color:#b55;color:#ffb4b4">Afvist</span>{% endif %}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="6" class="muted">Ingen login-events i perioden.</td></tr>
-            {% endfor %}
-          </tbody>
+    <div class="grid2" style="margin-top:18px;">
+      <div class="card">
+        <h3>Bookinger pr. ugedag</h3>
+        <canvas id="weekdayChart" height="180"></canvas>
+      </div>
+      <div class="card">
+        <h3>Top brugere</h3>
+        <table id="usersTbl">
+          <thead><tr><th>Bruger</th><th>Antal</th></tr></thead>
+          <tbody></tbody>
         </table>
-        <p class="muted">Indikator = farvet prik + status-label pr. login-event, så man hurtigt ser <strong>hvem</strong> og <strong>hvordan</strong>.</p>
       </div>
+    </div>
 
-      <div class="grid-2">
-        <div class="window">
-          <h3>🧪 Bookingforsøg pr. dag (alle)</h3>
-          <p class="muted">Viser hvor mange gange en bruger har forsøgt at booke på samme dato (inkl. mislykkede/afviste).</p>
-          <table>
-            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
-            <tbody>
-              {% for r in (attempts_by_user_day or []) %}
-                <tr class="{{ 'highlight' if r.forsøg|int > 2 else '' }}">
-                  <td class="nowrap">{{ r.dato }}</td><td>{{ r.brugernavn }}</td><td>{{ r.forsøg }}</td>
-                </tr>
-              {% else %}
-                <tr><td colspan="3" class="muted">Ingen registrerede forsøg.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+    <div class="card" style="margin-top:18px;">
+      <h3>Slots (detaljer)</h3>
+      <table id="slotTbl">
+        <thead>
+          <tr><th>Slot</th><th>Alle</th><th>Tidlig</th><th>Sen</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-        <div class="window">
-          <h3>🚧 Forsøg &gt; 2 pr. dag (flagget)</h3>
-          <div class="kpis"><span class="badge-dot"><span class="dot warn"></span>Regel: maks. 2 forsøg/dag</span></div>
-          <table>
-            <thead><tr><th>Dato</th><th>Bruger</th><th>Forsøg</th></tr></thead>
-            <tbody id="over2">
-              {% for r in (attempts_over_2 or []) %}
-                <tr><td class="nowrap">{{ r.dato }}</td><td><strong>{{ r.brugernavn }}</strong></td><td>{{ r.forsøg }}</td></tr>
-              {% else %}
-                <tr><td colspan="3" class="muted">Ingen brugere over grænsen i perioden.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          <p class="muted">Backend: <code>GROUP BY ts::date, brugernavn HAVING COUNT(*) &gt; 2</code>.</p>
-        </div>
-      </div>
-
-      <!-- Bevar dit gamle "Systemstatus" vindue her, hvis du ønsker -->
-      <div class="window" style="margin-top:18px;">
-        <h3>⚙️ Systemstatus</h3>
-        <div>Seneste Miele-status: <strong>{{ miele_status|default('Ukendt') }}</strong></div>
-        <div>Sidste opdatering: <strong>{{ miele_opdateret|default('—') }}</strong></div>
-        <div>Antal status-logs: <strong>{{ miele_logs|default(0) }}</strong></div>
-      </div>
-    </section>
   </div>
 
-  <!-- Chart.js til Booking overblik -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- No external libs; use plain Canvas 2D -->
   <script>
-    // Tabs
-    const tabs = document.querySelectorAll('.tab-btn');
-    const pages = document.querySelectorAll('.page');
-    tabs.forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        tabs.forEach(b=>b.classList.remove('active')); btn.classList.add('active');
-        const id = btn.dataset.tab;
-        pages.forEach(p=>p.classList.toggle('active', p.id===id));
-      });
-    });
+    const daysSelect = document.getElementById('daysSelect');
+    const daysLabel  = document.getElementById('daysLabel');
+    const reloadBtn  = document.getElementById('reloadBtn');
 
-    // Login filter (succes/fejl)
-    const filterSel = document.getElementById('filterLogin');
-    const loginTable = document.getElementById('loginTable');
-    if(filterSel && loginTable){
-      filterSel.addEventListener('change', ()=>{
-        const want = filterSel.value; // 'alle'|'succes'|'fejl'
-        loginTable.querySelectorAll('tbody tr').forEach(tr=>{
-          const s = tr.getAttribute('data-status') || 'succes';
-          tr.style.display = (want==='alle' || s===want) ? '' : 'none';
-        });
-      });
+    const el = (id) => document.getElementById(id);
+
+    function drawBarChart(canvas, labels, values) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      // Clear
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px sans-serif';
+
+      if (values.length === 0) {
+        ctx.fillText('Ingen data', 10, 20);
+        return;
+      }
+      const max = Math.max(...values, 1);
+      const padL = 40, padB = 20, padT = 10, padR = 10;
+      const chartW = W - padL - padR;
+      const chartH = H - padT - padB;
+      const bw = Math.max(6, chartW / values.length - 6);
+
+      // axes
+      ctx.strokeStyle = '#555';
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + chartH);
+      ctx.lineTo(padL + chartW, padT + chartH);
+      ctx.stroke();
+
+      // bars
+      const step = chartW / values.length;
+      for (let i=0;i<values.length;i++){
+        const v = values[i];
+        const h = Math.round((v / max) * (chartH - 2));
+        const x = padL + i*step + (step - bw)/2;
+        const y = padT + chartH - h;
+
+        ctx.fillStyle = '#4da3ff';
+        ctx.fillRect(x, y, bw, h);
+
+        // value
+        ctx.fillStyle = '#fff';
+        ctx.fillText(String(v), x, y - 4);
+
+        // label (rotate or trim if long)
+        const lab = labels[i] || '';
+        const labTrim = lab.length > 10 ? lab.slice(0,10)+'…' : lab;
+        ctx.save();
+        ctx.translate(x + bw/2, padT + chartH + 12);
+        ctx.rotate(-Math.PI/6);
+        ctx.textAlign = 'right';
+        ctx.fillText(labTrim, 0, 0);
+        ctx.restore();
+      }
     }
 
-    // Data til graf: Direktetid (server-side) + Bookinger (via /bookinger_json)
-    const direkteRaw = {{ (direkte_pr_dag or [])|tojson }};
-    const direkteMap = {};
-    direkteRaw.forEach(function(pair){
-      const iso = pair[0]; // "YYYY-MM-DD"
-      const n = pair[1];
-      const p = (iso || '').split("-");
-      const ddmm = (p.length === 3) ? `${p[2]}-${p[1]}-${p[0]}` : iso;
-      direkteMap[ddmm] = n;
-    });
+    function drawLineChart(canvas, labels, values) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px sans-serif';
 
-    fetch("/bookinger_json")
-      .then(res => res.json())
-      .then(data => {
-        const grupperet = {};
-        data.forEach(b => {
-          if (!grupperet[b.dato]) grupperet[b.dato] = 0;
-          grupperet[b.dato]++;
-        });
+      if (values.length === 0) {
+        ctx.fillText('Ingen data', 10, 20);
+        return;
+      }
+      const max = Math.max(...values, 1);
+      const padL = 40, padB = 20, padT = 10, padR = 10;
+      const chartW = W - padL - padR;
+      const chartH = H - padT - padB;
 
-        const labels = Object.keys(grupperet);
-        labels.sort((a, b) => {
-          const [da, ma, ya] = a.split('-').map(Number);
-          const [db, mb, yb] = b.split('-').map(Number);
-          return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
-        });
+      // axes
+      ctx.strokeStyle = '#555';
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + chartH);
+      ctx.lineTo(padL + chartW, padT + chartH);
+      ctx.stroke();
 
-        const antal = labels.map(l => grupperet[l]);
-        const direkteSerie = labels.map(l => (direkteMap[l] || 0));
+      // points
+      const step = chartW / Math.max(1, values.length - 1);
+      ctx.strokeStyle = '#ffcc00';
+      ctx.beginPath();
+      for (let i=0;i<values.length;i++){
+        const v = values[i];
+        const y = padT + chartH - Math.round((v / max) * (chartH - 2));
+        const x = padL + i*step;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        // dot
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+      }
+      ctx.stroke();
 
-        new Chart(document.getElementById("bookingChart"), {
-          type: "bar",
-          data: {
-            labels: labels,
-            datasets: [
-              { label: "Bookinger pr. dag", data: antal, backgroundColor: "rgba(54, 162, 235, 0.6)" },
-              { label: "Direktetid pr. dag", data: direkteSerie, type: "line", borderWidth: 2, tension: 0.2, yAxisID: 'y' }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: { ticks: { maxRotation: 90, minRotation: 45 } },
-              y: { beginAtZero: true }
-            }
-          }
-        });
+      // min tick labels
+      for (let i=0;i<labels.length;i+=Math.max(1, Math.floor(labels.length/10))){
+        const x = padL + i*step;
+        const lab = labels[i] || '';
+        ctx.save();
+        ctx.translate(x, padT + chartH + 12);
+        ctx.rotate(-Math.PI/4);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(lab, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    async function loadStats() {
+      const days = parseInt(daysSelect.value || '30', 10);
+      daysLabel.textContent = String(days);
+      const res = await fetch(`/statistik_data?days=${days}`);
+      if (!res.ok) {
+        alert("Kun admin kan se statistik (eller fejl i server).");
+        return;
+      }
+      const data = await res.json();
+
+      // totals
+      el('totalBookings').textContent = data.totals.total_bookings ?? 0;
+      el('fullCount').textContent     = data.totals.full ?? 0;
+      el('halfCount').textContent     = data.totals.half ?? 0;
+      el('cancelCount').textContent   = data.totals.cancellations ?? 0;
+      el('autoRemoved').textContent   = data.totals.auto_removed ?? 0;
+
+      // slot table
+      const slotTbody = document.querySelector('#slotTbl tbody');
+      slotTbody.innerHTML = '';
+      (data.by_slot || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.slot_text}</td><td>${r.count_all}</td><td>${r.count_early}</td><td>${r.count_late}</td>`;
+        slotTbody.appendChild(tr);
       });
-  </script>
 
+      // top users
+      const usersBody = document.querySelector('#usersTbl tbody');
+      usersBody.innerHTML = '';
+      (data.by_user_top || []).forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.brugernavn}</td><td>${u.count}</td>`;
+        usersBody.appendChild(tr);
+      });
+
+      // charts
+      // slot bar: show “Slot 07–11” etc.
+      const slotLabels = (data.by_slot || []).map(s => s.slot_text);
+      const slotValues = (data.by_slot || []).map(s => s.count_all);
+      drawBarChart(el('slotChart'), slotLabels, slotValues);
+
+      // per-day line
+      const dayLabels = (data.by_day || []).map(d => d.dato.slice(5)); // MM-DD
+      const dayValues = (data.by_day || []).map(d => d.count);
+      drawLineChart(el('dayChart'), dayLabels, dayValues);
+
+      // weekday bar
+      const wdLabels = (data.by_weekday || []).map(w => w.weekday_dk);
+      const wdValues = (data.by_weekday || []).map(w => w.count);
+      drawBarChart(el('weekdayChart'), wdLabels, wdValues);
+    }
+
+    reloadBtn.addEventListener('click', loadStats);
+    window.addEventListener('load', loadStats);
+  </script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
