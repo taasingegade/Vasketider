@@ -76,12 +76,18 @@
     </div>
 
     <footer>
-    <p>© Hornsberg Group</p>
-    <div class="socials">
+    <span class="footer-left">© Hornsberg Group</span>
+
+    <ul class="socials">
+    <li>
     <a href="https://linkedin.com/in/mortenhornsberg" target="_blank" aria-label="LinkedIn">
-      <img src="{{ url_for('static', filename='icons/linkedin.svg') }}" alt="LinkedIn">
-    </a>
-  </div></footer>
+        <span class="icon-wrap">
+          <img src="{{ url_for('static', filename='icons/linkedin.svg') }}" alt="LinkedIn">
+        </span>
+      </a>
+    </li>
+  </ul>
+</footer>
     
     <script>
     document.addEventListener("DOMContentLoaded", function () {
