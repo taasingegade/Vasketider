@@ -679,8 +679,8 @@ def send_sms_twilio(modtager, besked):
 
 def _truthy(v):
     if v is None: return False
-    s = str(v).strip().lower()
-    return s in ("1","true","on","yes","ja","y","checked")
+    return str(v).strip().lower() in ("1","true","on","yes","ja","y","checked")
+
 
 def _normalize_dk_sms(s: str) -> str:
     s = (s or "").strip()
@@ -698,19 +698,43 @@ def _normalize_dk_sms(s: str) -> str:
 
 def get_kontaktinfo(cur, brugernavn: str):
     """
-    Læs kontaktinfo + præferencer.  
-    Returnerer: (email, sms, vil_email, vil_sms)
+    Returnerer: (email, sms, allow_email_bool, allow_sms_bool)
+    - virker både med ny og gammel skema
     """
-    cur.execute("""
-        SELECT COALESCE(email,''), COALESCE(sms,''),
-               COALESCE(notif_email,'nej'), COALESCE(notif_sms,'nej')
-        FROM brugere
-        WHERE LOWER(brugernavn)=LOWER(%s)
-        LIMIT 1
-    """, (brugernavn,))
-    row = cur.fetchone() or ("","","nej","nej")
-    email, sms, ne, ns = row
-    return email.strip(), sms.strip(), (ne == "ja"), (ns == "ja")
+    try:
+        # ny model med notif_email/notif_sms
+        cur.execute("""
+            SELECT
+                COALESCE(email,''), COALESCE(sms,''),
+                COALESCE(notifikation,'ja'),
+                COALESCE(notif_email,'ja'), COALESCE(notif_sms,'nej')
+            FROM brugere
+            WHERE LOWER(brugernavn)=LOWER(%s)
+            LIMIT 1
+        """, (brugernavn,))
+        row = cur.fetchone()
+        if not row:
+            return "", "", False, False
+        email, sms, notifikation, notif_email, notif_sms = row
+        allow_email = (notifikation == 'ja') and (notif_email == 'ja')
+        allow_sms   = (notifikation == 'ja') and (notif_sms   == 'ja')
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow_email}, allow_sms={allow_sms} (NY)")
+        return email, sms, allow_email, allow_sms
+    except Exception as e:
+        # fallback til gammel model (kun 'notifikation')
+        cur.execute("""
+            SELECT COALESCE(email,''), COALESCE(sms,''), COALESCE(notifikation,'ja')
+            FROM brugere
+            WHERE LOWER(brugernavn)=LOWER(%s)
+            LIMIT 1
+        """, (brugernavn,))
+        row = cur.fetchone()
+        if not row:
+            return "", "", False, False
+        email, sms, notifikation = row
+        allow = (notifikation == 'ja')
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow}, allow_sms={allow} (GAMMEL)")
+        return email, sms, allow, allow
 
 def get_slot_text(cur, slot_index: int) -> str:
     """Returner human tekst for et slot (falder tilbage til 07–11 ..)."""
@@ -724,59 +748,57 @@ def get_slot_text(cur, slot_index: int) -> str:
     defaults = {0:"07–11", 1:"11–15", 2:"15–19", 3:"19–23"}
     return defaults.get(int(slot_index), f"Slot {slot_index}")
 
-def send_booking_notice(conn_or_cur, brugernavn: str, dato, slot_index: int,
-                        sub_slot: str|None, event: str):
-    """
-    Send bekræftelse/aflysning afhængigt af brugerens valg (notif_email/notif_sms).
-    event = 'booked' | 'cancelled'
-    sub_slot = None | 'early' | 'late'
-    """
-    # få en cursor, uanset om vi har fået en connection eller cursor
+def send_booking_notice(conn_or_cur, brugernavn: str, dato, slot_index: int, sub_slot, event: str):
     cur = conn_or_cur if hasattr(conn_or_cur, "execute") else conn_or_cur.cursor()
-    close_cur = False
+    close_after = hasattr(conn_or_cur, "cursor")
 
-    try:
-        # læs præferencer
-        email, sms, vil_email, vil_sms = get_kontaktinfo(cur, brugernavn)
-        slot_txt = get_slot_text(cur, slot_index)
-        dato_txt = dato.strftime('%d-%m-%Y')
+    # slot-tekst
+    cur.execute("SELECT tekst FROM vasketider WHERE slot_index=%s", (int(slot_index),))
+    row = cur.fetchone()
+    slot_tekst = row[0] if row else f"Slot {slot_index}"
+    if sub_slot == 'early': slot_tekst += " (første halvdel)"
+    if sub_slot == 'late':  slot_tekst += " (sidste halvdel)"
 
-        # tekst
-        if sub_slot in ("early","late"):
-            halv_txt = " (tidlig halvdel)" if sub_slot == "early" else " (sen halvdel)"
-        else:
-            halv_txt = ""
+    # prefs
+    email, sms, allow_email, allow_sms = get_kontaktinfo(cur, brugernavn)
 
-        if event == "booked":
-            subject = "Bekræftelse: vasketid booket"
-            body = f"Hej {brugernavn}\n\nDin vasketid er booket {dato_txt} {slot_txt}{halv_txt}.\n\n— Vasketider"
-            sms_txt = f"Vasketid bekr.: {dato_txt} {slot_txt}{halv_txt}"
-        elif event == "cancelled":
-            subject = "Bekræftelse: vasketid aflyst"
-            body = f"Hej {brugernavn}\n\nDin vasketid er aflyst {dato_txt} {slot_txt}{halv_txt}.\n\n— Vasketider"
-            sms_txt = f"Vasketid AFLYST: {dato_txt} {slot_txt}{halv_txt}"
-        else:
-            return  # ukendt event
+    # besked
+    dato_txt = dato.strftime('%d-%m-%Y') if hasattr(dato, "strftime") else str(dato)
+    if event == "booked":
+        subject = "Bekræftelse: vasketid booket"
+        body    = f"Hej {brugernavn}\n\nDin vasketid er booket: {dato_txt} – {slot_tekst}.\n\n— Vasketider"
+        smsmsg  = f"Vasketid booket {dato_txt} {slot_tekst}"
+    else:
+        subject = "Bekræftelse: vasketid annulleret"
+        body    = f"Hej {brugernavn}\n\nDin vasketid er annulleret: {dato_txt} – {slot_tekst}.\n\n— Vasketider"
+        smsmsg  = f"Vasketid annulleret {dato_txt} {slot_tekst}"
 
-        # send i henhold til brugerens valg
-        if vil_email and email:
-            ok = send_email(email, subject, body)
-            print(f"📧 email→{email} ({'OK' if ok else 'FAIL'})")
-        else:
-            print(f"ℹ️ Email springes over for {brugernavn} (valg={vil_email}, email='{email}')")
+    print(f"[send_booking_notice] user={brugernavn} event={event} date={dato_txt} slot={slot_tekst} "
+          f"allow_email={allow_email} allow_sms={allow_sms} email='{email}' sms='{sms}'")
 
-        if vil_sms and sms:
-            try:
-                send_sms_twilio(sms, sms_txt)
-                print(f"📱 sms→{sms} (OK)")
-            except Exception as e:
-                print("⚠️ SMS fejl:", e)
-        else:
-            print(f"ℹ️ SMS springes over for {brugernavn} (valg={vil_sms}, sms='{sms}')")
+    sent_any = False
+    if allow_email and email:
+        ok = send_email(email, subject, body)
+        print(f"  → email send_email(...)={ok}")
+        sent_any = sent_any or ok
+    else:
+        print("  → email SKIPPED")
 
-    finally:
-        if close_cur and hasattr(cur, "close"):
-            cur.close()
+    if allow_sms and sms:
+        try:
+            send_sms_twilio(sms, smsmsg)
+            print("  → sms OK")
+            sent_any = True
+        except Exception as e:
+            print("  → sms ERROR:", e)
+    else:
+        print("  → sms SKIPPED")
+
+    if not sent_any:
+        print("  → ⚠️ ingen kanal sendt (præferencer eller manglende kontaktinfo)")
+
+    if close_after:
+        cur.close()
 
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
@@ -1237,45 +1259,20 @@ def logout():
 
 # Admin
 
-@app.get("/admin/test_email")
-def admin_test_email():
+@app.get("/_test_user_notify")
+def _test_user_notify():
     if session.get("brugernavn","").lower() != "admin":
-        return redirect("/login")
-    ok = send_email("hornsbergmorten@gmail.com", "Test fra Vasketider", "Det virker ✅")
-    return ("OK – sendt" if ok else "FEJL – se server logs for SMTP-debug"), 200
-
-@app.get("/admin/email_diag")
-def admin_email_diag():
-    if session.get("brugernavn","").lower() != "admin":
-        return redirect("/login")
-
-    # Viser KUN om variabler er sat (ikke værdier)
-    u = bool(os.environ.get("SMTP_USER"))
-    p = bool(os.environ.get("SMTP_PASS"))
-
-    # Tjek TCP
-    tcp_ok_465 = False
-    tcp_ok_587 = False
-    import socket
+        return "403", 403
+    user = request.args.get("user","admin")
+    event = request.args.get("event","booked")
+    slot = int(request.args.get("slot","0"))
+    d = datetime.now().date()
+    conn = get_db_connection(); cur = conn.cursor()
     try:
-        with socket.create_connection(("smtp.gmail.com", 465), timeout=5) as s:
-            tcp_ok_465 = True
-    except Exception:
-        pass
-    try:
-        with socket.create_connection(("smtp.gmail.com", 587), timeout=5) as s:
-            tcp_ok_587 = True
-    except Exception:
-        pass
-
-    return jsonify({
-        "env_SMTP_USER_set": u,
-        "env_SMTP_PASS_set": p,
-        "tcp_465": tcp_ok_465,
-        "tcp_587": tcp_ok_587,
-        "from_matches_user_hint": "send_email bruger From=<SMTP_USER>; det er krævet for Gmail",
-        "tip": "Brug Gmail App Password (16 tegn) – almindelig adgangskode virker ikke."
-    }), 200
+        send_booking_notice(cur, user, d, slot, None, event)
+        return "OK (se logs)", 200
+    finally:
+        cur.close(); conn.close()
 
 @app.route('/admin')
 def admin():
@@ -2093,28 +2090,18 @@ def opdater_bruger():
     adgangskode  = request.form.get("adgangskode")
     email        = request.form.get("email")
     sms          = request.form.get("sms")
-
-    # gamle samleflag + de to nye granular flags
     notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
     notif_email  = 'ja' if _truthy(request.form.get("notif_email"))  else 'nej'
     notif_sms    = 'ja' if _truthy(request.form.get("notif_sms"))    else 'nej'
-    godkendt     = True if _truthy(request.form.get("godkendt"))     else False
+    godkendt     = True if _truthy(request.form.get("godkendt")) else False
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = get_db_connection(); cur = conn.cursor()
     cur.execute("""
         UPDATE brugere
-           SET kode = %s,
-               email = %s,
-               sms = %s,
-               notifikation = %s,
-               notif_email = %s,
-               notif_sms = %s,
-               godkendt = %s
-         WHERE brugernavn = %s
+        SET kode=%s, email=%s, sms=%s, notifikation=%s, notif_email=%s, notif_sms=%s, godkendt=%s
+        WHERE brugernavn=%s
     """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return redirect("/vis_brugere")
 
 @app.route("/godkend/<brugernavn>")

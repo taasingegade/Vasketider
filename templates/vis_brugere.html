@@ -39,15 +39,14 @@
           </label>
 
           <!-- Nye granular flags -->
-          <label style="margin-left:8px;">
-            <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
-            Email
-          </label>
-
-          <label style="margin-left:8px;">
-            <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
-            SMS
-          </label>
+          <label>
+  <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
+  Email
+</label>
+<label>
+  <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
+  SMS
+</label>
 
           <label style="margin-left:8px;">
             <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
