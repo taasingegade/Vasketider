@@ -624,7 +624,7 @@ def send_email(modtager: str, emne: str, besked: str) -> bool:
     # Byg mail
     msg = MIMEText(besked or "", "plain", "utf-8")
     msg["Subject"] = emne or ""
-    msg["From"] = f"No Reply Vasketid <{afsender}>"   # SKAL matche SMTP_USER
+    msg["From"] = f"Vasketidssystemet<{afsender}>"   # SKAL matche SMTP_USER
     msg["To"] = modtager
     msg.add_header("Reply-To", "noreply@vasketider.dk")
 
@@ -1837,72 +1837,84 @@ def book_half():
     try:
         dato_str = (request.form.get("dato") or "").strip()
         tid_str  = (request.form.get("tid") or "").strip()
-        sub      = (request.form.get("sub") or "").strip()  # 'early' | 'late'
+        sub      = (request.form.get("sub") or "").strip().lower()  # 'early' | 'late'
         if sub not in ("early", "late"):
             return redirect(url_for("index", uge=valgt_uge, fejl="Vælg 'tidlig' eller 'sen'."))
 
         dato = datetime.strptime(dato_str, "%Y-%m-%d").date()
-        slot_str = str(int(tid_str))  # slot_index kan være TEXT i DB → brug string
+        slot_txt = str(int(tid_str))  # brug text-sammenligning hele vejen
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # loft: max 2 pr. dag
+        # 0) Max 2 pr. dag
         cur.execute("""
-            SELECT COUNT(*)
-            FROM bookinger
-            WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
+            SELECT COUNT(*) FROM bookinger
+             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
         """, (dato, brugernavn))
         if (cur.fetchone()[0] or 0) >= 2:
+            print(f"🛑 book_half: afvist:max2 user={brugernavn} dato={dato}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # bloker fuld booking
+        # 1) Bloker hvis der findes en *rigtig* fuld booking i slottet
         cur.execute("""
-            SELECT 1 FROM bookinger
-            WHERE dato_rigtig=%s
-              AND slot_index::text = %s
-              AND COALESCE(sub_slot,'full')='full'
-              AND brugernavn IS NOT NULL
-            LIMIT 1
-        """, (dato, slot_str))
+            SELECT 1
+              FROM bookinger
+             WHERE dato_rigtig=%s
+               AND slot_index::text=%s
+               AND COALESCE(sub_slot,'full')='full'
+               AND brugernavn IS NOT NULL
+             LIMIT 1
+        """, (dato, slot_txt))
         if cur.fetchone():
+            print(f"🛑 book_half: afvist:full-taken user={brugernavn} dato={dato} slot={slot_txt}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Slot er fuldt booket."))
 
-        # min halvdel må ikke være taget
+        # 2) Er *min valgte halvdel* allerede taget?
         cur.execute("""
-            SELECT 1 FROM bookinger
-            WHERE dato_rigtig=%s
-              AND slot_index::text = %s
-              AND sub_slot=%s
-              AND brugernavn IS NOT NULL
-            LIMIT 1
-        """, (dato, slot_str, sub))
+            SELECT 1
+              FROM bookinger
+             WHERE dato_rigtig=%s
+               AND slot_index::text=%s
+               AND sub_slot=%s
+               AND brugernavn IS NOT NULL
+             LIMIT 1
+        """, (dato, slot_txt, sub))
         if cur.fetchone():
+            print(f"🛑 book_half: afvist:half-taken user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Den valgte halvdel er allerede taget."))
 
-        # opret min halvdel
+        # 3) Opret *kun* min halvdel
         cur.execute("""
             INSERT INTO bookinger
                 (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
             VALUES (%s, %s, %s, %s, 'active', FALSE, NOW())
-        """, (dato, slot_str, brugernavn, sub))
+        """, (dato, slot_txt, brugernavn, sub))
 
         conn.commit()
+        print(f"✅ book_half: success user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
+
+        # Notifikation (efter commit)
+        try:
+            send_booking_notice(brugernavn, dato, int(slot_txt), sub, "booked")
+        except Exception as e:
+            print("⚠️ Notifikation (book_half) fejlede:", e)
+
+        return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
+
+    except psycopg.Error as e:
+        conn.rollback()
+        # rammer vi et unikt indeks (to på samme halvdel), får du tydelig log
+        print("❌ DB-fejl i book_half:", getattr(e, "pgcode", ""), getattr(e, "pgerror", ""))
+        return redirect(url_for("index", uge=valgt_uge, fejl="Kunne ikke booke halvtid (DB-konflikt)."))
     except Exception as e:
         conn.rollback()
-        print("❌ /book_half fejl:", e, flush=True)
+        print("❌ Ukendt fejl i book_half:", e)
         return redirect(url_for("index", uge=valgt_uge, fejl="Fejl under halv booking."))
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
-
-    try:
-        send_booking_notice(brugernavn, dato, int(slot_str), sub, "booked")
-    except Exception as e:
-        print("⚠️ Notifikation (book half) fejlede:", e, flush=True)
-
-    return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
 
 @app.get("/api/booking_allowed_now")
 def api_booking_allowed_now():
