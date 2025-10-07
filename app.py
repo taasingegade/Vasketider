@@ -114,37 +114,49 @@ def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
 
 def init_db():
-    conn = None
+    def run(cur, conn, sql, params=None, label=""):
+        try:
+            cur.execute(sql, params or ())
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"⚠️ {label or 'SQL'} fejlede:", e)
+
     try:
         conn = get_db_connection()
-        conn.autocommit = False
-        cur = conn.cursor()
+        cur  = conn.cursor()
 
-        # ===== BASISTABELLER =====
-        cur.execute("""
+        # ===== Miele-aktivitet =====
+        run(cur, conn, """
             CREATE TABLE IF NOT EXISTS miele_activity (
                 id SERIAL PRIMARY KEY,
                 ts TIMESTAMP NOT NULL,
                 status TEXT NOT NULL
             );
-        """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
+        """, label="create miele_activity")
+        run(cur, conn, "CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)",
+            label="index miele_activity.ts")
 
-        cur.execute("""
+        # ===== booking_log =====
+        run(cur, conn, """
             CREATE TABLE IF NOT EXISTS booking_log (
                 id SERIAL PRIMARY KEY,
-                brugernavn TEXT,
-                handling TEXT,
-                dato DATE,
-                slot_index INT,
+                brugernavn  TEXT,
+                handling    TEXT,     -- 'create','auto_remove','complete','fejl:max2', ...
+                dato        DATE,
+                slot_index  INT,
                 booking_type TEXT,
-                resultat TEXT,
-                tidspunkt TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        cur.execute("CREATE INDEX IF NOT EXISTS ix_booking_log_time ON booking_log(tidspunkt DESC)")
+                resultat    TEXT,
+                tidspunkt   TIMESTAMP DEFAULT NOW()
+            );
+        """, label="create booking_log")
+        run(cur, conn, """
+            CREATE INDEX IF NOT EXISTS ix_booking_log_time
+            ON booking_log(tidspunkt DESC);
+        """, label="index booking_log.tidspunkt")
 
-        cur.execute("""
+        # ===== booking_attempts =====
+        run(cur, conn, """
             CREATE TABLE IF NOT EXISTS booking_attempts (
                 id SERIAL PRIMARY KEY,
                 ts TIMESTAMP DEFAULT NOW(),
@@ -152,126 +164,122 @@ def init_db():
                 dato DATE,
                 slot INT,
                 status TEXT
-            )
-        """)
+            );
+        """, label="create booking_attempts")
 
-        cur.execute("""
+        # ===== login_log =====
+        run(cur, conn, """
             CREATE TABLE IF NOT EXISTS login_log (
                 id SERIAL PRIMARY KEY,
-                brugernavn TEXT,
-                tidspunkt TIMESTAMP DEFAULT NOW(),
-                status TEXT,
-                ip TEXT,
-                enhed TEXT,
-                ua_browser TEXT,
-                ua_os TEXT,
-                ua_device TEXT,
-                ip_hash TEXT,
-                ip_country TEXT,
-                ip_region TEXT,
-                ip_city TEXT,
-                ip_org TEXT,
+                brugernavn   TEXT,
+                tidspunkt    TIMESTAMP DEFAULT NOW(),
+                status       TEXT,
+                ip           TEXT,
+                enhed        TEXT,
+                ua_browser   TEXT,
+                ua_os        TEXT,
+                ua_device    TEXT,
+                ip_hash      TEXT,
+                ip_country   TEXT,
+                ip_region    TEXT,
+                ip_city      TEXT,
+                ip_org       TEXT,
                 ip_is_datacenter BOOLEAN DEFAULT FALSE
-            )
-        """)
+            );
+        """, label="create login_log")
 
-        # ===== bookinger: kolonner =====
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
-        cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
+        # ===== SCHEMA PATCHES: bookinger =====
+        # NB: korrekt syntaks er "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS ..."
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'",
+            label="bookinger.status")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT",
+            label="bookinger.booking_type")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT",
+            label="bookinger.sub_slot")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+            label="bookinger.created_at")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS start_ts TIMESTAMP",
+            label="bookinger.start_ts")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS end_ts TIMESTAMP",
+            label="bookinger.end_ts")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_required BOOLEAN DEFAULT FALSE",
+            label="bookinger.activation_required")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP",
+            label="bookinger.activation_deadline")
+        run(cur, conn, "ALTER TABLE bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP",
+            label="bookinger.activated_at")
 
-        # ===== brugere: notif_email + notif_sms =====
-        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'")
-        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'")
-        cur.execute("""
+        # ===== NYT: notificeringsfelter på brugere =====
+        run(cur, conn, "ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'",
+            label="brugere.notif_email")
+        run(cur, conn, "ALTER TABLE brugere ADD COLUMN IF NOT EXISTS notif_sms   TEXT DEFAULT 'nej'",
+            label="brugere.notif_sms")
+
+        # Migration fra gammel kolonne 'notifikation' -> sæt begge til 'ja' hvor den var 'ja'
+        run(cur, conn, """
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
+                    SELECT 1
+                    FROM information_schema.columns
                     WHERE table_name='brugere' AND column_name='notifikation'
                 ) THEN
                     UPDATE brugere
-                       SET notif_email='ja',
-                           notif_sms='ja'
-                     WHERE COALESCE(notifikation,'nej')='ja';
+                       SET notif_email = 'ja',
+                           notif_sms   = 'ja'
+                     WHERE COALESCE(notifikation,'nej') = 'ja';
                 END IF;
             END $$;
-        """)
+        """, label="migrer notifikation -> notif_email/notif_sms")
 
-        conn.commit()
+        # ===== Ryd gamle brede constraints/indeks på (dato_rigtig, slot_index) =====
+        # Drop constraints (hvis de eksisterer)
+        run(cur, conn, "ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS ux_bookinger_dato_slot",
+            label="drop constraint ux_bookinger_dato_slot")
+        run(cur, conn, "ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS unique_booking",
+            label="drop constraint unique_booking")
+        run(cur, conn, "ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS uniq_bookinger_dato_slot",
+            label="drop constraint uniq_bookinger_dato_slot")
+        # Drop indexes med samme navne (hvis de var oprettet som indeks)
+        run(cur, conn, "DROP INDEX IF EXISTS ux_bookinger_dato_slot",
+            label="drop index ux_bookinger_dato_slot")
+        run(cur, conn, "DROP INDEX IF EXISTS unique_booking",
+            label="drop index unique_booking")
+        run(cur, conn, "DROP INDEX IF EXISTS uniq_bookinger_dato_slot",
+            label="drop index uniq_bookinger_dato_slot")
 
-        # ===== DROP LEGACY CONSTRAINTS / INDEXES =====
-        try:
-            cur.execute("ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS unique_booking")
-            cur.execute("ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS uniq_bookinger_dato_slot")
-            conn.commit()
-            print("🧹 Dropped constraints unique_booking + uniq_bookinger_dato_slot")
-        except Exception as e:
-            conn.rollback()
-            print("⚠️ Drop constraints failed:", e)
+        # ===== Partial unique indexes (full / early / late) =====
+        run(cur, conn, """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_bookinger_full
+              ON bookinger (dato_rigtig, slot_index)
+              WHERE COALESCE(sub_slot,'full') = 'full';
+        """, label="create ux_bookinger_full")
 
-        # ===== DROP LEGACY INDEXES =====
-        try:
-            cur.execute("DROP INDEX IF EXISTS unique_booking")
-            cur.execute("DROP INDEX IF EXISTS uniq_bookinger_dato_slot")
-            conn.commit()
-            print("🧹 Dropped legacy indexes (if existed)")
-        except Exception as e:
-            conn.rollback()
-            print("ℹ️ No legacy indexes dropped:", e)
+        run(cur, conn, """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_bookinger_early
+              ON bookinger (dato_rigtig, slot_index)
+              WHERE sub_slot = 'early';
+        """, label="create ux_bookinger_early")
 
-        # ===== OPRET KORREKTE PARTIAL UNIQUE INDEXES =====
-        try:
-            # Kun 1 FULL pr slot/dato
-            cur.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_full_only
-                ON bookinger (dato_rigtig, slot_index)
-                WHERE COALESCE(sub_slot,'full')='full'
-            """)
-            # Kun 1 EARLY og 1 LATE pr slot/dato
-            cur.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_early_only
-                ON bookinger (dato_rigtig, slot_index)
-                WHERE sub_slot='early'
-            """)
-            cur.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_late_only
-                ON bookinger (dato_rigtig, slot_index)
-                WHERE sub_slot='late'
-            """)
-            # Sikring for halv-bookinger
-            cur.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_half_triplet
-                ON bookinger (dato_rigtig, slot_index, sub_slot)
-                WHERE sub_slot IN ('early','late')
-            """)
-            conn.commit()
-            print("✅ Partial unique indexes OK (full/early/late)")
-        except Exception as e:
-            conn.rollback()
-            print("❌ Oprettelse af partial indexes fejlede:", e)
+        run(cur, conn, """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_bookinger_late
+              ON bookinger (dato_rigtig, slot_index)
+              WHERE sub_slot = 'late';
+        """, label="create ux_bookinger_late")
 
-        print("✅ DB-init færdig (schema + indexes OK)")
-
+        cur.close()
+        conn.close()
+        print("✅ DB-init færdig (schema + partial indexes OK)")
     except Exception as e:
-        if conn:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        print("⚠️ DB-init fejl:", e)
-    finally:
         try:
-            if conn:
-                conn.close()
+            cur.close()
         except Exception:
             pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+        print("❌ DB-init fatalt:", e)
 
 init_db()
 
@@ -922,11 +930,11 @@ def send_booking_notice(brugernavn: str, dato, slot_index: int, sub_slot: str | 
 
     if action == "booked":
         subject = "Bekræftelse: vasketid booket"
-        body    = f"Hej {brugernavn}\nDin vasketid er booket {dato_dk} {slot_txt}{del_txt}.\n— Vasketider"
+        body    = f"Hej {brugernavn}\nDin vasketid er booket {dato_dk} {slot_txt}{del_txt}.\n— Hilsen Vasketidssystemet"
         sms_txt = f"Vasketid bekræftet {dato_dk} {slot_txt}{del_txt}"
     elif action == "cancelled":
         subject = "Aflysning: vasketid"
-        body    = f"Hej {brugernavn}\nDin vasketid er aflyst {dato_dk} {slot_txt}{del_txt}.\n— Vasketider"
+        body    = f"Hej {brugernavn}\nDin vasketid er aflyst {dato_dk} {slot_txt}{del_txt}.\n— Hilsen Vasketidssystemet"
         sms_txt = f"Vasketid aflyst {dato_dk} {slot_txt}{del_txt}"
     else:
         print(f"⚠️ send_booking_notice: ukendt action='{action}'", flush=True)
