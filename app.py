@@ -1917,33 +1917,33 @@ def slet_booking():
     brugernavn = session["brugernavn"]
     valgt_uge  = request.form.get("valgt_uge", "")
 
-    # input
     try:
         dato_str  = (request.form.get("dato") or "").strip()
         tid_str   = (request.form.get("tid") or "-1").strip()
+        sub       = (request.form.get("sub") or "").strip()  # None | 'early' | 'late'
         dato      = datetime.strptime(dato_str, "%Y-%m-%d").date()
         slot_int  = int(tid_str)
+        slot_txt  = str(slot_int)
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige felter."))
 
-    sub = request.form.get("sub")  # None | 'early' | 'late'
     other = "late" if sub == "early" else "early"
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
         if sub in ("early", "late"):
-            # slet egen halv booking
+            # Slet egen halv-booking (tolerér slot_index som TEXT eller INT)
             cur.execute("""
                 DELETE FROM bookinger
                 WHERE dato_rigtig = %s
-                  AND slot_index::text = %s
+                  AND (slot_index = %s OR slot_index::text = %s)
                   AND sub_slot = %s
                   AND LOWER(brugernavn) = LOWER(%s)
                 RETURNING 1
-            """, (dato, str(slot_int), sub, brugernavn))
+            """, (dato, slot_int, slot_txt, sub, brugernavn))
             deleted = cur.fetchone() is not None
 
-            # ryd tom placeholder på modsatte halvdel (hvis nogen)
+            # Ryd evt. tom placeholder på den anden halvdel (harmløst hvis ingen)
             if deleted:
                 cur.execute("""
                     DELETE FROM bookinger
@@ -1951,7 +1951,7 @@ def slet_booking():
                       AND (slot_index = %s OR slot_index::text = %s)
                       AND sub_slot = %s
                       AND brugernavn IS NULL
-                """, (dato, slot_int, str(slot_int), other))
+                """, (dato, slot_int, slot_txt, other))
 
             conn.commit()
 
@@ -1959,12 +1959,12 @@ def slet_booking():
                 try:
                     send_booking_notice(brugernavn, dato, slot_int, sub, "cancelled")
                 except Exception as e:
-                    print("⚠️ Notifikation (slet_half) fejlede:", e, flush=True)
+                    print("⚠️ Notifikation (slet_half) fejlede:", e)
                 return redirect(url_for("index", uge=valgt_uge, besked="Din halve booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende halv-booking at aflyse."))
         else:
-            # slet fuld booking
+            # Slet fuld booking
             cur.execute("""
                 DELETE FROM bookinger
                 WHERE dato_rigtig = %s
@@ -1972,7 +1972,7 @@ def slet_booking():
                   AND LOWER(brugernavn) = LOWER(%s)
                   AND COALESCE(sub_slot, 'full') = 'full'
                 RETURNING 1
-            """, (dato, slot_int, str(slot_int), brugernavn))
+            """, (dato, slot_int, slot_txt, brugernavn))
             deleted = cur.fetchone() is not None
 
             conn.commit()
@@ -1981,14 +1981,10 @@ def slet_booking():
                 try:
                     send_booking_notice(brugernavn, dato, slot_int, None, "cancelled")
                 except Exception as e:
-                    print("⚠️ Notifikation (slet_full) fejlede:", e, flush=True)
+                    print("⚠️ Notifikation (slet_full) fejlede:", e)
                 return redirect(url_for("index", uge=valgt_uge, besked="Din fulde booking er aflyst."))
             else:
                 return redirect(url_for("index", uge=valgt_uge, fejl="Ingen matchende fuld booking at aflyse."))
-    except Exception as e:
-        conn.rollback()
-        print("❌ /slet fejl:", e, flush=True)
-        return redirect(url_for("index", uge=valgt_uge, fejl="Fejl ved aflysning."))
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
