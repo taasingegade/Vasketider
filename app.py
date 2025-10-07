@@ -114,13 +114,13 @@ def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
 
 def init_db():
-    import sys
     conn = None
     try:
         conn = get_db_connection()
+        conn.autocommit = False
         cur = conn.cursor()
 
-        # ===== Basistabeller =====
+        # ===== BASISTABELLER =====
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_activity (
                 id SERIAL PRIMARY KEY,
@@ -142,10 +142,7 @@ def init_db():
                 tidspunkt TIMESTAMP DEFAULT NOW()
             )
         """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS ix_booking_log_time
-            ON booking_log(tidspunkt DESC);
-        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS ix_booking_log_time ON booking_log(tidspunkt DESC)")
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS booking_attempts (
@@ -178,7 +175,7 @@ def init_db():
             )
         """)
 
-        # ===== Kolonner på bookinger =====
+        # ===== bookinger: kolonner =====
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'booked'")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS booking_type TEXT")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS sub_slot TEXT")
@@ -189,9 +186,9 @@ def init_db():
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activation_deadline TIMESTAMP")
         cur.execute("ALTER TABLE IF EXISTS bookinger ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP")
 
-        # ===== Kolonner på brugere (nye flags) =====
+        # ===== brugere: notif_email + notif_sms =====
         cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_email TEXT DEFAULT 'nej'")
-        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_sms   TEXT DEFAULT 'nej'")
+        cur.execute("ALTER TABLE IF EXISTS brugere ADD COLUMN IF NOT EXISTS notif_sms TEXT DEFAULT 'nej'")
         cur.execute("""
             DO $$
             BEGIN
@@ -200,7 +197,8 @@ def init_db():
                     WHERE table_name='brugere' AND column_name='notifikation'
                 ) THEN
                     UPDATE brugere
-                       SET notif_email='ja', notif_sms='ja'
+                       SET notif_email='ja',
+                           notif_sms='ja'
                      WHERE COALESCE(notifikation,'nej')='ja';
                 END IF;
             END $$;
@@ -208,57 +206,35 @@ def init_db():
 
         conn.commit()
 
-        # ===== Drop legacy UNIQUE constraint/index uden at abort'e transaktionen =====
-        # 1) Drop constraint hvis den findes
-        cur.execute("""
-            DO $$
-            BEGIN
-                IF EXISTS (
-                    SELECT 1
-                    FROM pg_constraint
-                    WHERE conname='unique_booking'
-                      AND conrelid='bookinger'::regclass
-                ) THEN
-                    RAISE NOTICE 'Dropping constraint unique_booking';
-                    EXECUTE 'ALTER TABLE bookinger DROP CONSTRAINT unique_booking';
-                END IF;
-            END $$;
-        """)
-        conn.commit()
-
-        # 2) Drop et evt. gammelt index med samme navn (kun hvis det ikke er backing-index for constrainten længere)
-        cur.execute("""
-            DO $$
-            BEGIN
-                IF EXISTS (
-                    SELECT 1 FROM pg_indexes
-                    WHERE schemaname = ANY (current_schemas(true))
-                      AND tablename = 'bookinger'
-                      AND indexname = 'unique_booking'
-                ) THEN
-                    RAISE NOTICE 'Dropping index unique_booking';
-                    EXECUTE 'DROP INDEX unique_booking';
-                END IF;
-            END $$;
-        """)
-        conn.commit()
-
-        # (Valgfrit) print hvad der nu findes af unique constraints på bookinger
-        cur.execute("""
-            SELECT conname
-            FROM pg_constraint
-            WHERE conrelid='bookinger'::regclass AND contype='u'
-        """)
-        existing_uniques = [r[0] for r in cur.fetchall()]
-        print("🔎 Unique constraints på bookinger nu:", existing_uniques, file=sys.stdout)
-
-        # ===== Opret korrekte partial unique indexes (tillader 2 halvdele, blokerer full) =====
+        # ===== DROP LEGACY CONSTRAINTS / INDEXES =====
         try:
+            cur.execute("ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS unique_booking")
+            cur.execute("ALTER TABLE bookinger DROP CONSTRAINT IF EXISTS uniq_bookinger_dato_slot")
+            conn.commit()
+            print("🧹 Dropped constraints unique_booking + uniq_bookinger_dato_slot")
+        except Exception as e:
+            conn.rollback()
+            print("⚠️ Drop constraints failed:", e)
+
+        # ===== DROP LEGACY INDEXES =====
+        try:
+            cur.execute("DROP INDEX IF EXISTS unique_booking")
+            cur.execute("DROP INDEX IF EXISTS uniq_bookinger_dato_slot")
+            conn.commit()
+            print("🧹 Dropped legacy indexes (if existed)")
+        except Exception as e:
+            conn.rollback()
+            print("ℹ️ No legacy indexes dropped:", e)
+
+        # ===== OPRET KORREKTE PARTIAL UNIQUE INDEXES =====
+        try:
+            # Kun 1 FULL pr slot/dato
             cur.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_full_only
                 ON bookinger (dato_rigtig, slot_index)
                 WHERE COALESCE(sub_slot,'full')='full'
             """)
+            # Kun 1 EARLY og 1 LATE pr slot/dato
             cur.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_early_only
                 ON bookinger (dato_rigtig, slot_index)
@@ -269,28 +245,32 @@ def init_db():
                 ON bookinger (dato_rigtig, slot_index)
                 WHERE sub_slot='late'
             """)
-            # ekstra sikkerhedsnet: samme halvdel må ikke dobbelbookes
+            # Sikring for halv-bookinger
             cur.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS bk_unq_half_triplet
                 ON bookinger (dato_rigtig, slot_index, sub_slot)
                 WHERE sub_slot IN ('early','late')
             """)
             conn.commit()
-            print("✅ Partial unique indexes (full/early/late) er på plads")
+            print("✅ Partial unique indexes OK (full/early/late)")
         except Exception as e:
             conn.rollback()
             print("❌ Oprettelse af partial indexes fejlede:", e)
 
-        print("✅ DB-init færdig")
+        print("✅ DB-init færdig (schema + indexes OK)")
+
     except Exception as e:
         if conn:
-            try: conn.rollback()
-            except: pass
+            try:
+                conn.rollback()
+            except Exception:
+                pass
         print("⚠️ DB-init fejl:", e)
     finally:
         try:
-            if conn: conn.close()
-        except:
+            if conn:
+                conn.close()
+        except Exception:
             pass
 
 init_db()
