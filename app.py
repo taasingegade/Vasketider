@@ -1881,55 +1881,76 @@ def book_half():
             return redirect(url_for("index", uge=valgt_uge, fejl="Vælg 'tidlig' eller 'sen'."))
 
         dato = datetime.strptime(dato_str, "%Y-%m-%d").date()
-        slot_txt = str(int(tid_str))  # brug text konsekvent
+        slot_txt = str(int(tid_str))  # altid TEXT-sammenligning i SQL
     except Exception:
         return redirect(url_for("index", uge=valgt_uge, fejl="Ugyldige bookingfelter."))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # 0) Max 2 pr. dag
+        # 0) Loft: max 2 pr. dag
         cur.execute("""
             SELECT COUNT(*) FROM bookinger
-            WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
+             WHERE dato_rigtig=%s AND LOWER(brugernavn)=LOWER(%s)
         """, (dato, brugernavn))
         if (cur.fetchone()[0] or 0) >= 2:
             print(f"🛑 book_half: afvist:max2 user={brugernavn} dato={dato}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Du har allerede 2 bookinger den dag."))
 
-        # 1) Fuld booking blokerer
+        # 1) Fuldt slot blokerer halvdele
         cur.execute("""
-            SELECT 1 FROM bookinger
-            WHERE dato_rigtig=%s AND slot_index::text=%s
-              AND COALESCE(sub_slot,'full')='full'
-              AND brugernavn IS NOT NULL
-            LIMIT 1
+            SELECT 1
+              FROM bookinger
+             WHERE dato_rigtig=%s
+               AND slot_index::text=%s
+               AND COALESCE(sub_slot,'full')='full'
+               AND brugernavn IS NOT NULL
+             LIMIT 1
         """, (dato, slot_txt))
         if cur.fetchone():
-            print(f"🛑 book_half: full_taken user={brugernavn} dato={dato} slot={slot_txt}")
+            print(f"🛑 book_half: afvist:full-taken user={brugernavn} dato={dato} slot={slot_txt}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Slot er fuldt booket."))
 
-        # 2) Min halvdel må ikke være taget
+        # 2) Min valgte halvdel taget?
         cur.execute("""
-            SELECT 1 FROM bookinger
-            WHERE dato_rigtig=%s AND slot_index::text=%s
-              AND sub_slot=%s AND brugernavn IS NOT NULL
-            LIMIT 1
+            SELECT 1
+              FROM bookinger
+             WHERE dato_rigtig=%s
+               AND slot_index::text=%s
+               AND sub_slot=%s
+               AND brugernavn IS NOT NULL
+             LIMIT 1
         """, (dato, slot_txt, sub))
         if cur.fetchone():
-            print(f"🛑 book_half: half_taken user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
+            print(f"🛑 book_half: afvist:half-taken user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
             return redirect(url_for("index", uge=valgt_uge, fejl="Den valgte halvdel er allerede taget."))
 
-        # 3) Opret kun min halvdel
+        # 3A) FORSØG FØRST AT OVERTAGE PLACEHOLDER (brugernavn IS NULL)
         cur.execute("""
-            INSERT INTO bookinger
-                (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
-            VALUES (%s, %s, %s, %s, 'active', FALSE, NOW())
-        """, (dato, slot_txt, brugernavn, sub))
+            UPDATE bookinger
+               SET brugernavn=%s,
+                   status='active',
+                   activation_required=FALSE,
+                   created_at=NOW()
+             WHERE dato_rigtig=%s
+               AND slot_index::text=%s
+               AND sub_slot=%s
+               AND brugernavn IS NULL
+             RETURNING 1
+        """, (brugernavn, dato, slot_txt, sub))
+        took_over = cur.fetchone() is not None
+
+        # 3B) Hvis ingen placeholder: almindelig INSERT (kan stadig race-conflicte → håndteres af unique index)
+        if not took_over:
+            cur.execute("""
+                INSERT INTO bookinger
+                    (dato_rigtig, slot_index, brugernavn, sub_slot, status, activation_required, created_at)
+                VALUES (%s, %s, %s, %s, 'active', FALSE, NOW())
+            """, (dato, slot_txt, brugernavn, sub))
 
         conn.commit()
-        print(f"✅ book_half: success user={brugernavn} dato={dato} slot={slot_txt} sub={sub}")
+        print(f"✅ book_half: success user={brugernavn} dato={dato} slot={slot_txt} sub={sub} took_over={took_over}")
 
-        # Notifikation (efter commit)
+        # Notifikation efter commit
         try:
             send_booking_notice(brugernavn, dato, int(slot_txt), sub, "booked")
         except Exception as e:
@@ -1938,22 +1959,12 @@ def book_half():
         return redirect(url_for("index", uge=valgt_uge, besked="Halv tid booket."))
 
     except Exception as e:
-        # Fang specifikt UNIQUE-fejl hvis muligt
-        import traceback
         conn.rollback()
-        _dump_slot_state(cur, dato, slot_txt)
-
-        if UniqueViolation and isinstance(e, UniqueViolation):
-            # psycopg3/2: prøv at logge constraint-navn
-            constraint = getattr(getattr(e, "diag", None), "constraint_name", None)
-            print("❌ UniqueViolation i book_half:", repr(e), "constraint=", constraint)
-            reason = _friendly_half_conflict_reason(cur, dato, slot_txt, sub)
-            return redirect(url_for("index", uge=valgt_uge, fejl=reason))
-
-        # Anden db-fejl — log alt
-        print("❌ DB-fejl i book_half:", repr(e))
-        traceback.print_exc()
-        return redirect(url_for("index", uge=valgt_uge, fejl="Kunne ikke booke halvtid (DB-fejl)."))
+        # vis reel psycopg info hvis tilgængelig
+        code = getattr(e, "sqlstate", None) or getattr(e, "pgcode", None)
+        diag  = getattr(e, "diag", None)
+        print("❌ DB-fejl i book_half:", repr(e), "| sqlstate:", code, "| diag:", getattr(diag, "message_primary", None))
+        return redirect(url_for("index", uge=valgt_uge, fejl="Kunne ikke booke halvtid (DB-konflikt)."))
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
