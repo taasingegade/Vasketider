@@ -678,7 +678,9 @@ def send_sms_twilio(modtager, besked):
         print("Twilio fejl:", e)
 
 def _truthy(v):
-    return str(v).strip().lower() in {"1","true","ja","på","on","yes","y"}
+    if v is None: return False
+    s = str(v).strip().lower()
+    return s in ("1","true","on","yes","ja","y","checked")
 
 def _normalize_dk_sms(s: str) -> str:
     s = (s or "").strip()
@@ -2037,52 +2039,15 @@ def opret():
 
 @app.route("/vis_brugere")
 def vis_brugere():
-    # Kun admin må se brugere
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
-        return redirect('/login')
-
     conn = get_db_connection()
     cur = conn.cursor()
-
-    try:
-        # Prøv at hente de nye individuelle notifikationsfelter
-        cur.execute("""
-            SELECT brugernavn, kode, email, sms,
-                   COALESCE(notif_email, notifikation, 'ja') AS notif_email,
-                   COALESCE(notif_sms,   notifikation, 'ja') AS notif_sms,
-                   COALESCE(godkendt, FALSE) AS godkendt
-            FROM brugere
-            ORDER BY LOWER(brugernavn)
-        """)
-        rows = cur.fetchall()
-        brugere = [{
-            "brugernavn": r[0],
-            "adgangskode": r[1],
-            "email": r[2],
-            "sms": r[3],
-            "notif_email": r[4],
-            "notif_sms": r[5],
-            "godkendt": bool(r[6])
-        } for r in rows]
-
-    except Exception:
-        # Fallback hvis kolonnerne notif_email / notif_sms ikke findes endnu
-        cur.execute("""
-            SELECT brugernavn, kode, email, notifikation, sms, godkendt
-            FROM brugere
-            ORDER BY LOWER(brugernavn)
-        """)
-        rows = cur.fetchall()
-        brugere = [{
-            "brugernavn": r[0],
-            "adgangskode": r[1],
-            "email": r[2],
-            "notif_email": r[3],
-            "notif_sms": r[3],
-            "sms": r[4],
-            "godkendt": bool(r[5])
-        } for r in rows]
-
+    cur.execute("""
+        SELECT brugernavn, kode, email, sms, notifikation, notif_email, notif_sms, godkendt
+        FROM brugere
+        ORDER BY brugernavn
+    """)
+    cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
+    brugere = [dict(zip(cols, row)) for row in cur.fetchall()]
     conn.close()
     return render_template("vis_brugere.html", brugere=brugere)
 
@@ -2129,20 +2094,25 @@ def opdater_bruger():
     email        = request.form.get("email")
     sms          = request.form.get("sms")
 
-    # To afkrydsningsfelter i formularen:
-    notif_email  = 'ja' if _truthy(request.form.get("notif_email")) else 'nej'
-    notif_sms    = 'ja' if _truthy(request.form.get("notif_sms")) else 'nej'
-    godkendt     = True if _truthy(request.form.get("godkendt")) else False
+    # gamle samleflag + de to nye granular flags
+    notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
+    notif_email  = 'ja' if _truthy(request.form.get("notif_email"))  else 'nej'
+    notif_sms    = 'ja' if _truthy(request.form.get("notif_sms"))    else 'nej'
+    godkendt     = True if _truthy(request.form.get("godkendt"))     else False
 
     conn = get_db_connection()
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.execute("""
         UPDATE brugere
-        SET kode=%s, email=%s, sms=%s,
-            notif_email=%s, notif_sms=%s,
-            godkendt=%s
-        WHERE brugernavn=%s
-    """, (adgangskode, email, sms, notif_email, notif_sms, godkendt, brugernavn))
+           SET kode = %s,
+               email = %s,
+               sms = %s,
+               notifikation = %s,
+               notif_email = %s,
+               notif_sms = %s,
+               godkendt = %s
+         WHERE brugernavn = %s
+    """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
     conn.commit()
     conn.close()
     return redirect("/vis_brugere")

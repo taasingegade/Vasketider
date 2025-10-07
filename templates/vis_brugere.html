@@ -11,66 +11,65 @@
 
   <!-- TOPPANEL -->
   <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-    <form method="get" action="/admin">
-      <button class="toppanel-knap">Tilbage</button>
-    </form>
-    <form method="get" action="/dokumenter">
-      <button class="toppanel-knap">Dokumenter</button>
-    </form>
-    <form method="get" action="/kommentar">
-      <button class="toppanel-knap">Kommentarer</button>
-    </form>
+    <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
+    <form method="get" action="/admin"><button class="toppanel-knap">Tilbage</button></form>
+    <form method="get" action="/dokumenter"><button class="toppanel-knap">Dokumenter</button></form>
+    <form method="get" action="/kommentar"><button class="toppanel-knap">Kommentarer</button></form>
   </div>
 
-  <!-- INDHOLD -->
   <div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
     <h2>Brugeradministration</h2>
 
     {% for user in brugere %}
-    <form method="post" action="/opdater_bruger" style="margin-bottom: 20px;">
-      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-      <p>
-        <strong>{{ user.brugernavn }}</strong><br>
-        Kode: <input type="text" name="adgangskode" value="{{ user.adgangskode }}">
-        Email: <input type="email" name="email" value="{{ user.email }}">
-        SMS: <input type="text" name="sms" value="{{ user.sms }}">
+      <form method="post" action="/opdater_bruger" style="margin-bottom: 12px;">
+        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+        <p>
+          <strong>{{ user.brugernavn }}</strong><br>
+          Kode:
+          <input type="text" name="adgangskode" value="{{ user.adgangskode }}">
+          Email:
+          <input type="email" name="email" value="{{ user.email }}">
+          SMS:
+          <input type="text" name="sms" value="{{ user.sms }}">
 
-        <!-- NYT: separate checkbokse for e-mail og sms -->
-        <label style="margin-left:10px;">
-          <input type="checkbox" name="notif_email"
-                 {% if user.notif_email == 'ja' or user.notifikation == 'ja' %}checked{% endif %}>
-          E-mail
-        </label>
-        <label style="margin-left:10px;">
-          <input type="checkbox" name="notif_sms"
-                 {% if user.notif_sms == 'ja' or user.notifikation == 'ja' %}checked{% endif %}>
-          SMS
-        </label>
+          <!-- Gamle samleflag (bevares for bagudkompatibilitet) -->
+          <label style="margin-left:8px;">
+            <input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}>
+            Notifikation
+          </label>
 
-        <label style="margin-left:10px;">
-          <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
-          Godkendt
-        </label>
-        <br><br>
+          <!-- Nye granular flags -->
+          <label style="margin-left:8px;">
+            <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
+            Email
+          </label>
+
+          <label style="margin-left:8px;">
+            <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
+            SMS
+          </label>
+
+          <label style="margin-left:8px;">
+            <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
+            Godkendt
+          </label>
+        </p>
         <button type="submit">Gem</button>
-      </p>
-    </form>
+      </form>
 
-    <form method="post" action="/slet_bruger" style="display:inline;">
-      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-      <button type="submit">Slet</button>
-    </form>
+      <form method="post" action="/slet_bruger" style="display:inline;">
+        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+        <button type="submit">Slet</button>
+      </form>
 
-    {% if not user.godkendt %}
-    <form method="post" action="/godkend_bruger" style="display:inline;">
-      <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-      <button type="submit">Godkend</button>
-    </form>
-    {% endif %}
-    <hr>
+      {% if not user.godkendt %}
+      <form method="post" action="/godkend_bruger" style="display:inline;">
+        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
+        <button type="submit">Godkend</button>
+      </form>
+      {% endif %}
+
+      <hr>
     {% endfor %}
 
     <h3>Opret ny bruger</h3>
@@ -80,23 +79,20 @@
       E-mail: <input type="text" name="email"><br>
       SMS: <input type="text" name="sms"><br>
 
-      <!-- NYT: separate checkbokse ved oprettelse -->
-      <label>
-  <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
-  Email
-</label>
-<label>
-  <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
-  SMS
-</label>
+      <!-- Standardvalg for nye brugere: slå alt fra som default -->
+      <label><input type="checkbox" name="notifikation"> Notifikation</label><br>
+      <label><input type="checkbox" name="notif_email"> Email</label><br>
+      <label><input type="checkbox" name="notif_sms"> SMS</label><br>
 
       <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
       <button type="submit">Opret</button>
     </form>
 
     {% if request.args.get('direkte_pw') %}
-      <div class="admin-note">Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code>
-      <br>Brug det på /login med brugernavn <strong>direkte</strong>.</div>
+      <div class="admin-note">
+        Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code><br>
+        Brug det på /login med brugernavn <strong>direkte</strong>.
+      </div>
     {% endif %}
 
     <form method="post" action="/admin/reset_direkte" onsubmit="return confirm('Generér nyt direkte-password?');">
