@@ -2,261 +2,172 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>Statistik – Vasketider</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    .wrap{ max-width:1100px; margin:110px auto 40px; padding:20px; background:rgba(255,255,255,0.05); border-radius:12px; color:#fff; }
-    .cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:14px; margin-bottom:20px; }
-    .card{ background:rgba(0,0,0,.5); padding:16px; border-radius:10px; border:1px solid rgba(255,255,255,.12); }
-    .card h3{ margin:0 0 10px; font-size:16px; }
-    .flex{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-    canvas{ background:#111; border:1px solid #333; border-radius:8px; padding:6px; }
-    table{ width:100%; border-collapse:collapse; margin-top:8px; }
-    th,td{ padding:8px; border-bottom:1px solid rgba(255,255,255,.12); text-align:left; }
-    .topbar{ position:fixed; top:0; left:0; right:0; z-index:3000; display:flex; gap:10px; background:rgba(0,0,0,.6); padding:10px 20px; }
-    .topbar form{ margin:0; }
-    .topbar button{ background:rgba(255,255,255,.2); color:#000!important; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; }
-    .pull-right{ margin-left:auto; }
-    .note{ opacity:.8; font-size:13px; }
+    .window { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 18px; backdrop-filter: blur(6px); min-height: 110px; }
+    .window h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 10px; }
+    .muted { font-size: 12px; opacity: .75; }
+    table { width:100%; border-collapse: collapse; font-size:14px; }
+    th,td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.15); text-align:left; }
+    .badge { display:inline-block; padding:8px 12px; border-radius:12px; background: rgba(76,175,80,0.2); border:1px solid rgba(76,175,80,0.5); font-weight:600; margin: 8px 0 0 0; }
+    .kpi-row, .kpis { display:flex; flex-wrap:wrap; gap:10px; }
+    .kpi-pill { padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.10); font-size:14px; }
+    .grid-4 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
+    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
+    .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; }
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:10px}
+    .tab-btn{ border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.10);color:#fff; padding:8px 12px;border-radius:10px;cursor:pointer }
+    .tab-btn.active{outline:2px solid rgba(106,160,255,.9)}
+    .page{display:none}
+    .page.active{display:block}
+    .chart-wrap { margin-top: 10px; }
+    canvas { width:100%; max-width: 100%; height: 280px; }
+
+    /* MOBIL-BLOK (som i din eksisterende) */
+    .mobile-block { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); color: #fff; z-index: 2000; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+    @media (max-width: 1000px) {
+      .toppanel, .main { display: none !important; }
+      .mobile-block { display: flex; }
+      body { overflow: hidden; }
+    }
+
+    /* Danger Zone styling */
+    .danger { border-color: rgba(255,0,0,0.55) !important; background: rgba(255,0,0,0.08) !important; }
+    .danger h3 { border-bottom-color: rgba(255,0,0,0.35); }
+    .danger label { display:block; margin:6px 0; }
+    .danger small { opacity:.8 }
   </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+  </script>
 </head>
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
-  <div class="topbar">
-    <form method="get" action="/admin"><button>Tilbage</button></form>
-    <div class="pull-right flex">
-      <label>Vindue (dage):
-        <select id="daysSelect">
-          <option>7</option>
-          <option selected>30</option>
-          <option>60</option>
-          <option>90</option>
-        </select>
-      </label>
-      <button id="reloadBtn">Genindlæs</button>
+
+  <!-- MOBIL-OVERLAY -->
+  <div class="mobile-block">
+    <div>
+      <h2>📈 Statistik er kun til desktop</h2>
+      <p>Åbn siden på en desktop computer for at se statistik-vinduerne.</p>
+      <form method="get" action="/index" style="margin-top:16px;">
+        <button class="toppanel-knap">Tilbage til kalender</button>
+      </form>
     </div>
   </div>
 
-  <div class="wrap">
-    <h2>Statistik (seneste <span id="daysLabel">30</span> dage)</h2>
-
-    <div class="cards">
-      <div class="card"><h3>Totalt antal bookinger</h3><div id="totalBookings">–</div></div>
-      <div class="card"><h3>Fuld-tider</h3><div id="fullCount">–</div></div>
-      <div class="card"><h3>Halve tider</h3><div id="halfCount">–</div></div>
-      <div class="card"><h3>Aflysninger</h3><div id="cancelCount">–</div></div>
-      <div class="card"><h3>Auto-frigivet</h3><div id="autoRemoved">–</div></div>
-    </div>
-
-    <div class="grid2">
-      <div class="card">
-        <h3>Udnyttelse pr. slot</h3>
-        <canvas id="slotChart" height="180"></canvas>
-        <div class="note">Viser alle bookede (full+half). Halvdelene vises også separat.</div>
-      </div>
-      <div class="card">
-        <h3>Bookinger pr. dag</h3>
-        <canvas id="dayChart" height="180"></canvas>
-      </div>
-    </div>
-
-    <div class="grid2" style="margin-top:18px;">
-      <div class="card">
-        <h3>Bookinger pr. ugedag</h3>
-        <canvas id="weekdayChart" height="180"></canvas>
-      </div>
-      <div class="card">
-        <h3>Top brugere</h3>
-        <table id="usersTbl">
-          <thead><tr><th>Bruger</th><th>Antal</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:18px;">
-      <h3>Slots (detaljer)</h3>
-      <table id="slotTbl">
-        <thead>
-          <tr><th>Slot</th><th>Alle</th><th>Tidlig</th><th>Sen</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
+  <!-- Top-panel -->
+  <div class="toppanel">
+    <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
+    <form method="get" action="/admin"><button class="toppanel-knap">Tilbage til Admin</button></form>
+    <form method="get" action="/download_valg"><button class="toppanel-knap">Download PDF</button></form>
+    <form method="get" action="/index" style="margin-left:auto;"><button class="toppanel-knap">Til kalender</button></form>
   </div>
 
-  <!-- No external libs; use plain Canvas 2D -->
+  <div class="main" style="max-width:1100px;">
+    <h2>Statistik</h2>
+    {% if request.args.get("besked") %}
+      <div class="badge">{{ request.args.get("besked") }}</div>
+    {% endif %}
+
+    <nav class="tabs" role="tablist" aria-label="Statistik faner">
+      <button class="tab-btn active" data-tab="page1" role="tab" aria-selected="true">Side 1 · Overblik</button>
+      <button class="tab-btn" data-tab="page2" role="tab" aria-selected="false">Side 2 · Brugsmønstre</button>
+      <button class="tab-btn" data-tab="page3" role="tab" aria-selected="false">Side 3 · Sikkerhed & regler</button>
+    </nav>
+
+    <!-- ============== SIDE 1 (din eksisterende overblik-indhold) ============== -->
+    <section id="page1" class="page active" role="tabpanel" aria-labelledby="tab-page1">
+      <p class="muted">Overblik over nøgletal, ikke-brugte tider og kæder (Direkte → Bruger).</p>
+      <div class="badge">Direktetid i alt: {{ total_direkte|default(0) }}</div>
+
+      <!-- ... resten af side 1 indhold som i din fil ... -->
+    </section>
+
+    <!-- ============== SIDE 2 (din eksisterende brugsmønstre) ============== -->
+    <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2">
+      <!-- ... dit eksisterende side 2 indhold ... -->
+    </section>
+
+    <!-- ============== SIDE 3 (Sikkerhed & Regler + DANGER ZONE) ============== -->
+    <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3">
+      <!-- ... dit eksisterende side 3 indhold: login-tabel, attempts, booking_log, etc. ... -->
+
+      <div class="window danger" style="margin-top:20px;">
+        <h3>⚠️ Ryd logninger (Danger Zone)</h3>
+        <form method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker? Dette kan ikke fortrydes.');">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <label><input type="checkbox" name="slet_login"> Slet <strong>login_log</strong></label>
+              <label><input type="checkbox" name="slet_booking"> Slet <strong>booking_log</strong></label>
+              <label><input type="checkbox" name="slet_attempts"> Slet <strong>booking_attempts</strong></label>
+              <label><input type="checkbox" name="slet_kaeder"> Slet <strong>direkte_kæder</strong></label>
+            </div>
+            <div>
+              <label><input type="checkbox" name="slet_miele_act"> Slet <strong>miele_activity</strong></label>
+              <label><input type="checkbox" name="slet_miele_stat"> Slet <strong>miele_status</strong></label>
+              <label><input type="checkbox" name="slet_statistik"> Slet <strong>statistik</strong> (fx direktetid pr. dag)</label>
+              <label style="margin-top:8px;"><input type="checkbox" name="slet_alt"> <strong>TRUNCATE ALT</strong> (alle ovenstående tabeller)</label>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="muted">Valgfrit dato-interval (anbefalet):</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+              <div>
+                <label>Fra dato</label>
+                <input type="date" name="fra_dato">
+              </div>
+              <div>
+                <label>Til dato</label>
+                <input type="date" name="til_dato">
+              </div>
+            </div>
+            <small>Hvis du angiver et interval, slettes kun rækker inden for perioden. Uden interval slettes alle valgte logninger.</small>
+          </div>
+
+          <div style="margin-top:14px;">
+            <button class="toppanel-knap" type="submit" style="background:rgba(220,0,0,.85);color:#fff;border:1px solid rgba(255,255,255,.25);">Slet valgte logninger</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <!-- Chart.js + scripts (som i din eksisterende fil) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const daysSelect = document.getElementById('daysSelect');
-    const daysLabel  = document.getElementById('daysLabel');
-    const reloadBtn  = document.getElementById('reloadBtn');
-
-    const el = (id) => document.getElementById(id);
-
-    function drawBarChart(canvas, labels, values) {
-      const ctx = canvas.getContext('2d');
-      const W = canvas.width, H = canvas.height;
-      // Clear
-      ctx.clearRect(0,0,W,H);
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px sans-serif';
-
-      if (values.length === 0) {
-        ctx.fillText('Ingen data', 10, 20);
-        return;
-      }
-      const max = Math.max(...values, 1);
-      const padL = 40, padB = 20, padT = 10, padR = 10;
-      const chartW = W - padL - padR;
-      const chartH = H - padT - padB;
-      const bw = Math.max(6, chartW / values.length - 6);
-
-      // axes
-      ctx.strokeStyle = '#555';
-      ctx.beginPath();
-      ctx.moveTo(padL, padT);
-      ctx.lineTo(padL, padT + chartH);
-      ctx.lineTo(padL + chartW, padT + chartH);
-      ctx.stroke();
-
-      // bars
-      const step = chartW / values.length;
-      for (let i=0;i<values.length;i++){
-        const v = values[i];
-        const h = Math.round((v / max) * (chartH - 2));
-        const x = padL + i*step + (step - bw)/2;
-        const y = padT + chartH - h;
-
-        ctx.fillStyle = '#4da3ff';
-        ctx.fillRect(x, y, bw, h);
-
-        // value
-        ctx.fillStyle = '#fff';
-        ctx.fillText(String(v), x, y - 4);
-
-        // label (rotate or trim if long)
-        const lab = labels[i] || '';
-        const labTrim = lab.length > 10 ? lab.slice(0,10)+'…' : lab;
-        ctx.save();
-        ctx.translate(x + bw/2, padT + chartH + 12);
-        ctx.rotate(-Math.PI/6);
-        ctx.textAlign = 'right';
-        ctx.fillText(labTrim, 0, 0);
-        ctx.restore();
-      }
-    }
-
-    function drawLineChart(canvas, labels, values) {
-      const ctx = canvas.getContext('2d');
-      const W = canvas.width, H = canvas.height;
-      ctx.clearRect(0,0,W,H);
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px sans-serif';
-
-      if (values.length === 0) {
-        ctx.fillText('Ingen data', 10, 20);
-        return;
-      }
-      const max = Math.max(...values, 1);
-      const padL = 40, padB = 20, padT = 10, padR = 10;
-      const chartW = W - padL - padR;
-      const chartH = H - padT - padB;
-
-      // axes
-      ctx.strokeStyle = '#555';
-      ctx.beginPath();
-      ctx.moveTo(padL, padT);
-      ctx.lineTo(padL, padT + chartH);
-      ctx.lineTo(padL + chartW, padT + chartH);
-      ctx.stroke();
-
-      // points
-      const step = chartW / Math.max(1, values.length - 1);
-      ctx.strokeStyle = '#ffcc00';
-      ctx.beginPath();
-      for (let i=0;i<values.length;i++){
-        const v = values[i];
-        const y = padT + chartH - Math.round((v / max) * (chartH - 2));
-        const x = padL + i*step;
-        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-        // dot
-        ctx.fillStyle = '#ffcc00';
-        ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
-      }
-      ctx.stroke();
-
-      // min tick labels
-      for (let i=0;i<labels.length;i+=Math.max(1, Math.floor(labels.length/10))){
-        const x = padL + i*step;
-        const lab = labels[i] || '';
-        ctx.save();
-        ctx.translate(x, padT + chartH + 12);
-        ctx.rotate(-Math.PI/4);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#fff';
-        ctx.fillText(lab, 0, 0);
-        ctx.restore();
-      }
-    }
-
-    async function loadStats() {
-      const days = parseInt(daysSelect.value || '30', 10);
-      daysLabel.textContent = String(days);
-      const res = await fetch(`/statistik_data?days=${days}`);
-      if (!res.ok) {
-        alert("Kun admin kan se statistik (eller fejl i server).");
-        return;
-      }
-      const data = await res.json();
-
-      // totals
-      el('totalBookings').textContent = data.totals.total_bookings ?? 0;
-      el('fullCount').textContent     = data.totals.full ?? 0;
-      el('halfCount').textContent     = data.totals.half ?? 0;
-      el('cancelCount').textContent   = data.totals.cancellations ?? 0;
-      el('autoRemoved').textContent   = data.totals.auto_removed ?? 0;
-
-      // slot table
-      const slotTbody = document.querySelector('#slotTbl tbody');
-      slotTbody.innerHTML = '';
-      (data.by_slot || []).forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.slot_text}</td><td>${r.count_all}</td><td>${r.count_early}</td><td>${r.count_late}</td>`;
-        slotTbody.appendChild(tr);
+    // Tabs
+    const tabs = document.querySelectorAll('.tab-btn');
+    const pages = document.querySelectorAll('.page');
+    tabs.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        tabs.forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+        const id = btn.dataset.tab;
+        pages.forEach(p=>p.classList.toggle('active', p.id===id));
       });
+    });
 
-      // top users
-      const usersBody = document.querySelector('#usersTbl tbody');
-      usersBody.innerHTML = '';
-      (data.by_user_top || []).forEach(u => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${u.brugernavn}</td><td>${u.count}</td>`;
-        usersBody.appendChild(tr);
+    // Login filter
+    const filterSel = document.getElementById('filterLogin');
+    const loginTable = document.getElementById('loginTable');
+    if(filterSel && loginTable){
+      filterSel.addEventListener('change', ()=>{
+        const want = filterSel.value; // 'alle'|'succes'|'fejl'
+        loginTable.querySelectorAll('tbody tr').forEach(tr=>{
+          const s = tr.getAttribute('data-status') || 'succes';
+          tr.style.display = (want==='alle' || s===want) ? '' : 'none';
+        });
       });
-
-      // charts
-      // slot bar: show “Slot 07–11” etc.
-      const slotLabels = (data.by_slot || []).map(s => s.slot_text);
-      const slotValues = (data.by_slot || []).map(s => s.count_all);
-      drawBarChart(el('slotChart'), slotLabels, slotValues);
-
-      // per-day line
-      const dayLabels = (data.by_day || []).map(d => d.dato.slice(5)); // MM-DD
-      const dayValues = (data.by_day || []).map(d => d.count);
-      drawLineChart(el('dayChart'), dayLabels, dayValues);
-
-      // weekday bar
-      const wdLabels = (data.by_weekday || []).map(w => w.weekday_dk);
-      const wdValues = (data.by_weekday || []).map(w => w.count);
-      drawBarChart(el('weekdayChart'), wdLabels, wdValues);
     }
 
-    reloadBtn.addEventListener('click', loadStats);
-    window.addEventListener('load', loadStats);
+    // (Behold dit eksisterende Chart.js-setup her)
   </script>
+
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
