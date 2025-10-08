@@ -36,7 +36,7 @@ from email.mime.text import MIMEText
 from twilio.rest import Client
 from werkzeug.utils import secure_filename, safe_join
 
-DOCS_DIR = os.path.join(app.root_path, "static", "docs")
+
 os.makedirs(DOCS_DIR, exist_ok=True)
 
 UPLOAD_FOLDER = 'static'
@@ -66,7 +66,8 @@ CPH = timezone("Europe/Copenhagen")
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 DATABASE_URL = os.environ.get("DATABASE_URL") or "din_default_postgres_url"
 DEBUG_NOTIF = True  # sæt til False for mindre logstøj
-
+DOCS_DIR = os.path.join(app.root_path, "static", "docs")
+os.makedirs(DOCS_DIR, exist_ok=True)
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[]
