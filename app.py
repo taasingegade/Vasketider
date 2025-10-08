@@ -35,6 +35,7 @@ from email.mime.text import MIMEText
 from twilio.rest import Client
 from werkzeug.utils import secure_filename, safe_join
 
+UPLOAD_FOLDER = 'static'
 # disse køre systemet og styrer essentielle sikkerheder
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
@@ -56,7 +57,6 @@ def _first_existing(paths):
             return p 
     return None
 
-UPLOAD_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'pdf'}
 CPH = timezone("Europe/Copenhagen")
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
