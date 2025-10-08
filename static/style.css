@@ -60,17 +60,13 @@ body{
 .button,
 .btn,
 .glass-btn {
-  color: #fff !important;            /* hvid tekst */
-  background: rgba(255,255,255,0.15) !important;  /* let hvid glas */
-  border: 1px solid rgba(255,255,255,0.4);
+  color: #fff !important; /* hvid tekst som standard */
 }
 .toppanel-knap:hover,
 .button:hover,
 .btn:hover,
 .glass-btn:hover {
-  background: rgba(255,255,255,0.25) !important;
-  color: #fff !important;
-  border-color: rgba(255,255,255,0.6);
+  color: var(--danger) !important; /* rød tekst ved hover */
 }
 .toppanel-knap:active,
 .button:active,
@@ -96,18 +92,36 @@ body{
    FORMS & INPUTS
    ========================= */
 /* Fokus: hvid glød */
+input,
+textarea,
+select {
+  color: #fff !important; /* tekst inde i felterne bliver hvid */
+}
+
+/* Placeholder (svagt hvid) */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255,255,255,0.8) !important;
+}
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
+  box-shadow: var(--focus);
 }
 
 /* Switch / checkbox label-tekst også hvid */
 label, .remember-line, .muted {
   color: #fff !important;
 }
-
+.remember-line {
+  display: flex;
+  justify-content: center;  /* centrer horisontalt */
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  text-align: center;
+}
 /* Sørg for dropdowns har hvid tekst */
 select option {
   color: #000;
