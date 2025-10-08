@@ -12,10 +12,15 @@
   /* Frost + glas */
   --frost-bg: rgba(255,255,255,0.28);
   --frost-brd: rgba(255,255,255,0.45);
-  --frost-txt: #000000;
+  --frost-txt: #0e1013;
   --glass-brd: rgba(255,255,255,0.35);
   --glass-bg: rgba(255,255,255,0.10);
   --glass-bg-hover: rgba(255,255,255,0.18);
+
+  /* Legacy frost tokens (kompat) */
+  --frost: rgba(255,255,255,0.12);
+  --frost-border: rgba(255,255,255,0.35);
+  --frost-highlight: rgba(255,255,255,0.22);
 
   --danger: #d93025;
   --page-max: 1100px;
@@ -38,7 +43,7 @@ body{
 }
 
 /* =========================
-   FROST FAST TOPPANEL
+   FROST FAST TOPPANEL (GLOBAL)
    ========================= */
 .toppanel{
   position:fixed; top:0; left:0; right:0;
@@ -53,35 +58,57 @@ body{
 }
 .toppanel .brand{ margin-right:auto; font-weight:700; color:var(--frost-txt); }
 .toppanel .brand a{ color:inherit; text-decoration:none; }
+.toppanel-links, .toppanel-auth { display:flex; gap:10px; align-items:center; }
 
-/* Glas-knapper (bruges i top + generelt) */
-/* Alle knapper: hvid tekst */
+/* Glas-knapper (top + generelt) */
 .toppanel-knap,
 .button,
 .btn,
-.glass-btn {
-  color: #fff !important; /* hvid tekst som standard */
+.glass-btn{
+  appearance:none;
+  border:1px solid var(--glass-brd);
+  background:var(--glass-bg);
+  color:#fff;                        /* hvid tekst default */
+  padding:9px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  text-decoration:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-weight:600;
 }
 .toppanel-knap:hover,
 .button:hover,
 .btn:hover,
-.glass-btn:hover {
-  color: var(--danger) !important; /* rød tekst ved hover */
+.glass-btn:hover{
+  background:var(--glass-bg-hover);
+  color:var(--danger);               /* rød tekst ved hover */
+  border-color: rgba(255,255,255,0.55);
+  transform: translateY(-1px);
 }
 .toppanel-knap:active,
 .button:active,
 .btn:active,
-.toppanel-knap:focus-visible,
-.glass-btn:active {
-  background: rgba(255,255,255,0.35) !important;
-  color: #fff !important;
+.glass-btn:active{ transform: translateY(0) scale(0.98); }
+.toppanel-knap:focus-visible{ outline:none; box-shadow:var(--focus); }
+
+/* Select i topbaren (fx admin adressevælger) */
+.toppanel-select{
+  height: 38px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.10);
+  color: #fff;
 }
 
-/* Wrapper under fast top */
+/* =========================
+   WRAPPER & MAIN
+   ========================= */
 .wrapper{
   width:100%;
   max-width: var(--page-max);
-  margin:90px auto 24px;
+  margin:90px auto 24px;       /* afstand under fast top */
   padding:22px;
   background:rgba(255,255,255,0.05);
   border-radius:12px;
@@ -89,134 +116,152 @@ body{
 .main{ width:100%; max-width: calc(var(--page-max) - 60px); margin:0 auto; }
 
 /* =========================
-   FORMS & INPUTS
+   FORMS & INPUTS (GLOBAL)
    ========================= */
-/* Fokus: hvid glød */
-input,
-textarea,
-select {
-  color: #fff !important; /* tekst inde i felterne bliver hvid */
+input, select, textarea{
+  margin:5px 8px 5px 0;
+  padding:10px 12px;
+  border-radius:12px;                          /* mere afrundet */
+  border:1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.10);
+  color:#fff;                                   /* hvid tekst */
 }
+input::placeholder, textarea::placeholder{ color: rgba(255,255,255,0.8); }
+input:focus, select:focus, textarea:focus{
+  outline:none;
+  background: rgba(255,255,255,0.85);          /* omvendt kontrast ved fokus */
+  color:#111;                                   /* mørk tekst på lys bg */
+  box-shadow: 0 0 8px rgba(255,255,255,0.6);
+}
+input:focus::placeholder, textarea:focus::placeholder{ color: rgba(0,0,0,0.45); }
 
-/* Placeholder (svagt hvid) */
-input::placeholder,
-textarea::placeholder {
-  color: rgba(255,255,255,0.8) !important;
-}
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  box-shadow: var(--focus);
-}
+label, .remember-line, .muted { color:#fff !important; } /* sikre hvid label-tekst */
 
-/* Switch / checkbox label-tekst også hvid */
-label, .remember-line, .muted {
-  color: #fff !important;
-}
-.remember-line {
-  display: flex;
-  justify-content: center;  /* centrer horisontalt */
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  text-align: center;
-}
-/* Sørg for dropdowns har hvid tekst */
-select option {
-  color: #000;
-  background: #fff;
-}
-
-button{ font: inherit; }
+/* Udeluk specielle knapper fra global button-style (vi bruger glas-look) */
+button{ font:inherit; }
 button.slot-btn, button.hamburger{ all: unset; }
 
+/* Rå knapper fra ældre templates får glas-look automatisk */
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){
+  appearance:none;
+  border:1px solid var(--glass-brd);
+  background:var(--glass-bg);
+  color:#fff;
+  padding:9px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  font-weight:600;
+}
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
+  background:var(--glass-bg-hover);
+  color:var(--danger);
+  border-color: rgba(255,255,255,0.55);
+  transform: translateY(-1px);
+}
+
 /* =========================
-   AUTH-BOKSE (Login / Opret / Skift kode)
+   AUTH / LOGIN – KRYSTALKLAR GLASLOOK
    ========================= */
 .auth-wrap{
-  margin:110px auto 40px;
-  width:100%;
-  max-width:420px;
-  padding:0 16px;
+  min-height: calc(100vh - 70px);              /* centrér under topbaren */
+  display:flex; align-items:center; justify-content:center;
+  padding:40px 16px;
 }
 .auth-box{
-  background: rgba(255,255,255,0.08);
-  border:1px solid rgba(255,255,255,0.35);
-  border-radius: 16px;
-  padding: 22px;
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.08);       /* krystal-klar */
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 22px;
+  padding: 36px 40px;
+  width: 100%;
+  max-width: 420px;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  color: #fff;
 }
-.auth-box h2{ margin:0 0 8px 0; text-align:center; }
+.auth-box h2{ text-align:center; margin:0 0 18px 0; font-size:1.6rem; letter-spacing:.5px; }
 .auth-form{ display:flex; flex-direction:column; gap:12px; }
-
 .msg { margin: 8px 0; font-weight: 600; }
 .msg-ok { color: #77e085; }
 .msg-error { color: #ff9b9b; }
 
-/* On/off-switch */
+/* Felt-stil i auth (arver global, men samler padding/size) */
+.auth-form input[type="text"],
+.auth-form input[type="password"]{
+  width:100%;
+  padding:12px 14px;
+  font-size:15px;
+}
+
+/* Husk mig – 100% centreret */
+.remember-line{
+  display:flex; justify-content:center; align-items:center;
+  gap:10px; margin:10px 0; text-align:center; width:100%;
+}
+
+/* Switch */
 .switch{position:relative;display:inline-block;width:46px;height:26px;}
 .switch input{display:none;}
-.slider{position:absolute;cursor:pointer;inset:0;background:#ccc;transition:.2s;border-radius:26px;}
-.slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;transition:.2s;border-radius:50%;}
-.slider:after{content:"O";color:#000;position:absolute;right:8px;top:4px;font-size:14px;font-weight:700;}
+.slider{position:absolute;inset:0;cursor:pointer;background:rgba(255,255,255,0.4);transition:.3s;border-radius:26px;}
+.slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
 input:checked + .slider{background:var(--ok);}
 input:checked + .slider:before{transform:translateX(20px);}
-input:checked + .slider:after{content:"I";left:8px;right:auto;}
-.slider.round{border-radius:26px;}
 
-/* =========================
-   HUSK MIG – CENTRERET I LOGINBOKSEN
-   ========================= */
-
-/* containerlinjen der holder switch + tekst */
-.remember-line {
-  display: flex;
-  align-items: center;
-  justify-content: center;   /* ← centrerer horisontalt */
-  gap: 10px;
-  margin-top: 8px;
-}
-
-/* centrér hele "Husk mig"-sektionen i auth-boksen */
-.auth-form .remember-line {
-  text-align: center;
+/* Login-knap (glas) */
+.glass-btn{
+  display:inline-flex; justify-content:center; align-items:center;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 12px;
+  color: #fff;
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all .25s ease;
   width: 100%;
+  cursor: pointer;
 }
+.glass-btn:hover{
+  color: var(--danger);
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.55);
+}
+.glass-btn:active{ transform: scale(.98); }
 
 /* =========================
-   LOGIN: Hamburger + menu
+   HAMBURGER MENU (HØJRE SIDE)
    ========================= */
-.toppanel.toppanel--login { position:fixed; display:flex; align-items:center; gap:12px; z-index:4000; }
-
-/* Sorte streger */
+.toppanel.toppanel--login{ position:fixed; display:flex; align-items:center; gap:12px; }
+.hamburger.right{ margin-left:auto; }
 .hamburger{
   all: unset;
-  display:flex; flex-direction:column; gap:8px;
-  width:32px; padding:6px 8px; cursor:pointer;
+  display:flex; flex-direction:column; gap:6px;
+  width:28px; cursor:pointer; padding:6px 8px;
 }
 .hamburger:focus-visible{ outline:2px solid rgba(0,0,0,0.35); border-radius:6px; }
 .hamburger-bar{
-  display:block; width:100%; height:3px;
-  background:#000;                    /* ← sorte streger */
-  border-radius:2px;
-  transition:transform .25s ease, opacity .25s ease;
+  height:3px; width:100%; background:#000;   /* SORTE streger */
+  border-radius:2px; transition:.25s;
 }
 
-/* Fold-ud login-menu */
+/* Fold-ud-menu (højre) */
 .login-menu{
-  position:absolute; top:52px; left:12px;
-  display:none; flex-direction:column; gap:8px; padding:10px;
+  position:absolute; top:60px; right:16px;
+  display:none; flex-direction:column; gap:8px; padding:12px;
   z-index:3500;
-  background:rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.85);
   color:#111;
-  border:1px solid rgba(0,0,0,.15);
-  border-radius:12px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 12px;
   backdrop-filter: blur(6px);
 }
 .login-menu.show{ display:flex; }
-.login-menu .toppanel-knap{ width:200px; background:rgba(255,255,255,0.55); }
-.login-menu .toppanel-knap:hover{ color:var(--danger); }
+.login-menu .toppanel-knap{
+  width: 220px;
+  background: rgba(255,255,255,0.55);
+  color:#000;
+}
+.login-menu .toppanel-knap:hover{ color: var(--danger); background: rgba(255,255,255,0.75); }
 
 /* =========================
    KALENDER
@@ -237,17 +282,11 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 }
 .calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
 .calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
-
 .calendar > div:nth-child(8n+1){
   display:flex; align-items:center; justify-content:flex-end;
   font-weight:700; font-size:16px; padding-right:12px; height:var(--slot-h);
 }
-
-.calendar > div{
-  padding:0; margin:0;
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-}
+.calendar > div{ padding:0; margin:0; display:flex; align-items:center; justify-content:center; position:relative; }
 .calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
 .calendar > div > div{ display:flex; flex-wrap:wrap; gap:14px !important; justify-content:center; }
 
@@ -258,8 +297,8 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .calendar .slot-btn,
 .calendar .split-details > summary{
   display:flex; align-items:center; justify-content:center;
-  width:100%; height:100%;
-  padding:0 10px; font-size:14px; border:none; border-radius:6px;
+  width:100%; height:100%; padding:0 10px;
+  font-size:14px; border:none; border-radius:6px;
   line-height:1.2; cursor:pointer; gap:8px;
   box-shadow:0 3px 6px rgba(0,0,0,0.25);
   transition:transform .1s ease, box-shadow .2s ease;
@@ -304,8 +343,7 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
   color:#fff;
   border:1px solid rgba(255,255,255,0.25);
 }
-
-/* LEDIG — altid kraftig grøn */
+/* LEDIG — kraftig grøn */
 .calendar :is(.slot-btn.ledig,
               .ledig-knap,
               .split-details.ledig > summary,
@@ -322,6 +360,62 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
               form[action$="/book"] .slot-btn:hover){
   background:#218838 !important;
 }
+
+/* =========================
+   LOGIN-AKTIVITET / DOTLIST
+   ========================= */
+.dotlist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+.login-item{
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-left: 6px solid rgba(0,200,0,0.5);
+  border-radius: 10px;
+  padding: 10px 12px;
+  line-height: 1.35;
+  font-size: 14px;
+}
+.login-item[data-status="fejl"]{ border-left-color: rgba(255,0,0,0.6); background: rgba(50,0,0,0.35); }
+.login-item .row{ display:grid; grid-template-columns:140px 1fr; gap:6px 12px; align-items:baseline; }
+.login-item .k{ opacity:.9; } .login-item .v{ overflow-wrap:anywhere; }
+.badge-ok{ display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(0,200,0,.5); background: rgba(0,200,0,.1); font-weight:600; font-size:12px; }
+.badge-fail{ display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(255,0,0,.5); background: rgba(255,0,0,.1); font-weight:600; font-size:12px; }
+details.ua{ margin-top:6px; }
+details.ua summary{ cursor:pointer; color:#9fd8ff; font-size:13px; user-select:none; }
+
+/* Scroll-vindue til login-aktivitet */
+.login-window{ position:relative; display:flex; flex-direction:column; max-height:520px; }
+.login-scroll{
+  flex:1 1 auto; overflow-y:auto; overflow-x:hidden; margin-top:8px; padding-right:6px;
+  scrollbar-width:thin; scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.2);
+}
+.login-scroll::-webkit-scrollbar{ width:8px; }
+.login-scroll::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.3); border-radius:6px; }
+.login-scroll::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.5); }
+
+/* =========================
+   DANGER ZONE – RYD LOGNINGER / SLET DATA
+   ========================= */
+.window.danger{
+  position:relative; z-index:5; margin-top:32px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(6px);
+}
+.window.danger form{ display:flex; flex-direction:column; gap:16px; }
+.window.danger .grid-2{ display:flex; flex-direction:column; gap:10px; }
+.window.danger .grid-2 div{ display:flex; flex-direction:column; gap:6px; }
+.window.danger .grid-2 label{ display:flex; align-items:center; gap:8px; font-size:14px; line-height:1.4; }
+.window.danger input[type="checkbox"]{ transform:scale(1.1); accent-color:#d33; }
+.window.danger .muted{ color:rgba(255,255,255,0.6); font-size:13px; margin-top:4px; }
+.window.danger button[type="submit"]{
+  align-self:flex-start; background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: var(--danger); font-weight:600; border-radius:8px; padding:8px 14px; cursor:pointer;
+  transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.window.danger button[type="submit"]:hover{ background: rgba(255,0,0,0.15); color:#fff; border-color: rgba(255,255,255,0.55); }
 
 /* =========================
    STATUS & FOOTER
@@ -353,43 +447,27 @@ footer{
   width: var(--social-size); height: var(--social-size);
   display:inline-flex; align-items:center; justify-content:center;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
-  border: 1px solid var(--glass-brd);
+  background: linear-gradient(135deg, var(--frost) 0%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid var(--frost-border);
   box-shadow: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
   backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
 .icon-wrap img{ width:14px; height:14px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35)); pointer-events:none; }
 .socials a{ display:inline-flex; text-decoration:none; outline:none; }
-.socials a:hover .icon-wrap{ transform: translateY(-2px); }
-
-/* =========================
-   RESPONSIVE
-   ========================= */
-@media (max-width:768px){
-  .calendar{
-    grid-template-columns:100px repeat(7, minmax(140px,1fr));
-    gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch;
-  }
-  .wrapper{ margin:86px 8px 18px; padding:16px; }
+.socials a:hover .icon-wrap{
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--frost-highlight) 0%, rgba(255,255,255,0.10) 100%);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
 }
+.footer{ display:flex; align-items:center; justify-content:center; gap:12px; }
+.footer-left { position:absolute; left:20px; bottom:14px; color:#fff; font-size:12px; }
 
 /* =========================
    KOMPAT-LAG FOR ÆLDRE TEMPLATES
-   (tilføj nederst i den nye style.css)
    ========================= */
-
-/* Topbar under-containere fra gammel CSS */
-.toppanel-links,
-.toppanel-auth {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-/* Gammel login-boks -> brug ny auth-visning */
-.form-box {
-  /* bevar størrelse, men skin den som auth-box */
+.form-box{
   background: rgba(255,255,255,0.08);
   border:1px solid rgba(255,255,255,0.35);
   border-radius: 16px;
@@ -400,175 +478,22 @@ footer{
   margin: 110px auto 40px;
 }
 .form-box h2 { margin: 0 0 8px; text-align: center; }
-
-/* Gammel login-form layout */
-.login-form {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;   /* var center; men bedre for knapper i glas-stil */
-  gap: 12px;
-}
-
-/* Fallback for rå <button> i ældre templates (giver glas-look) */
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn) {
-  appearance: none;
-  border: 1px solid var(--glass-brd);
-  background: var(--glass-bg);
-  color: var(--frost-txt);
-  padding: 9px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
-  font-weight: 600;
-}
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover {
-  background: var(--glass-bg-hover);
-  color: var(--danger);
-  border-color: rgba(255,255,255,0.55);
-  transform: translateY(-1px);
-}
-
-/* Gammel status-box mørk stil -> map til den nye, men tillad begge */
-.status.status--legacy,
-.legacy-status {
-  margin-top: 15px;
-  background: rgba(0,0,0,0.5);
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 8px;
-  display: flex; flex-wrap: wrap; gap: 8px; align-content: center; font-size: 15px;
-}
-
-/* Tidligere footer-helpers */
-.footer { display:flex; align-items:center; justify-content:center; gap:12px; }
-.footer-left { position:absolute; left:20px; bottom:14px; color:#fff; font-size:12px; }
-
-/* Sørg for at gamle farve-tokens stadig virker for social-glasramme */
-:root{
-  --frost: rgba(255,255,255,0.12);
-  --frost-border: rgba(255,255,255,0.35);
-  --frost-highlight: rgba(255,255,255,0.22);
-}
-
-/* Login-menu (gammel mørk version), hvis nogen skabelon enten kræver den */
-.login-menu.login-menu--dark {
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-}
-
-/* Select i topbaren (fra ældre login) */
-.toppanel-select {
-  height: 38px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.10);
-  color: #fff;
-}
+.login-form { display:flex; flex-direction:column; align-items:stretch; gap:12px; }
 
 /* =========================
-   DANGER ZONE – RYD LOGNINGER / SLET DATA
+   RESPONSIVE
    ========================= */
-
-.window.danger {
-  position: relative;
-  z-index: 5;
-  margin-top: 32px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 12px;
-  padding: 20px;
-  backdrop-filter: blur(6px);
-}
-
-/* Hele formularen er lodret kolonneret */
-.window.danger form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* .grid-2 bruges til at liste checkboxes i én kolonne */
-.window.danger .grid-2 {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Hver boks (checkbox + label) står lodret med luft */
-.window.danger .grid-2 div {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Selve label/checkbox-linjen */
-.window.danger .grid-2 label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-/* Checkbox-udseende */
-.window.danger input[type="checkbox"] {
-  transform: scale(1.1);
-  accent-color: #d33;              /* rød markering – danger-farve */
-}
-
-/* Grå sekundær tekst */
-.window.danger .muted {
-  color: rgba(255,255,255,0.6);
-  font-size: 13px;
-  margin-top: 4px;
-}
-
-/* Primær knap (ryd/slet) */
-.window.danger button[type="submit"] {
-  align-self: flex-start;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.35);
-  color: var(--danger);
-  font-weight: 600;
-  border-radius: 8px;
-  padding: 8px 14px;
-  cursor: pointer;
-  transition: background .2s ease, color .2s ease;
-}
-.window.danger button[type="submit"]:hover {
-  background: rgba(255,0,0,0.15);
-  color: #fff;
-}
-
-/* Scrollområde til login-aktivitet */
-.login-window {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  max-height: 520px;
-}
-.login-scroll {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin-top: 8px;
-  padding-right: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.2);
-}
-.login-scroll::-webkit-scrollbar { width: 8px; }
-.login-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.3);
-  border-radius: 6px;
-}
-.login-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.5);
-}
-
-/* Mobiljusteringer fra gamle skabeloner */
 @media (max-width:768px){
-  .wrapper { margin-top: 100px; }
-  .main { padding-top: 0; }
+  .calendar{
+    grid-template-columns:100px repeat(7, minmax(140px,1fr));
+    gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  .wrapper{ margin:86px 8px 18px; padding:16px; }
+  .auth-wrap{ padding: 86px 12px 24px; min-height: calc(100vh - 86px); }
+  .login-menu{ right:12px; }
+}
+@media (max-width: 640px) {
+  .login-menu { left: 8px; right: 8px; width: auto; }
+  .login-menu .toppanel-knap { width: 100%; }
+  .toppanel-select { max-width: 60vw; }
 }
