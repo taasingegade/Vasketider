@@ -3333,24 +3333,39 @@ def statistik():
 
         # ========== Login-aktivitet (30 dage) ==========
         cur.execute("""
-           SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
-                  brugernavn, status,
-                  COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
-                  COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
-                  CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
-                  CASE WHEN LOWER(status) = 'ok' THEN 1 ELSE 0 END AS indikator_ok
-           FROM login_log
-           WHERE tidspunkt::date BETWEEN %s AND %s
-           ORDER BY tidspunkt DESC
+            SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
+                brugernavn, status,
+                -- RÅ IP + FULD UA + HASH
+                COALESCE(ip,''), COALESCE(enhed,''), COALESCE(ip_hash,''),
+                -- Udledte UA/geo felter
+                COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
+                COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
+                CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
+                CASE WHEN LOWER(status) = 'ok' THEN 1 ELSE 0 END AS indikator_ok
+            FROM login_log
+            WHERE tidspunkt::date BETWEEN %s AND %s
+            ORDER BY tidspunkt DESC
         """, (dfrom, dto))
+
+        rows = cur.fetchall() or []
         logins_struct = [{
-            "tidspunkt": r[0], "brugernavn": r[1], "status": r[2],
-            "ua_browser": r[3], "ua_os": r[4], "ua_device": r[5],
-            "ip_country": r[6], "ip_region": r[7], "ip_city": r[8], "ip_org": r[9],
-            "ip_is_datacenter": bool(r[10]),
-            "indikator_label": r[11],
-            "indikator_ok": bool(r[12]),
-        } for r in (cur.fetchall() or [])]
+            "tidspunkt": r[0],
+            "brugernavn": r[1],
+            "status": r[2],
+            "ip": r[3],
+            "enhed": r[4],            # fuld User-Agent
+            "ip_hash": r[5],
+            "ua_browser": r[6],
+            "ua_os": r[7],
+            "ua_device": r[8],
+            "ip_country": r[9],
+            "ip_region": r[10],
+            "ip_city": r[11],
+            "ip_org": r[12],
+            "ip_is_datacenter": bool(r[13]),
+            "indikator_label": r[14],
+            "indikator_ok": bool(r[15]),
+        } for r in rows]
 
         # ========== Forsøg (30 dage) ==========
         cur.execute("""

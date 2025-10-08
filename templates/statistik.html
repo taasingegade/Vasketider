@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="da">
 <head>
@@ -245,41 +246,49 @@
       </div>
 
       <div class="grid-2" style="margin-top:16px;">
-       <div class="window login-window">
+        <div class="window login-window">
   <h3>Login-aktivitet (30 dage)</h3>
   <div class="muted">OK/afvist, IP, device, UA og (hvis tilgængeligt) geo/ASN</div>
 
-  <div class="login-scroll">
-    <ul id="loginList" class="dotlist" role="list">
-      {% if logins and logins|length > 0 %}
-        {% for r in logins %}
-          <li data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
-            <div class="kv"><b>Tid:</b> {{ r.tidspunkt }}</div>
-            <div class="kv"><b>Bruger:</b> {{ r.brugernavn }}</div>
-            {% if r.indikator_ok %}
-              <span class="badge-ok">{{ r.indikator_label }}</span>
-            {% else %}
-              <span class="badge-fail">{{ r.indikator_label }}</span>
+<div class="login-scroll">
+  <ul id="loginList" class="dotlist" role="list">
+    {% if logins and logins|length > 0 %}
+      {% for r in logins %}
+        <li class="login-item" data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
+          <div class="row">
+            <span class="k"><b>Tid</b></span><span class="v">{{ r.tidspunkt }}</span>
+            <span class="k"><b>Bruger</b></span><span class="v">{{ r.brugernavn }}</span>
+            <span class="k"><b>Status</b></span>
+            <span class="v">
+              {% if r.indikator_ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-fail">Afvist</span>{% endif %}
+              {% if r.ip_is_datacenter %}<span class="badge-fail" title="Datacenter/bot?">DC</span>{% endif %}
+            </span>
+
+            <span class="k"><b>Browser/OS</b></span><span class="v">{{ r.ua_browser }} / {{ r.ua_os }}</span>
+            <span class="k"><b>Enhed</b></span><span class="v">{{ r.ua_device }}</span>
+
+            <span class="k"><b>IP</b></span><span class="v">{{ r.ip or '—' }}{% if r.ip_hash %} <span class="muted">(hash: {{ r.ip_hash[:10] }}…)</span>{% endif %}</span>
+
+            {% if r.ip_city or r.ip_region or r.ip_country or r.ip_org %}
+              <span class="k"><b>Geo/ASN</b></span>
+              <span class="v">
+                {{ r.ip_city }}{% if r.ip_city and (r.ip_region or r.ip_country) %}, {% endif %}
+                {{ r.ip_region }}{% if r.ip_region and r.ip_country %}, {% endif %}
+                {{ r.ip_country }}{% if r.ip_org %} — {{ r.ip_org }}{% endif %}
+              </span>
             {% endif %}
-            <br>
-            <div class="kv"><b>Browser/OS:</b> {{ r.ua_browser }} / {{ r.ua_os }}</div>
-            <div class="kv"><b>Enhed:</b> {{ r.ua_device }}</div><br>
-            <div class="kv"><b>IP:</b> {{ r.ip or '—' }}</div>
-            {% if r.ip_city or r.ip_org or r.ip_country %}
-              <div class="kv"><b>Geo/ASN:</b>
-                {{ r.ip_city }} {{ r.ip_country }} {% if r.ip_org %}– {{ r.ip_org }}{% endif %}
-              </div>
-            {% endif %}
-            <details class="ua"><summary>Vis fuld User-Agent</summary>
-              <div class="muted">{{ r.enhed or '—' }}</div>
-            </details>
-          </li>
-        {% endfor %}
-      {% else %}
-        <li class="muted">Ingen login-aktivitet i perioden.</li>
-      {% endif %}
-    </ul>
-  </div>
+          </div>
+
+          <details class="ua"><summary>Vis fuld User-Agent</summary>
+            <div class="muted">{{ r.enhed or '—' }}</div>
+          </details>
+        </li>
+      {% endfor %}
+    {% else %}
+      <li class="muted">Ingen login-aktivitet i perioden.</li>
+    {% endif %}
+  </ul>
+</div>
 </div>
 
         <div class="window">
