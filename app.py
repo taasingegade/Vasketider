@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify, Response, url_for, g, flash
+from flask import Flask, render_template, request, redirect, session, jsonify, Response, url_for, g, flash, send_from_directory
 try:
     import psycopg  # psycopg v3
     from psycopg.errors import Error as PGError
@@ -8,7 +8,6 @@ except ImportError:
     from psycopg2 import Error as PGError
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
-from flask import send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -66,7 +65,8 @@ CPH = timezone("Europe/Copenhagen")
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 DATABASE_URL = os.environ.get("DATABASE_URL") or "din_default_postgres_url"
 DEBUG_NOTIF = True  # sæt til False for mindre logstøj
-DOCS_DIR = os.path.join(app.root_path, "static", "docs")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DOCS_DIR = os.path.join(BASE_DIR, "static", "docs")
 os.makedirs(DOCS_DIR, exist_ok=True)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -3043,22 +3043,21 @@ def kommentar():
 def dokumenter():
     if 'brugernavn' not in session:
         return redirect('/login')
-
-    filer = [f for f in sorted(os.listdir(DOCS_DIR)) if f.lower().endswith(".pdf")]
+    try:
+        filer = [f for f in sorted(os.listdir(DOCS_DIR)) if f.lower().endswith(".pdf")]
+    except FileNotFoundError:
+        filer = []
     return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
-    # on/off tilslutning af vaskemaskine
 
 @app.route("/doc/<path:filename>")
 def serve_pdf(filename):
     if 'brugernavn' not in session:
         return redirect('/login')
 
-    # Beskyt mod path-tricks
-    safe_path = safe_join(DOCS_DIR, filename)
+    safe_path = safe_join(DOCS_DIR, filename)  # beskytter mod path traversal
     if not safe_path or not os.path.isfile(safe_path):
         return "Filen findes ikke", 404
 
-    # Send inline (vises direkte i browser)
     return send_from_directory(DOCS_DIR, filename, mimetype="application/pdf", as_attachment=False)
 
 @app.route("/iot_toggle", methods=["POST"])
