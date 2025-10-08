@@ -518,6 +518,13 @@ details.ua summary {
   user-select: none;
 }
 
+.login-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;       /* hele vinduets højde */
+}
+
 /* Danger-zone fix – gør knappen klikbar */
 .window.danger {
   position: relative;
@@ -527,13 +534,13 @@ details.ua summary {
 
 /* Scroll-vindue til login-aktivitet */
 .login-scroll {
-  max-height: 420px;      /* højden på selve vinduet */
-  overflow-y: auto;       /* aktiver lodret scroll */
+  flex: 1 1 auto;
+  overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 6px;     /* plads til scrollbar */
-  margin-bottom: 10px;
-  scrollbar-width: thin;          /* Firefox */
-  scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.3);
+  margin-top: 8px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.2);
 }
 
 .login-scroll::-webkit-scrollbar { width: 8px; }
