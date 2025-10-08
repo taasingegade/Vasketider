@@ -155,19 +155,21 @@ input:checked + .slider:before{ transform:translateX(20px); }
   all: unset;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  width: 32px;
-  height: 28px;
-  padding: 6px 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 34px;
+  height: 30px;
+  padding: 6px;
   cursor: pointer;
 }
 .hamburger:focus-visible{ outline:2px solid rgba(0,0,0,0.35); border-radius:6px; }
 .hamburger-bar {
   width: 100%;
   height: 3px;
-  background: #000; /* sort – høj kontrast */
+  background: #000; /* ← sort som du bad om */
   border-radius: 2px;
-  box-shadow: 0 0 2px rgba(255,255,255,0.8); /* lille hvid glød for synlighed */
+  box-shadow: 0 0 2px rgba(255,255,255,0.7);
   transition: transform .25s ease, opacity .25s ease;
 }
 
