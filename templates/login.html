@@ -2,149 +2,176 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <meta charset="UTF-8">
-    <title>Login</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/service-worker.js');
-        }
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
 
-        function submitLoginForm() {
-            document.getElementById('loginForm').submit();
-        }
+    function submitLoginForm() {
+      document.getElementById('loginForm').submit();
+    }
 
-        document.addEventListener("DOMContentLoaded", function () {
-            const loginForm = document.getElementById("loginForm");
-            loginForm.addEventListener("keydown", function (event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    loginForm.submit();
-                }
-            });
-        });
-    </script>
+    function toggleMenu() {
+      const m = document.querySelector('.login-menu');
+      if (m) m.classList.toggle('show');
+    }
+
+    // Luk menu, når der klikkes udenfor
+    document.addEventListener('click', function (e) {
+      const menu = document.querySelector('.login-menu');
+      const btn  = document.querySelector('.hamburger');
+      if (!menu || !btn) return;
+      const clickedOutside = !menu.contains(e.target) && !btn.contains(e.target);
+      if (menu.classList.contains('show') && clickedOutside) {
+        menu.classList.remove('show');
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const loginForm = document.getElementById("loginForm");
+      loginForm.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          loginForm.submit();
+        }
+      });
+    });
+  </script>
 </head>
 <body>
 
-    <div class="toppanel" style="display: flex; gap: 10px;">
-        <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
-        <form method="get" action="/skiftkode">
-            <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
-        </form>
-        <form method="get" action="/opret">
-            <button type="submit" class="toppanel-knap">Opret ny bruger</button>
-        </form>
-        <form method="get" action="/regler">
-            <button type="submit" class="toppanel-knap">Regler</button>
-        </form>
-{% if session['brugernavn'] == 'admin' %}
-<form method="post" action="/opdater_adressevisning" style="margin: 0;">
-  <select name="adresse" onchange="this.form.submit()" class="toppanel-knap" style="height: 38px; padding: 6px 12px; border-radius: 6px; border: none;">
-    {% for adr in adresser %}
-      <option value="{{ adr[0] }}" {% if adr[1] %}selected{% endif %}>
-        {{ adr[0] }}
-      </option>
-    {% endfor %}
-  </select>
-  <input type="hidden" name="status" value="toggle">
-</form>
+  <!-- TOPPANEL (login) -->
+  <div class="toppanel toppanel--login">
+    <!-- HAMBURGER-KNAP (3 streger) -->
+    <button class="hamburger" type="button" aria-label="Åbn menu" onclick="toggleMenu()">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+
+    <!-- FOLD-UD MENU -->
+    <div class="login-menu" role="menu" aria-label="Login-menu">
+      <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
+
+      <form method="get" action="/skiftkode">
+        <button type="submit" class="toppanel-knap">Ændre adgangskode</button>
+      </form>
+
+      <form method="get" action="/opret">
+        <button type="submit" class="toppanel-knap">Opret ny bruger</button>
+      </form>
+
+      <form method="get" action="/regler">
+        <button type="submit" class="toppanel-knap">Regler</button>
+      </form>
+    </div>
+
+    {% if session['brugernavn'] == 'admin' %}
+    <form method="post" action="/opdater_adressevisning" class="login-adresseform">
+      <select name="adresse" onchange="this.form.submit()" class="toppanel-select">
+        {% for adr in adresser %}
+          <option value="{{ adr[0] }}" {% if adr[1] %}selected{% endif %}>
+            {{ adr[0] }}
+          </option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="status" value="toggle">
+    </form>
     {% endif %}
+
     <div class="toppanel-ekg"></div>
-    </div>
+  </div>
 
-    
-    <div class="form-box glassbox">
-        <h2 style="text-align: center;">Log ind</h2>
-        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
-        {% if besked %}<p style="color:green;">{{ besked }}</p>{% endif %}
+  <!-- LOGIN-BOKS -->
+  <div class="form-box glassbox">
+    <h2 class="center">Log ind</h2>
+    {% if fejl %}<p class="msg msg-error">{{ fejl }}</p>{% endif %}
+    {% if besked %}<p class="msg msg-ok">{{ besked }}</p>{% endif %}
 
-        <form id="loginForm" method="post" action="/login">
-   <div style="display: flex; flex-direction: column; align-items: center;">
-       <input type="text" id="brugernavn" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
-<input type="password" id="kode" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
+    <form id="loginForm" method="post" action="/login" class="login-form">
+      <input type="text" id="brugernavn" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
+      <input type="password" id="kode" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
 
-      
-        <label class="switch" style="margin-top:10px;">
-            <input type="checkbox" id="huskMig" name="remember" value="1">
-            <span class="slider round"></span>
-        </label>
-        <span style="margin-top:5px;">Husk mig</span>
-   </div>
-</form>
-    </div>
+      <label class="switch switch--login">
+        <input type="checkbox" id="huskMig" name="remember" value="1">
+        <span class="slider round"></span>
+      </label>
+      <span class="remember-label">Husk mig</span>
+    </form>
+  </div>
 
-    <footer>
+  <footer class="footer">
     <span class="footer-left">© Hornsberg Group</span>
-
     <ul class="socials">
-    <li>
-    <a href="https://linkedin.com" target="_blank" aria-label="LinkedIn">
-        <span class="icon-wrap">
-          <img src="{{ url_for('static', filename='icons/linkedin.svg') }}" alt="LinkedIn">
-        </span>
-      </a>
-    </li>
-    <li>
-      <a href="https://facebook.com" target="_blank" aria-label="Facebook">
-        <span class="icon-wrap">
-          <img src="{{ url_for('static', filename='icons/facebook.svg') }}" alt="Facebook">
-        </span>
-      </a>
-    </li>
-    <li>
-      <a href="https://instagram.com" target="_blank" aria-label="Instagram">
-        <span class="icon-wrap">
-          <img src="{{ url_for('static', filename='icons/instagram.svg') }}" alt="Instagram">
-        </span>
-      </a>
-    </li>
-  </ul>
-</footer>
-    
-    <script>
+      <li>
+        <a href="https://linkedin.com" target="_blank" aria-label="LinkedIn">
+          <span class="icon-wrap">
+            <img src="{{ url_for('static', filename='icons/linkedin.svg') }}" alt="LinkedIn">
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="https://facebook.com" target="_blank" aria-label="Facebook">
+          <span class="icon-wrap">
+            <img src="{{ url_for('static', filename='icons/facebook.svg') }}" alt="Facebook">
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="https://instagram.com" target="_blank" aria-label="Instagram">
+          <span class="icon-wrap">
+            <img src="{{ url_for('static', filename='icons/instagram.svg') }}" alt="Instagram">
+          </span>
+        </a>
+      </li>
+    </ul>
+  </footer>
+
+  <script>
+    // LocalStorage "Husk mig"
     document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("loginForm");
-        const u = document.getElementById("brugernavn");
-        const p = document.getElementById("kode");
-        const chk = document.getElementById("huskMig");
+      const form = document.getElementById("loginForm");
+      const u = document.getElementById("brugernavn");
+      const p = document.getElementById("kode");
+      const chk = document.getElementById("huskMig");
 
-       
-        const savedUser = localStorage.getItem("vasketid_user");
-        const savedPass = localStorage.getItem("vasketid_pass");
-        if (savedUser) {
-            u.value = savedUser;
-            if (savedUser.toLowerCase() !== "admin" && savedPass) {
-                p.value = savedPass;
-                chk.checked = true;
-            }
+      const savedUser = localStorage.getItem("vasketid_user");
+      const savedPass = localStorage.getItem("vasketid_pass");
+      if (savedUser) {
+        u.value = savedUser;
+        if (savedUser.toLowerCase() !== "admin" && savedPass) {
+          p.value = savedPass;
+          chk.checked = true;
         }
+      }
 
-       
-        form.addEventListener("submit", function () {
-            const userNow = (u.value || "").toLowerCase();
-            if (chk.checked) {
-                localStorage.setItem("vasketid_user", u.value);
-                if (userNow !== "admin") {
-                    localStorage.setItem("vasketid_pass", p.value);
-                } else {
-                    localStorage.removeItem("vasketid_pass");
-                }
-            } else {
-                localStorage.removeItem("vasketid_user");
-                localStorage.removeItem("vasketid_pass");
-            }
-        });
+      form.addEventListener("submit", function () {
+        const userNow = (u.value || "").toLowerCase();
+        if (chk.checked) {
+          localStorage.setItem("vasketid_user", u.value);
+          if (userNow !== "admin") {
+            localStorage.setItem("vasketid_pass", p.value);
+          } else {
+            localStorage.removeItem("vasketid_pass");
+          }
+        } else {
+          localStorage.removeItem("vasketid_user");
+          localStorage.removeItem("vasketid_pass");
+        }
+      });
 
-       
-        u.addEventListener("input", function () {
-            if ((u.value || "").toLowerCase() === "admin") {
-                chk.checked = false;
-                localStorage.removeItem("vasketid_pass");
-            }
-        });
+      u.addEventListener("input", function () {
+        if ((u.value || "").toLowerCase() === "admin") {
+          chk.checked = false;
+          localStorage.removeItem("vasketid_pass");
+        }
+      });
     });
-    </script>
+  </script>
 </body>
 </html>
