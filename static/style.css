@@ -469,23 +469,58 @@ footer{
   .login-menu .toppanel-knap { width: 100%; }
   .toppanel-select { max-width: 60vw; }
 }
+/* ---- Login-aktivitet layout fix ---- */
 .dotlist {
-  list-style-type: disc;
-  padding-left: 22px;
-  margin: 10px 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 2; /* over baggrund men under toppanel */
 }
+
 .dotlist li {
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.35);
   border: 1px solid rgba(255,255,255,0.15);
+  border-left: 6px solid rgba(0,255,0,0.5);
+  border-radius: 10px;
+  padding: 10px 14px;
+  line-height: 1.4;
+  font-size: 14px;
+  position: relative;
 }
+
 .dotlist li[data-status="fejl"] {
-  border-color: rgba(255,0,0,0.4);
-  background: rgba(255,0,0,0.08);
+  border-left-color: rgba(255,0,0,0.55);
+  background: rgba(50,0,0,0.35);
 }
-.dotlist li[data-status="succes"] {
-  border-color: rgba(0,200,0,0.3);
-  background: rgba(0,200,0,0.08);
+
+.dotlist li strong {
+  display: inline-block;
+  min-width: 70px;
+}
+
+.kv {
+  display: inline-block;
+  margin-right: 14px;
+  white-space: nowrap;
+}
+
+details.ua {
+  margin-top: 6px;
+}
+details.ua summary {
+  cursor: pointer;
+  color: #9fd8ff;
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Danger-zone fix – gør knappen klikbar */
+.window.danger {
+  position: relative;
+  z-index: 5;       /* hæver over andre elementer */
+  margin-top: 32px; /* ekstra luft under listen */
 }
