@@ -8,6 +8,7 @@ except ImportError:
     from psycopg2 import Error as PGError
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
+from flask import send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -33,7 +34,10 @@ import threading
 import time
 from email.mime.text import MIMEText
 from twilio.rest import Client
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, safe_join
+
+DOCS_DIR = os.path.join(app.root_path, "static", "docs")
+os.makedirs(DOCS_DIR, exist_ok=True)
 
 UPLOAD_FOLDER = 'static'
 # disse køre systemet og styrer essentielle sikkerheder
@@ -3034,32 +3038,27 @@ def kommentar():
 
     return render_template("kommentar.html", kommentar=kommentar)
 
-@app.route("/dokumenter", methods=["GET", "POST"])
+@app.route("/dokumenter")
 def dokumenter():
     if 'brugernavn' not in session:
         return redirect('/login')
 
-    if request.method == "POST":
-        if session['brugernavn'].lower() != 'admin':
-            return "Adgang nægtet", 403
-
-        if "slet_fil" in request.form:
-            filnavn = request.form["slet_fil"]
-            sti = os.path.join(app.config['UPLOAD_FOLDER'], filnavn)
-            if os.path.exists(sti):
-                os.remove(sti)
-
-        filer = request.files.getlist("fil")
-        for fil in filer:
-            if fil and tilladt_fil(fil.filename):
-                navn = secure_filename(fil.filename)
-                fil.save(os.path.join(app.config['UPLOAD_FOLDER'], navn))
-
-        return redirect("/dokumenter")
-
-    filer = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith(".pdf")]
+    filer = [f for f in sorted(os.listdir(DOCS_DIR)) if f.lower().endswith(".pdf")]
     return render_template("dokumenter.html", filer=filer, admin=session['brugernavn'].lower() == 'admin')
     # on/off tilslutning af vaskemaskine
+
+@app.route("/doc/<path:filename>")
+def serve_pdf(filename):
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
+    # Beskyt mod path-tricks
+    safe_path = safe_join(DOCS_DIR, filename)
+    if not safe_path or not os.path.isfile(safe_path):
+        return "Filen findes ikke", 404
+
+    # Send inline (vises direkte i browser)
+    return send_from_directory(DOCS_DIR, filename, mimetype="application/pdf", as_attachment=False)
 
 @app.route("/iot_toggle", methods=["POST"])
 def iot_toggle():
