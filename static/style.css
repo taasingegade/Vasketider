@@ -39,6 +39,7 @@ body{
   position:fixed; top:0; left:0; right:0;
   display:flex; gap:12px; align-items:center; flex-wrap:wrap;
   padding:10px 16px;
+  overflow: visible;
   background:var(--frost-bg);
   border-bottom:1px solid var(--frost-brd);
   color:var(--frost-txt);
@@ -153,35 +154,52 @@ input:checked + .slider:before{ transform:translateX(20px); }
 }
 .hamburger {
   all: unset;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-direction: column;
   gap: 6px;
-  width: 34px;
-  height: 30px;
+  width: 40px;
+  height: 36px;
   padding: 6px;
   cursor: pointer;
+  margin: 0;                     /* fjern evt. indbyggede margin */
+  position: relative;
+  z-index: 4000;                 /* højere end toppanel indhold */
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+  border-radius: 8px;
+  box-shadow: none;
 }
-.hamburger:focus-visible{ outline:2px solid rgba(0,0,0,0.35); border-radius:6px; }
+.hamburger:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); border-radius:6px; }
 .hamburger-bar {
-  width: 100%;
+  width: 22px;
   height: 3px;
-  background: #000; /* ← sort som du bad om */
-  border-radius: 2px;
-  box-shadow: 0 0 2px rgba(255,255,255,0.7);
-  transition: transform .25s ease, opacity .25s ease;
+  background: #000;              /* SORT som ønsket */
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset, 0 0 4px rgba(0,0,0,0.08);
+  transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
 }
-
-.login-menu{
-  position:absolute; top:60px; right:16px;
-  display:none; flex-direction:column; gap:8px; padding:12px; z-index:3500;
-  background: rgba(255,255,255,0.85); color:#111; border:1px solid rgba(0,0,0,0.15); border-radius:12px;
-  backdrop-filter: blur(6px);
+.hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
+.login-menu {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  display: none;
+  z-index: 4500;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255,255,255,0.95);
+  color: #111;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  min-width: 200px;
 }
 .login-menu.show{ display:flex; }
-.login-menu .toppanel-knap{ width:220px; background:rgba(255,255,255,0.55); color:#000; }
-.login-menu .toppanel-knap:hover{ color:var(--danger); background:rgba(255,255,255,0.75); }
+.login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
+.login-menu .toppanel-knap:hover { color: var(--danger); background: rgba(255,255,255,0.85); }
 
 /* ---------- Kalender (uændret funktion) ---------- */
 .calendar{
