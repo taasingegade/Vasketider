@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="da">
 <head>
@@ -46,6 +45,24 @@
 
     .danger { border-color: rgba(255,0,0,0.55) !important; background: rgba(255,0,0,0.08) !important; }
     canvas { width:100%; height: 280px; max-width: 100%; }
+
+    /* ---- Prik/punkt-liste til Login-aktivitet ---- */
+    .dotlist { list-style: disc; padding-left: 22px; margin: 8px 0; }
+    .dotlist li {
+      margin-bottom: 12px; padding: 8px 10px;
+      border-radius: 8px; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .dotlist li[data-status="fejl"]   { border-color: rgba(255,0,0,0.40); background: rgba(255,0,0,0.08); }
+    .dotlist li[data-status="succes"] { border-color: rgba(0,200,0,0.30); background: rgba(0,200,0,0.08); }
+
+    .badge-ok   { display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(0,200,0,.5); background: rgba(0,200,0,.1); font-weight:600; font-size:12px; }
+    .badge-fail { display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(255,0,0,.5); background: rgba(255,0,0,.1); font-weight:600; font-size:12px; }
+
+    .kv { display:inline-block; margin-right:10px; }
+    .kv b { opacity:.9; }
+    details.ua { margin-top:6px; }
+    details.ua summary { cursor:pointer; user-select:none; }
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -230,25 +247,54 @@
       <div class="grid-2" style="margin-top:16px;">
         <div class="window">
           <h3>Login-aktivitet (30 dage)</h3>
-          <div class="muted">OK/afvist, user agent og IP-geo</div>
-          <table id="loginTable">
-            <thead><tr><th>Tid</th><th>Bruger</th><th>Status</th><th>Browser/OS</th><th>IP (by/org)</th></tr></thead>
-            <tbody>
-              {% if logins and logins|length > 0 %}
-                {% for r in logins %}
-                  <tr data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
-                    <td>{{ r.tidspunkt }}</td>
-                    <td>{{ r.brugernavn }}</td>
-                    <td>{{ r.indikator_label }}</td>
-                    <td>{{ r.ua_browser }} / {{ r.ua_os }}</td>
-                    <td>{{ r.ip_city }} / {{ r.ip_org }}</td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <tr><td colspan="5" class="muted">Ingen login-aktivitet i perioden.</td></tr>
-              {% endif %}
-            </tbody>
-          </table>
+          <div class="muted">OK/afvist, IP, device, UA og (hvis tilgængeligt) geo/ASN</div>
+
+          <!-- PUNKT-FORM -->
+          <ul id="loginList" class="dotlist">
+            {% if logins and logins|length > 0 %}
+              {% for r in logins %}
+                <li data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
+                  <div class="kv"><b>Tid:</b> {{ r.tidspunkt }}</div>
+                  <div class="kv"><b>Bruger:</b> {{ r.brugernavn }}</div>
+                  <div class="kv">
+                    {% if r.indikator_ok %}
+                      <span class="badge-ok">{{ r.indikator_label }}</span>
+                    {% else %}
+                      <span class="badge-fail">{{ r.indikator_label }}</span>
+                    {% endif %}
+                  </div>
+                  <br>
+
+                  <div class="kv"><b>Browser/OS:</b> {{ r.ua_browser }} / {{ r.ua_os }}</div>
+                  <div class="kv"><b>Enhed:</b> {{ r.ua_device }}</div>
+                  <br>
+
+                  <div class="kv"><b>IP:</b> {{ r.ip or '—' }}</div>
+                  {% if r.ip_city or r.ip_org or r.ip_region or r.ip_country %}
+                    <div class="kv"><b>Geo/ASN:</b>
+                      {{ r.ip_city }}{% if r.ip_city and (r.ip_region or r.ip_country) %},{% endif %}
+                      {{ r.ip_region }}{% if r.ip_region and r.ip_country %},{% endif %}
+                      {{ r.ip_country }}
+                      {% if r.ip_org %} — {{ r.ip_org }}{% endif %}
+                    </div>
+                  {% endif %}
+                  {% if r.ip_is_datacenter %}
+                    <div class="kv"><b>Datacenter:</b> Ja</div>
+                  {% endif %}
+                  {% if r.ip_hash %}
+                    <div class="kv"><b>IP-hash:</b> {{ r.ip_hash }}</div>
+                  {% endif %}
+
+                  <details class="ua">
+                    <summary>Vis fuld User-Agent</summary>
+                    <div class="muted">{{ r.enhed or '—' }}</div>
+                  </details>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li class="muted">Ingen login-aktivitet i perioden.</li>
+            {% endif %}
+          </ul>
         </div>
 
         <div class="window">
@@ -333,7 +379,7 @@
       });
     });
 
-    // Chart: direkte pr. dag
+    // Chart: direkte pr. dag (serveren giver "direkte_pr_dag" som liste af [dato, antal])
     (function(){
       const el = document.getElementById('chartDirekte');
       if(!el) return;
