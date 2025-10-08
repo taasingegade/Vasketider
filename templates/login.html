@@ -84,27 +84,24 @@
 <body>
 
   <!-- FROST-HVID FAST TOPPANEL -->
-  <div class="toppanel toppanel--login">
-    <div class="brand">Vasketider</div>
+  <div class="toppanel toppanel--login" role="navigation" aria-label="Topbar">
+  <div class="brand">Vasketider</div>
 
-    <!-- Hamburger (sorte streger) placeret i højre side -->
-    <button class="hamburger right" type="button" aria-label="Åbn menu" onclick="toggleMenu()">
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-    </button>
+  <!-- Hamburger (SKAL have både 'hamburger' og 'right' classes) -->
+  <button id="hamburgerBtn" class="hamburger right" type="button" aria-label="Åbn menu" onclick="toggleMenu()">
+    <span class="hamburger-bar" aria-hidden="true"></span>
+    <span class="hamburger-bar" aria-hidden="true"></span>
+    <span class="hamburger-bar" aria-hidden="true"></span>
+  </button>
 
-    <!-- Fold-ud login-menu (glas-knapper, rød hover-tekst) -->
-    <div class="login-menu" role="menu" aria-label="Login-menu">
-      <!-- Trigger selve formularen i boksen -->
-      <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
-
-      <!-- Opret / Skift / Regler kun i menuen -->
-      <form method="get" action="/opret"><button type="submit" class="toppanel-knap">Opret ny bruger</button></form>
-      <form method="get" action="/skiftkode"><button type="submit" class="toppanel-knap">Skift adgangskode</button></form>
-      <form method="get" action="/regler"><button type="submit" class="toppanel-knap">Regler</button></form>
-    </div>
+  <!-- Fold-ud login-menu -->
+  <div id="loginMenu" class="login-menu" role="menu" aria-label="Login-menu">
+    <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
+    <form method="get" action="/opret"><button type="submit" class="toppanel-knap">Opret ny bruger</button></form>
+    <form method="get" action="/skiftkode"><button type="submit" class="toppanel-knap">Skift adgangskode</button></form>
+    <form method="get" action="/regler"><button type="submit" class="toppanel-knap">Regler</button></form>
   </div>
+</div>
 
   <!-- AUTH-VINDUE (kun login – opret/skift er flyttet i menuen) -->
   <div class="auth-wrap">
