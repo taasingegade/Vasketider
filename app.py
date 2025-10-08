@@ -789,7 +789,7 @@ def send_sms_twilio(modtager, besked):
 
 def _truthy(v):
     if v is None: return False
-    return str(v).strip().lower() in ("1","true","on","yes","ja","y","checked")
+    return str(v).strip().lower() in ("1","true","on","yes","ja","t","y","checked")
 
 def ensure_stat_support_tables(cur):
     # Kun små hjælpe-tabeller; vi ændrer ikke dine primære tabeller.
@@ -823,6 +823,37 @@ def ensure_stat_support_tables(cur):
             created_at TIMESTAMP DEFAULT NOW()
         )
     """)
+
+def ensure_user_columns(cur):
+    # Safe at køre – opretter manglende felter i brugere
+    cur.execute("""
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='email') THEN
+        ALTER TABLE brugere ADD COLUMN email TEXT;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='sms') THEN
+        ALTER TABLE brugere ADD COLUMN sms TEXT;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='godkendt') THEN
+        ALTER TABLE brugere ADD COLUMN godkendt BOOLEAN DEFAULT TRUE;
+      END IF;
+      -- bevar dit gamle 'notifikation' samlet felt
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notifikation') THEN
+        ALTER TABLE brugere ADD COLUMN notifikation TEXT DEFAULT 'ja';
+      END IF;
+      -- kanal flags lagres som 'ja'/'nej' (bagudskompatibelt)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notif_email') THEN
+        ALTER TABLE brugere ADD COLUMN notif_email TEXT DEFAULT 'ja';
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notif_sms') THEN
+        ALTER TABLE brugere ADD COLUMN notif_sms TEXT DEFAULT 'nej';
+      END IF;
+    END$$;
+    """)
+
+def _ja_nej(b):
+    return 'ja' if bool(b) else 'nej'
 
 def _normalize_dk_sms(s: str) -> str:
     s = (s or "").strip()
@@ -1099,6 +1130,15 @@ def _naeste_tick_2t_window(now_local):
         if cand > now_local:
             return cand
     return (base + timedelta(days=1)).replace(hour=hours[0])
+
+def require_admin():
+    return 'brugernavn' in session and session['brugernavn'].lower() == 'admin'
+
+def user_row_to_dict(row, cols):
+    d = {}
+    for i, c in enumerate(cols):
+        d[c] = row[i]
+    return d
 
 def reminder_loop():
     """
@@ -1522,13 +1562,26 @@ def logout():
 
 @app.get("/_testmail")
 def _testmail():
-    send_email("hornsbergmorten@gmail.com", "Test fra Vasketider", "Denne mail kommer direkte fra Flask send_email()")
-    return "OK - tjek din indbakke"
+    # Kun admin må teste mail
+    if session.get('brugernavn', '').lower() != 'admin':
+        return redirect('/login')
+
+    try:
+        send_email(
+            "hornsbergmorten@gmail.com",
+            "Test fra Vasketider",
+            "Denne mail kommer direkte fra Flask send_email(). Hvis du ser den, virker mail."
+        )
+        return "OK – testmail sendt. Tjek din indbakke (og evt. spam)."
+    except Exception as e:
+        # Log og vis kort fejl
+        print("❌ _testmail fejl:", e, flush=True)
+        return f"FEJL – kunne ikke sende testmail: {e}", 500
 
 @app.route("/admin/ryd_logs", methods=["POST"])
 def admin_ryd_logs():
     # Kun admin
-    if 'brugernavn' not in session or session['brugernavn'].lower() != 'admin':
+    if session.get('brugernavn', '').lower() != 'admin':
         return redirect('/login')
 
     # Hent valg fra formular
@@ -1541,101 +1594,113 @@ def admin_ryd_logs():
     slet_statistik  = request.form.get("slet_statistik") == "on"
     slet_alt        = request.form.get("slet_alt") == "on"
 
-    # Dato-interval (valgfrit). Hvis begge tomme -> sletter alt i den/de valgte tabeller
+    # Dato-interval (valgfrit)
     fra = (request.form.get("fra_dato") or "").strip()
     til = (request.form.get("til_dato") or "").strip()
 
     # Helper til WHERE for timestamp/date kolonner
-    def build_where(colname):
-        where = []
-        params = []
+    def build_where(colname: str):
+        parts, params = [], []
         if fra:
-            where.append(f"{colname}::date >= %s")
+            parts.append(f'{colname}::date >= %s')
             params.append(fra)
         if til:
-            where.append(f"{colname}::date <= %s")
+            parts.append(f'{colname}::date <= %s')
             params.append(til)
-        if where:
-            return " WHERE " + " AND ".join(where), tuple(params)
+        if parts:
+            return " WHERE " + " AND ".join(parts), tuple(params)
         return "", tuple()
 
-    conn = get_db_connection()
-    cur  = conn.cursor()
-    slettet = []
+    # Map: “checkbox” → (SQL tabelnavn med korrekt citat, kolonne til dato-filter)
+    targets = {
+        "login_log":      ('login_log',            'tidspunkt'),
+        "booking_log":    ('booking_log',          'tidspunkt'),
+        "booking_attempts": ('booking_attempts',   'ts'),
+        # NB: æ kræver citat i PostgreSQL
+        "direkte_kæder":  ('"direkte_kæder"',      'created_at'),
+        "miele_activity": ('miele_activity',       'ts'),
+        "miele_status":   ('miele_status',         'opdateret'),
+        "statistik":      ('statistik',            'dato'),
+    }
+
+    conn = get_db_connection(); cur = conn.cursor()
+    slettet_info = []  # tekst-liste til besked
 
     try:
         if slet_alt:
-            # slet ALT i alle relevante tabeller
-            for t in ["login_log","booking_log","booking_attempts","direkte_kæder","miele_activity","miele_status","statistik"]:
-                cur.execute(f"TRUNCATE {t} RESTART IDENTITY")
-            slettet.append("ALT (alle tabeller)")
+            # TRUNCATE alle – husk citat for direkte_kæder
+            for tname in ['login_log','booking_log','booking_attempts','"direkte_kæder"','miele_activity','miele_status','statistik']:
+                try:
+                    cur.execute(f"TRUNCATE {tname} RESTART IDENTITY")
+                    slettet_info.append(f"TRUNCATE {tname}")
+                except Exception as e:
+                    print(f"⚠️ TRUNCATE fejlede for {tname}: {e}", flush=True)
+                    slettet_info.append(f"TRUNCATE {tname} (fejl)")
         else:
-            # Login-log
+            # Selectivt DELETE med evt. dato-filter og tællere
             if slet_login:
-                where, params = build_where("tidspunkt")
-                cur.execute(f"DELETE FROM login_log{where}", params)
-                slettet.append("login_log")
-
-            # Booking-log
+                t, col = targets["login_log"]
+                where, params = build_where(col)
+                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                slettet_info.append(f"login_log: {cur.rowcount} rækker")
             if slet_booking:
-                where, params = build_where("tidspunkt")
-                cur.execute(f"DELETE FROM booking_log{where}", params)
-                slettet.append("booking_log")
-
-            # Booking attempts
+                t, col = targets["booking_log"]
+                where, params = build_where(col)
+                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                slettet_info.append(f"booking_log: {cur.rowcount} rækker")
             if slet_attempts:
-                where, params = build_where("ts")
-                cur.execute(f"DELETE FROM booking_attempts{where}", params)
-                slettet.append("booking_attempts")
-
-            # Kæder
+                t, col = targets["booking_attempts"]
+                where, params = build_where(col)
+                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                slettet_info.append(f"booking_attempts: {cur.rowcount} rækker")
             if slet_kaeder:
-                where, params = build_where("created_at")
-                cur.execute(f"DELETE FROM direkte_kæder{where}", params)
-                slettet.append("direkte_kæder")
-
-            # Miele activity
+                t, col = targets["direkte_kæder"]
+                where, params = build_where(col)
+                try:
+                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                except Exception as e:
+                    # Faldbak uden filter hvis kolonnenavn afviger i nogle miljøer
+                    print("⚠️ direkte_kæder delete med filter fejlede → prøver uden filter:", e, flush=True)
+                    cur.execute(f"DELETE FROM {t} RETURNING 1")
+                slettet_info.append(f'direkte_kæder: {cur.rowcount} rækker')
             if slet_miele_act:
-                # nogle miljøer har kun ts; andre både ts og opdateret — vi bruger ts her
-                where, params = build_where("ts")
-                # hvis kolonnen ikke findes, prøv uden filtrering
+                t, col = targets["miele_activity"]
+                where, params = build_where(col)
                 try:
-                    cur.execute(f"DELETE FROM miele_activity{where}", params)
-                except Exception:
-                    cur.execute("DELETE FROM miele_activity")
-                slettet.append("miele_activity")
-
-            # Miele status
+                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                except Exception as e:
+                    print("⚠️ miele_activity delete med filter fejlede → prøver uden filter:", e, flush=True)
+                    cur.execute(f"DELETE FROM {t} RETURNING 1")
+                slettet_info.append(f"miele_activity: {cur.rowcount} rækker")
             if slet_miele_stat:
-                where, params = build_where("opdateret")
+                t, col = targets["miele_status"]
+                where, params = build_where(col)
                 try:
-                    cur.execute(f"DELETE FROM miele_status{where}", params)
-                except Exception:
-                    cur.execute("DELETE FROM miele_status")
-                slettet.append("miele_status")
-
-            # Daglig statistik (fx 'direktetid')
+                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                except Exception as e:
+                    print("⚠️ miele_status delete med filter fejlede → prøver uden filter:", e, flush=True)
+                    cur.execute(f"DELETE FROM {t} RETURNING 1")
+                slettet_info.append(f"miele_status: {cur.rowcount} rækker")
             if slet_statistik:
-                where, params = build_where("dato")
-                cur.execute(f"DELETE FROM statistik{where}", params)
-                slettet.append("statistik")
+                t, col = targets["statistik"]
+                where, params = build_where(col)
+                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
+                slettet_info.append(f"statistik: {cur.rowcount} rækker")
 
         conn.commit()
 
     except Exception as e:
         conn.rollback()
-        # Du kan evt. flash(e) her
-        print("Fejl ved rydning af logs:", e)
-
+        print("❌ Fejl ved rydning af logs:", e, flush=True)
+        slettet_info.append("Fejl under sletning")
     finally:
         try:
-            cur.close()
-            conn.close()
+            cur.close(); conn.close()
         except Exception:
             pass
 
-    # Send en kort besked via querystring
-    besked = "Slettede: " + (", ".join(slettet) if slettet else "ingen ændringer")
+    besked = "Slettede: " + (", ".join(slettet_info) if slettet_info else "ingen ændringer")
+    # tilbage til statistik-siden (din formular peger allerede her)
     return redirect(f"/statistik?besked={besked}")
 
 @app.route('/admin')
@@ -1835,6 +1900,238 @@ def reset_direkte():
     conn.commit(); conn.close()
     # Vis password til admin via flash/besked (eller redirect med querystring)
     return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
+
+@app.route("/admin/brugere")
+def admin_vis_brugere():
+    if not require_admin():
+        return redirect("/login")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Sikr kolonnerne findes (nød-fallback hvis migrering ikke er kørt)
+        cur.execute("""
+            DO $$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                             WHERE table_name='brugere' AND column_name='godkendt') THEN
+                ALTER TABLE brugere ADD COLUMN godkendt BOOLEAN DEFAULT TRUE;
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                             WHERE table_name='brugere' AND column_name='notif_mail') THEN
+                ALTER TABLE brugere ADD COLUMN notif_mail BOOLEAN DEFAULT TRUE;
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                             WHERE table_name='brugere' AND column_name='notif_sms') THEN
+                ALTER TABLE brugere ADD COLUMN notif_sms BOOLEAN DEFAULT FALSE;
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                             WHERE table_name='brugere' AND column_name='email') THEN
+                ALTER TABLE brugere ADD COLUMN email TEXT;
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                             WHERE table_name='brugere' AND column_name='sms') THEN
+                ALTER TABLE brugere ADD COLUMN sms TEXT;
+              END IF;
+            END$$;
+        """)
+        conn.commit()
+
+        cur.execute("""
+            SELECT id, brugernavn, kode, email, sms, COALESCE(godkendt, TRUE),
+                   COALESCE(notif_mail, TRUE), COALESCE(notif_sms, FALSE)
+            FROM brugere
+            ORDER BY LOWER(brugernavn)
+        """)
+        rows = cur.fetchall() or []
+        cols = ["id","brugernavn","kode","email","sms","godkendt","notif_mail","notif_sms"]
+        brugere = [user_row_to_dict(r, cols) for r in rows]
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+    return render_template("vis_brugere.html", brugere=brugere)
+
+@app.route("/admin/brugere/opret", methods=["POST"])
+def admin_opret_bruger():
+    if not require_admin():
+        return redirect("/login")
+
+    bnavn = (request.form.get("brugernavn") or "").strip()
+    kode  = (request.form.get("kode") or "").strip()
+    kode2 = (request.form.get("kode2") or "").strip()
+    email = (request.form.get("email") or "").strip() or None
+    sms   = (request.form.get("sms") or "").strip() or None
+    godk  = 1 if request.form.get("godkendt") == "1" else 0
+
+    if not bnavn or not kode or kode != kode2:
+        return redirect(url_for("admin_vis_brugere", fejl="Ugyldigt brugernavn eller kode stemmer ikke."))
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        # tjek dublet
+        cur.execute("SELECT 1 FROM brugere WHERE LOWER(brugernavn)=LOWER(%s)", (bnavn,))
+        if cur.fetchone():
+            return redirect(url_for("admin_vis_brugere", fejl="Brugernavn findes allerede."))
+
+        cur.execute("""
+            INSERT INTO brugere (brugernavn, kode, email, sms, godkendt, notif_mail, notif_sms)
+            VALUES (%s,%s,%s,%s,%s, TRUE, FALSE)
+        """, (bnavn, kode, email, sms, godk))
+        conn.commit()
+        return redirect(url_for("admin_vis_brugere", besked=f"Oprettet: {bnavn}"))
+    except Exception as e:
+        conn.rollback()
+        print("Fejl opret bruger:", e)
+        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke oprette bruger."))
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+@app.route("/admin/brugere/gem", methods=["POST"])
+def admin_gem_bruger():
+    if not require_admin():
+        return redirect("/login")
+
+    uid   = request.form.get("id")
+    bnavn = (request.form.get("brugernavn") or "").strip()
+    kode  = (request.form.get("kode") or "").strip()
+    email = (request.form.get("email") or "").strip() or None
+    sms   = (request.form.get("sms") or "").strip() or None
+
+    # Checkboxe sender altid noget pga skjulte 0-felter i HTML
+    notif_mail = 1 if request.form.get("notif_mail") == "1" else 0
+    notif_sms  = 1 if request.form.get("notif_sms") == "1" else 0
+    godk      = 1 if request.form.get("godkendt") == "1" else 0
+
+    if not uid or not bnavn:
+        return redirect(url_for("admin_vis_brugere", fejl="Manglende data ved gem."))
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE brugere
+               SET brugernavn=%s,
+                   kode=%s,
+                   email=%s,
+                   sms=%s,
+                   godkendt=%s,
+                   notif_mail=%s,
+                   notif_sms=%s
+             WHERE id=%s
+        """, (bnavn, kode, email, sms, godk, notif_mail, notif_sms, uid))
+        conn.commit()
+        return redirect(url_for("admin_vis_brugere", besked=f"Gemt: {bnavn}"))
+    except Exception as e:
+        conn.rollback()
+        print("Fejl gem bruger:", e)
+        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke gemme ændringer."))
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+@app.route("/admin/brugere/slet", methods=["POST"])
+def admin_slet_bruger():
+    if not require_admin():
+        return redirect("/login")
+    uid = request.form.get("id")
+    if not uid:
+        return redirect(url_for("admin_vis_brugere", fejl="Mangler id."))
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        # valgfrit: slet også relaterede rækker (bookinger) hvis ønsket
+        cur.execute("DELETE FROM brugere WHERE id=%s", (uid,))
+        conn.commit()
+        return redirect(url_for("admin_vis_brugere", besked="Bruger slettet."))
+    except Exception as e:
+        conn.rollback()
+        print("Fejl slet bruger:", e)
+        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke slette."))
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+@app.route("/admin/brugere/godkend", methods=["POST"])
+def admin_godkend_bruger():
+    if not require_admin():
+        return redirect("/login")
+    uid = request.form.get("id")
+    if not uid:
+        return redirect(url_for("admin_vis_brugere", fejl="Mangler id."))
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE brugere SET godkendt=TRUE WHERE id=%s", (uid,))
+        conn.commit()
+        return redirect(url_for("admin_vis_brugere", besked="Bruger godkendt."))
+    except Exception as e:
+        conn.rollback()
+        print("Fejl godkend:", e)
+        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke godkende."))
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+@app.route("/admin/brugere/book", methods=["POST"])
+def admin_book_for_user():
+    # kun admin
+    if session.get('brugernavn','').lower() != 'admin':
+        return redirect('/login')
+
+    bnavn = (request.form.get("brugernavn") or "").strip()
+    dato  = (request.form.get("dato") or "").strip()
+    slot  = request.form.get("slot")
+    btype = (request.form.get("type") or "full").strip()  # full/early/late
+
+    if not bnavn or not dato or slot is None:
+        return redirect("/vis_brugere?fejl=Udfyld+bruger%2C+dato+og+slot")
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        # bruger findes og er godkendt
+        cur.execute("SELECT 1 FROM brugere WHERE LOWER(brugernavn)=LOWER(%s) AND COALESCE(godkendt,TRUE)=TRUE", (bnavn,))
+        if not cur.fetchone():
+            return redirect("/vis_brugere?fejl=Bruger+findes+ikke+eller+ikke+godkendt")
+
+        # max 2 pr. dag
+        cur.execute("""
+            SELECT COUNT(*) FROM bookinger
+            WHERE LOWER(brugernavn)=LOWER(%s)
+              AND dato_rigtig::date = %s::date
+              AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
+        """, (bnavn, dato))
+        if int(cur.fetchone()[0] or 0) >= 2:
+            return redirect(f"/vis_brugere?fejl={bnavn}+har+allerede+2+bookinger+den+dag")
+
+        # indsæt booking (slot_index gemmes som int)
+        cur.execute("""
+            INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index, booking_type, status, created_at, activation_required)
+            VALUES (%s, %s::date, %s::int, %s, 'booked', NOW(), FALSE)
+            RETURNING id
+        """, (bnavn, dato, int(slot), btype))
+        bid = cur.fetchone()[0]
+
+        # log forsøg (hvis booking_log findes, ellers ignorer fejl)
+        try:
+            cur.execute("""
+                INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, tidspunkt)
+                VALUES (%s,'admin_book',%s::date,%s::int,%s,'ok',NOW())
+            """, (bnavn, dato, int(slot), btype))
+        except Exception:
+            pass
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print("Fejl admin-book:", e)
+        return redirect("/vis_brugere?fejl=Kunne+ikke+booke")
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
+    return redirect(f"/vis_brugere?besked=Booket+for+{bnavn}+%28id+{bid}%29")
+
 
 # ===============
 # Bookninger
@@ -2433,73 +2730,128 @@ def opret():
 
 @app.route("/vis_brugere")
 def vis_brugere():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT brugernavn, kode, email, sms, notifikation, notif_email, notif_sms, godkendt
-        FROM brugere
-        ORDER BY brugernavn
-    """)
-    cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
-    brugere = [dict(zip(cols, row)) for row in cur.fetchall()]
-    conn.close()
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        ensure_user_columns(cur); conn.commit()
+        cur.execute("""
+            SELECT brugernavn, kode, email, sms,
+                   COALESCE(notifikation,'ja') AS notifikation,
+                   COALESCE(notif_email,'ja') AS notif_email,
+                   COALESCE(notif_sms,'nej')  AS notif_sms,
+                   COALESCE(godkendt, TRUE)   AS godkendt
+            FROM brugere
+            ORDER BY LOWER(brugernavn)
+        """)
+        rows = cur.fetchall() or []
+        cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
+        brugere = [dict(zip(cols, r)) for r in rows]
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+
     return render_template("vis_brugere.html", brugere=brugere)
 
 @app.route("/opret_bruger", methods=["POST"])
 def opret_bruger():
-    brugernavn = request.form.get("brugernavn")
-    adgangskode = request.form.get("adgangskode")
-    email = request.form.get("email")
-    notifikation = request.form.get("notifikation")
-    sms = request.form.get("sms")
-    godkendt = False
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO brugere (brugernavn, kode, email, notifikation, sms, godkendt) VALUES (%s, %s, %s, %s, %s, %s)",
-                (brugernavn, adgangskode, email, notifikation, sms, godkendt))
-    conn.commit()
-    conn.close()
-    return redirect("/vis_brugere")
+    brugernavn  = (request.form.get("brugernavn") or "").strip()
+    adgangskode = (request.form.get("adgangskode") or "").strip()
+    email       = (request.form.get("email") or "").strip() or None
+    sms         = (request.form.get("sms") or "").strip() or None
+    if sms and not sms.startswith("+"):
+        sms = "+45" + sms
+
+    # samlet + kanaler (skabelonen sender alle tre)
+    notifikation = _ja_nej(_truthy(request.form.get("notifikation")))
+    notif_email  = _ja_nej(_truthy(request.form.get("notif_email")))
+    notif_sms    = _ja_nej(_truthy(request.form.get("notif_sms")))
+    godkendt     = _truthy(request.form.get("godkendt"))
+
+    if not brugernavn or not adgangskode:
+        return redirect("/vis_brugere?fejl=Mangler+brugernavn+eller+password")
+
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        ensure_user_columns(cur)
+        # sikr unikt brugernavn (case-insensitive)
+        cur.execute("SELECT 1 FROM brugere WHERE LOWER(brugernavn)=LOWER(%s)", (brugernavn,))
+        if cur.fetchone():
+            return redirect("/vis_brugere?fejl=Brugernavn+findes+allerede")
+
+        cur.execute("""
+            INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, notif_email, notif_sms, godkendt)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (brugernavn, adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt))
+        conn.commit()
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+    return redirect("/vis_brugere?besked=Bruger+oprettet")
 
 @app.route("/slet_bruger", methods=["POST"])
 def slet_bruger():
-    brugernavn = request.form.get("brugernavn")
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM brugere WHERE brugernavn = %s", (brugernavn,))
-    conn.commit()
-    conn.close()
-    return redirect("/vis_brugere")
+    brugernavn = (request.form.get("brugernavn") or "").strip()
+    if not brugernavn:
+        return redirect("/vis_brugere?fejl=Mangler+brugernavn")
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM brugere WHERE LOWER(brugernavn)=LOWER(%s)", (brugernavn,))
+        conn.commit()
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+    return redirect("/vis_brugere?besked=Slettet")
 
 @app.route("/godkend_bruger", methods=["POST"])
 def godkend_bruger():
-    brugernavn = request.form.get("brugernavn")
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("UPDATE brugere SET godkendt = TRUE WHERE brugernavn = %s", (brugernavn,))
-    conn.commit()
-    conn.close()
-    return redirect("/vis_brugere")
+    brugernavn = (request.form.get("brugernavn") or "").strip()
+    if not brugernavn:
+        return redirect("/vis_brugere?fejl=Mangler+brugernavn")
+    conn = get_db_connection(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE brugere SET godkendt=TRUE WHERE LOWER(brugernavn)=LOWER(%s)", (brugernavn,))
+        conn.commit()
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+    return redirect("/vis_brugere?besked=Godkendt")
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
-    brugernavn   = request.form.get("brugernavn")
-    adgangskode  = request.form.get("adgangskode")
-    email        = request.form.get("email")
-    sms          = request.form.get("sms")
-    notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
-    notif_email  = 'ja' if _truthy(request.form.get("notif_email"))  else 'nej'
-    notif_sms    = 'ja' if _truthy(request.form.get("notif_sms"))    else 'nej'
-    godkendt     = True if _truthy(request.form.get("godkendt")) else False
+    brugernavn   = (request.form.get("brugernavn") or "").strip()
+    adgangskode  = (request.form.get("adgangskode") or "").strip()
+    email        = (request.form.get("email") or "").strip() or None
+    sms          = (request.form.get("sms") or "").strip() or None
+    if sms and not sms.startswith("+"):
+        sms = "+45" + sms
+
+    # checkbox linjen i HTML sender altid et skjult 'nej' + et 'ja' hvis kryds
+    notifikation = _ja_nej(_truthy(request.form.get("notifikation")))
+    notif_email  = _ja_nej(_truthy(request.form.get("notif_email")))
+    notif_sms    = _ja_nej(_truthy(request.form.get("notif_sms")))
+    godkendt     = _truthy(request.form.get("godkendt"))
+
+    if not brugernavn:
+        return redirect("/vis_brugere?fejl=Mangler+brugernavn")
 
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("""
-        UPDATE brugere
-        SET kode=%s, email=%s, sms=%s, notifikation=%s, notif_email=%s, notif_sms=%s, godkendt=%s
-        WHERE brugernavn=%s
-    """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
-    conn.commit(); conn.close()
-    return redirect("/vis_brugere")
+    try:
+        ensure_user_columns(cur)
+        cur.execute("""
+            UPDATE brugere
+               SET kode=%s,
+                   email=%s,
+                   sms=%s,
+                   notifikation=%s,
+                   notif_email=%s,
+                   notif_sms=%s,
+                   godkendt=%s
+             WHERE brugernavn=%s
+        """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
+        conn.commit()
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+    return redirect("/vis_brugere?besked=Gemt")
 
 @app.route("/godkend/<brugernavn>")
 def godkend_via_link(brugernavn):

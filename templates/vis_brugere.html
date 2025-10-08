@@ -5,51 +5,53 @@
   <meta charset="UTF-8" />
   <title>Brugeradministration – Vasketider</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    body { color: #fff; }
+    body { color: #fff; background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover; }
     .wrap { max-width: 1250px; margin: 90px auto 40px; padding: 0 16px; }
     .grid-3 { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 16px; }
     @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr; } }
     .window { background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 14px; backdrop-filter: blur(6px); }
     .window h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 10px; }
+    .list { display:flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 220px); overflow: auto; padding-right: 6px; }
+    .card { border:1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 12px; background: rgba(0,0,0,.25); }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .field { display: flex; flex-direction: column; gap: 4px; }
     .field label { font-size: 12px; opacity: .85; }
     .field input, .field select { height: 36px; border-radius: 8px; border:1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.25); color:#fff; padding: 0 10px; }
-    .switchline { display:flex; align-items:center; gap:10px; }
     .btnbar { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
     .btn { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color:#fff; cursor:pointer; }
     .btn.save { background: rgba(76,175,80,.22); border-color: rgba(76,175,80,.5); }
     .btn.del { background: rgba(220,0,0,.25); border-color: rgba(255,100,100,.6); }
     .btn.appr { background: rgba(0,130,255,.20); border-color: rgba(0,130,255,.55); }
-    .list { display:flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 220px); overflow: auto; padding-right: 6px; }
-    .card { border:1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 12px; background: rgba(0,0,0,.25); }
-    .topline { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
-    .topline .field { flex:1; }
     .muted { font-size: 12px; opacity: .8; }
+    .hr { height:1px; background: rgba(255,255,255,.18); margin: 10px 0; }
     .toppanel { position: fixed; top:0; left:0; right:0; display:flex; gap:10px; padding:10px 16px; background: rgba(0,0,0,.55); border-bottom:1px solid rgba(255,255,255,.2); backdrop-filter: blur(6px); z-index: 1000; }
     .toppanel form { margin:0; }
-    .toppanel-knap, .ghost { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.10); color:#fff; cursor:pointer; }
-    .ghost { background: transparent; border-style: dashed; }
-    .badge { display:inline-block; margin: 6px 0 0; padding:6px 10px; border-radius:10px; background: rgba(76,175,80,.2); border:1px solid rgba(76,175,80,.5); }
-    .warn { background: rgba(255,165,0,.15); border-color: rgba(255,165,0,.5); }
-    .ok { background: rgba(76,175,80,.18); border-color: rgba(76,175,80,.5); }
-    .radios { display:flex; gap:12px; flex-wrap: wrap; }
-    .hr { height:1px; background: rgba(255,255,255,.18); margin: 10px 0; }
+    .toppanel-knap { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.10); color:#fff; cursor:pointer; }
+    /* password eye */
+    .password-wrap { position: relative; }
+    .toggle-eye {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 7px; display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.25); cursor: pointer;
+    }
+    .toggle-eye svg { width: 16px; height: 16px; }
+    .notifline { display:flex; gap:18px; justify-content:flex-end; align-items:center; }
+    .notifline label { font-size: 12px; opacity: .95; display:flex; align-items:center; gap:6px; }
   </style>
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/service-worker.js');
-    }
-    function confirmDelete(user) {
-      return confirm('Slet "' + user + '"? Dette kan ikke fortrydes.');
+    function togglePassword(btn){
+      const inputId = btn.getAttribute('data-target');
+      const inp = document.getElementById(inputId);
+      if(!inp) return;
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
     }
   </script>
 </head>
-<body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
+<body>
 
   <!-- TOP -->
   <div class="toppanel">
@@ -62,67 +64,88 @@
 
   <div class="wrap">
     <h2>Brugeradministration</h2>
-    {% if request.args.get("besked") %}
-      <div class="badge ok">{{ request.args.get("besked") }}</div>
-    {% endif %}
-    {% if request.args.get("fejl") %}
-      <div class="badge warn">{{ request.args.get("fejl") }}</div>
-    {% endif %}
 
     <div class="grid-3">
-      <!-- ================= VINDUE 1: LISTE / REDIGER ================= -->
+      <!-- ================ VINDUE 1: LISTE / REDIGER ================ -->
       <div class="window">
         <h3>Brugere (scroll)</h3>
-        <div class="muted">Brugernavn og password øverst, derefter mail, sms og godkendt. Gem/Slet/Godkend nederst.</div>
         <div class="hr"></div>
 
         <div class="list">
           {% if brugere and brugere|length > 0 %}
             {% for u in brugere %}
               <div class="card">
-                <!-- ØVERST: brugernavn + password -->
-                <div class="topline">
+                <!-- Brugernavn + adgangskode (VIS/SKJUL) -->
+                <div class="row">
                   <div class="field">
                     <label>Brugernavn</label>
-                    <input type="text" name="brugernavn" value="{{ u.brugernavn }}" form="form_{{ u.id }}">
+                    <input type="text" name="brugernavn" value="{{ u.brugernavn }}" form="f_{{ u.brugernavn }}">
                   </div>
-                  <div class="field">
+                  <div class="field password-wrap">
                     <label>Password</label>
-                    <input type="text" name="kode" value="{{ u.kode or '' }}" placeholder="••••••" form="form_{{ u.id }}">
+                    {% set pwd_id = 'pwd_' ~ u.brugernavn %}
+                    <input id="{{ pwd_id }}" type="password" name="adgangskode" value="{{ u.adgangskode or '' }}" form="f_{{ u.brugernavn }}">
+                    <button class="toggle-eye" type="button" aria-label="Vis/Skjul password" data-target="{{ pwd_id }}" onclick="togglePassword(this)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
-                <!-- MIDT: mail + sms + godkendt -->
-                <div class="row">
+                <!-- Mail + SMS -->
+                <div class="row" style="margin-top:8px;">
                   <div class="field">
                     <label>Mail</label>
-                    <input type="email" name="email" value="{{ u.email or '' }}" form="form_{{ u.id }}">
+                    <input type="email" name="email" value="{{ u.email or '' }}" form="f_{{ u.brugernavn }}">
                   </div>
                   <div class="field">
                     <label>SMS (mobil)</label>
-                    <input type="text" name="sms" value="{{ u.sms or '' }}" form="form_{{ u.id }}">
+                    <input type="text" name="sms" value="{{ u.sms or '' }}" form="f_{{ u.brugernavn }}">
                   </div>
                 </div>
 
-                <div class="switchline" style="margin-top:6px;">
-                  <input type="checkbox" id="godk_{{ u.id }}" name="godkendt" value="1" form="form_{{ u.id }}" {% if u.godkendt %}checked{% endif %}>
-                  <label for="godk_{{ u.id }}">Godkendt</label>
+                <!-- Godkendt + Notifikationer -->
+                <div class="row" style="margin-top:8px;">
+                  <div class="field" style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="godk_{{ u.brugernavn }}" name="godkendt" value="1" form="f_{{ u.brugernavn }}" {% if u.godkendt %}checked{% endif %}>
+                    <label for="godk_{{ u.brugernavn }}">Godkendt</label>
+                    <input type="hidden" name="godkendt" value="0" form="f_{{ u.brugernavn }}">
+                  </div>
+                  <div class="notifline">
+                    <!-- Samlet notifikation (bevarer din kolonne) -->
+                    <label title="Samlet notifikation (ja/nej)">
+                      <input type="hidden" name="notifikation" value="nej" form="f_{{ u.brugernavn }}">
+                      <input type="checkbox" name="notifikation" value="ja" form="f_{{ u.brugernavn }}" {% if u.notifikation == 'ja' %}checked{% endif %}> Notifikation (samlet)
+                    </label>
+                    <!-- Kanal: MAIL -->
+                    <label>
+                      <input type="hidden" name="notif_email" value="nej" form="f_{{ u.brugernavn }}">
+                      <input type="checkbox" name="notif_email" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_email == 'ja' or u.notif_email is sameas true %}checked{% endif %}> Mail
+                    </label>
+                    <!-- Kanal: SMS -->
+                    <label>
+                      <input type="hidden" name="notif_sms" value="nej" form="f_{{ u.brugernavn }}">
+                      <input type="checkbox" name="notif_sms" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_sms == 'ja' or u.notif_sms is sameas true %}checked{% endif %}> SMS
+                    </label>
+                  </div>
                 </div>
 
-                <!-- NEDERST: knapper -->
+                <!-- Knapper -->
                 <div class="btnbar">
-                  <form id="form_{{ u.id }}" method="post" action="/admin/brugere/gem">
-                    <input type="hidden" name="id" value="{{ u.id }}">
+                  <form id="f_{{ u.brugernavn }}" method="post" action="/opdater_bruger">
+                    <input type="hidden" name="brugernavn" value="{{ u.brugernavn }}">
                     <button class="btn save" type="submit">Gem</button>
                   </form>
 
-                  <form method="post" action="/admin/brugere/slet" onsubmit="return confirmDelete('{{ u.brugernavn }}')">
-                    <input type="hidden" name="id" value="{{ u.id }}">
+                  <form method="post" action="/slet_bruger" onsubmit="return confirm('Slet {{ u.brugernavn }}?')">
+                    <input type="hidden" name="brugernavn" value="{{ u.brugernavn }}">
                     <button class="btn del" type="submit">Slet</button>
                   </form>
 
-                  <form method="post" action="/admin/brugere/godkend">
-                    <input type="hidden" name="id" value="{{ u.id }}">
+                  <form method="post" action="/godkend_bruger">
+                    <input type="hidden" name="brugernavn" value="{{ u.brugernavn }}">
                     <button class="btn appr" type="submit">Godkend</button>
                   </form>
                 </div>
@@ -134,13 +157,12 @@
         </div>
       </div>
 
-      <!-- ================= VINDUE 2: OPRET NY ================= -->
+      <!-- ================ VINDUE 2: OPRET NY ================ -->
       <div class="window">
         <h3>Opret ny bruger</h3>
-        <div class="muted">Udfyld felterne og tryk Opret.</div>
         <div class="hr"></div>
 
-        <form method="post" action="/admin/brugere/opret" id="opretForm">
+        <form method="post" action="/opret_bruger" id="opretForm">
           <div class="field">
             <label>Brugernavn</label>
             <input type="text" name="brugernavn" required>
@@ -148,11 +170,11 @@
           <div class="row" style="margin-top:8px;">
             <div class="field">
               <label>Password</label>
-              <input type="text" name="kode" required>
+              <input type="text" name="adgangskode" required>
             </div>
             <div class="field">
               <label>Bekræft password</label>
-              <input type="text" name="kode2" required>
+              <input type="text" name="adgangskode2" required>
             </div>
           </div>
           <div class="row" style="margin-top:8px;">
@@ -165,21 +187,38 @@
               <input type="text" name="sms">
             </div>
           </div>
-          <div class="switchline" style="margin-top:8px;">
-            <input type="checkbox" id="opret_godk" name="godkendt" value="1" checked>
-            <label for="opret_godk">Godkendt fra start</label>
+          <div class="row" style="margin-top:8px;">
+            <div class="field" style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="opret_godk" name="godkendt" value="1" checked>
+              <label for="opret_godk">Godkendt fra start</label>
+              <input type="hidden" name="godkendt" value="0">
+            </div>
+            <div class="notifline">
+              <label>
+                <input type="hidden" name="notifikation" value="nej">
+                <input type="checkbox" name="notifikation" value="ja" checked> Notifikation (samlet)
+              </label>
+              <label>
+                <input type="hidden" name="notif_email" value="nej">
+                <input type="checkbox" name="notif_email" value="ja" checked> Mail
+              </label>
+              <label>
+                <input type="hidden" name="notif_sms" value="nej">
+                <input type="checkbox" name="notif_sms" value="ja"> SMS
+              </label>
+            </div>
           </div>
+
           <div class="btnbar" style="margin-top:10px;">
             <button class="btn save" type="submit">Opret</button>
-            <button class="btn ghost" type="reset">Nulstil</button>
+            <button class="btn" type="reset">Nulstil</button>
           </div>
         </form>
       </div>
 
-      <!-- ================= VINDUE 3: ADMIN BOOKER FOR BRUGER ================= -->
+      <!-- ================ VINDUE 3: ADMIN BOOKER FOR BRUGER ================ -->
       <div class="window">
         <h3>Book i brugers navn</h3>
-        <div class="muted">Vælg bruger, dato og tid. Vælg fuld eller deltid (tidlig/sen).</div>
         <div class="hr"></div>
 
         <form method="post" action="/admin/brugere/book" id="bookForUser">
@@ -214,23 +253,22 @@
 
           <div class="field" style="margin-top:8px;">
             <label>Type</label>
-            <div class="radios">
+            <div>
               <label><input type="radio" name="type" value="full" checked> Fuld</label>
-              <label><input type="radio" name="type" value="early"> Tidlig</label>
-              <label><input type="radio" name="type" value="late"> Sen</label>
+              <label style="margin-left:12px;"><input type="radio" name="type" value="early"> Tidlig</label>
+              <label style="margin-left:12px;"><input type="radio" name="type" value="late"> Sen</label>
             </div>
           </div>
 
           <div class="btnbar" style="margin-top:10px;">
             <button class="btn save" type="submit">Book</button>
-            <button class="btn ghost" type="reset">Nulstil</button>
+            <button class="btn" type="reset">Nulstil</button>
           </div>
         </form>
 
         <div class="hr"></div>
         <div class="muted">
-          Bemærk: Systemets regler (fx <strong>maks. 2 bookinger pr. dag</strong>) håndhæves stadig.  
-          Hvis du skal overstyre reglerne for admin, kan backenden tillade en “force”-parameter.
+          Regler (fx <strong>maks. 2 bookinger pr. dag</strong>) håndhæves af backenden som i dag.
         </div>
       </div>
     </div>
