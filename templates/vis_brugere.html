@@ -2,101 +2,238 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
+  <meta charset="UTF-8" />
+  <title>Brugeradministration – Vasketider</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-  <meta charset="UTF-8">
-  <title>Vis brugere</title>
+  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { color: #fff; }
+    .wrap { max-width: 1250px; margin: 90px auto 40px; padding: 0 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 16px; }
+    @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr; } }
+    .window { background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 14px; backdrop-filter: blur(6px); }
+    .window h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 10px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 12px; opacity: .85; }
+    .field input, .field select { height: 36px; border-radius: 8px; border:1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.25); color:#fff; padding: 0 10px; }
+    .switchline { display:flex; align-items:center; gap:10px; }
+    .btnbar { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .btn { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color:#fff; cursor:pointer; }
+    .btn.save { background: rgba(76,175,80,.22); border-color: rgba(76,175,80,.5); }
+    .btn.del { background: rgba(220,0,0,.25); border-color: rgba(255,100,100,.6); }
+    .btn.appr { background: rgba(0,130,255,.20); border-color: rgba(0,130,255,.55); }
+    .list { display:flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 220px); overflow: auto; padding-right: 6px; }
+    .card { border:1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 12px; background: rgba(0,0,0,.25); }
+    .topline { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+    .topline .field { flex:1; }
+    .muted { font-size: 12px; opacity: .8; }
+    .toppanel { position: fixed; top:0; left:0; right:0; display:flex; gap:10px; padding:10px 16px; background: rgba(0,0,0,.55); border-bottom:1px solid rgba(255,255,255,.2); backdrop-filter: blur(6px); z-index: 1000; }
+    .toppanel form { margin:0; }
+    .toppanel-knap, .ghost { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.10); color:#fff; cursor:pointer; }
+    .ghost { background: transparent; border-style: dashed; }
+    .badge { display:inline-block; margin: 6px 0 0; padding:6px 10px; border-radius:10px; background: rgba(76,175,80,.2); border:1px solid rgba(76,175,80,.5); }
+    .warn { background: rgba(255,165,0,.15); border-color: rgba(255,165,0,.5); }
+    .ok { background: rgba(76,175,80,.18); border-color: rgba(76,175,80,.5); }
+    .radios { display:flex; gap:12px; flex-wrap: wrap; }
+    .hr { height:1px; background: rgba(255,255,255,.18); margin: 10px 0; }
+  </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+    function confirmDelete(user) {
+      return confirm('Slet "' + user + '"? Dette kan ikke fortrydes.');
+    }
+  </script>
 </head>
 <body style="background: url('/static/Bg.jpg') no-repeat center center fixed; background-size: cover;">
 
-  <!-- TOPPANEL -->
+  <!-- TOP -->
   <div class="toppanel">
     <form method="post" action="/logout"><button class="toppanel-knap">Log ud</button></form>
-    <form method="get" action="/admin"><button class="toppanel-knap">Tilbage</button></form>
-    <form method="get" action="/dokumenter"><button class="toppanel-knap">Dokumenter</button></form>
-    <form method="get" action="/kommentar"><button class="toppanel-knap">Kommentarer</button></form>
+    <form method="get" action="/admin"><button class="toppanel-knap">Admin</button></form>
+    <form method="get" action="/index"><button class="toppanel-knap">Kalender</button></form>
+    <form method="get" action="/statistik"><button class="toppanel-knap">Statistik</button></form>
+    <div style="margin-left:auto;"></div>
   </div>
 
-  <div class="glassbox" style="max-width: 1000px; margin: 100px auto 40px auto;">
+  <div class="wrap">
     <h2>Brugeradministration</h2>
-
-    {% for user in brugere %}
-      <form method="post" action="/opdater_bruger" style="margin-bottom: 12px;">
-        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-        <p>
-          <strong>{{ user.brugernavn }}</strong><br>
-          Kode:
-          <input type="text" name="adgangskode" value="{{ user.adgangskode }}">
-          Email:
-          <input type="email" name="email" value="{{ user.email }}">
-          SMS:
-          <input type="text" name="sms" value="{{ user.sms }}">
-
-          <!-- Gamle samleflag (bevares for bagudkompatibilitet) -->
-          <label style="margin-left:8px;">
-            <input type="checkbox" name="notifikation" {% if user.notifikation == 'ja' %}checked{% endif %}>
-            Notifikation
-          </label>
-
-          <!-- Nye granular flags -->
-          <label>
-  <input type="checkbox" name="notif_email" {% if user.notif_email == 'ja' %}checked{% endif %}>
-  Email
-</label>
-<label>
-  <input type="checkbox" name="notif_sms" {% if user.notif_sms == 'ja' %}checked{% endif %}>
-  SMS
-</label>
-
-          <label style="margin-left:8px;">
-            <input type="checkbox" name="godkendt" {% if user.godkendt %}checked{% endif %}>
-            Godkendt
-          </label>
-        </p>
-        <button type="submit">Gem</button>
-      </form>
-
-      <form method="post" action="/slet_bruger" style="display:inline;">
-        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-        <button type="submit">Slet</button>
-      </form>
-
-      {% if not user.godkendt %}
-      <form method="post" action="/godkend_bruger" style="display:inline;">
-        <input type="hidden" name="brugernavn" value="{{ user.brugernavn }}">
-        <button type="submit">Godkend</button>
-      </form>
-      {% endif %}
-
-      <hr>
-    {% endfor %}
-
-    <h3>Opret ny bruger</h3>
-    <form method="post" action="/opret_bruger">
-      Brugernavn: <input type="text" name="brugernavn" required><br>
-      Kode: <input type="text" name="adgangskode" required><br>
-      E-mail: <input type="text" name="email"><br>
-      SMS: <input type="text" name="sms"><br>
-
-      <!-- Standardvalg for nye brugere: slå alt fra som default -->
-      <label><input type="checkbox" name="notifikation"> Notifikation</label><br>
-      <label><input type="checkbox" name="notif_email"> Email</label><br>
-      <label><input type="checkbox" name="notif_sms"> SMS</label><br>
-
-      <label><input type="checkbox" name="godkendt"> Godkendt</label><br><br>
-      <button type="submit">Opret</button>
-    </form>
-
-    {% if request.args.get('direkte_pw') %}
-      <div class="admin-note">
-        Nyt direkte-password: <code>{{ request.args.get('direkte_pw') }}</code><br>
-        Brug det på /login med brugernavn <strong>direkte</strong>.
-      </div>
+    {% if request.args.get("besked") %}
+      <div class="badge ok">{{ request.args.get("besked") }}</div>
+    {% endif %}
+    {% if request.args.get("fejl") %}
+      <div class="badge warn">{{ request.args.get("fejl") }}</div>
     {% endif %}
 
-    <form method="post" action="/admin/reset_direkte" onsubmit="return confirm('Generér nyt direkte-password?');">
-      <button type="submit">Nulstil “direkte”-password</button>
-    </form>
+    <div class="grid-3">
+      <!-- ================= VINDUE 1: LISTE / REDIGER ================= -->
+      <div class="window">
+        <h3>Brugere (scroll)</h3>
+        <div class="muted">Brugernavn og password øverst, derefter mail, sms og godkendt. Gem/Slet/Godkend nederst.</div>
+        <div class="hr"></div>
+
+        <div class="list">
+          {% if brugere and brugere|length > 0 %}
+            {% for u in brugere %}
+              <div class="card">
+                <!-- ØVERST: brugernavn + password -->
+                <div class="topline">
+                  <div class="field">
+                    <label>Brugernavn</label>
+                    <input type="text" name="brugernavn" value="{{ u.brugernavn }}" form="form_{{ u.id }}">
+                  </div>
+                  <div class="field">
+                    <label>Password</label>
+                    <input type="text" name="kode" value="{{ u.kode or '' }}" placeholder="••••••" form="form_{{ u.id }}">
+                  </div>
+                </div>
+
+                <!-- MIDT: mail + sms + godkendt -->
+                <div class="row">
+                  <div class="field">
+                    <label>Mail</label>
+                    <input type="email" name="email" value="{{ u.email or '' }}" form="form_{{ u.id }}">
+                  </div>
+                  <div class="field">
+                    <label>SMS (mobil)</label>
+                    <input type="text" name="sms" value="{{ u.sms or '' }}" form="form_{{ u.id }}">
+                  </div>
+                </div>
+
+                <div class="switchline" style="margin-top:6px;">
+                  <input type="checkbox" id="godk_{{ u.id }}" name="godkendt" value="1" form="form_{{ u.id }}" {% if u.godkendt %}checked{% endif %}>
+                  <label for="godk_{{ u.id }}">Godkendt</label>
+                </div>
+
+                <!-- NEDERST: knapper -->
+                <div class="btnbar">
+                  <form id="form_{{ u.id }}" method="post" action="/admin/brugere/gem">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <button class="btn save" type="submit">Gem</button>
+                  </form>
+
+                  <form method="post" action="/admin/brugere/slet" onsubmit="return confirmDelete('{{ u.brugernavn }}')">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <button class="btn del" type="submit">Slet</button>
+                  </form>
+
+                  <form method="post" action="/admin/brugere/godkend">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <button class="btn appr" type="submit">Godkend</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="muted">Ingen brugere fundet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ================= VINDUE 2: OPRET NY ================= -->
+      <div class="window">
+        <h3>Opret ny bruger</h3>
+        <div class="muted">Udfyld felterne og tryk Opret.</div>
+        <div class="hr"></div>
+
+        <form method="post" action="/admin/brugere/opret" id="opretForm">
+          <div class="field">
+            <label>Brugernavn</label>
+            <input type="text" name="brugernavn" required>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div class="field">
+              <label>Password</label>
+              <input type="text" name="kode" required>
+            </div>
+            <div class="field">
+              <label>Bekræft password</label>
+              <input type="text" name="kode2" required>
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div class="field">
+              <label>Mail</label>
+              <input type="email" name="email">
+            </div>
+            <div class="field">
+              <label>SMS (mobil)</label>
+              <input type="text" name="sms">
+            </div>
+          </div>
+          <div class="switchline" style="margin-top:8px;">
+            <input type="checkbox" id="opret_godk" name="godkendt" value="1" checked>
+            <label for="opret_godk">Godkendt fra start</label>
+          </div>
+          <div class="btnbar" style="margin-top:10px;">
+            <button class="btn save" type="submit">Opret</button>
+            <button class="btn ghost" type="reset">Nulstil</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ================= VINDUE 3: ADMIN BOOKER FOR BRUGER ================= -->
+      <div class="window">
+        <h3>Book i brugers navn</h3>
+        <div class="muted">Vælg bruger, dato og tid. Vælg fuld eller deltid (tidlig/sen).</div>
+        <div class="hr"></div>
+
+        <form method="post" action="/admin/brugere/book" id="bookForUser">
+          <div class="field">
+            <label>Bruger</label>
+            <select name="brugernavn" required>
+              {% if brugere and brugere|length > 0 %}
+                {% for u in brugere %}
+                  <option value="{{ u.brugernavn }}">{{ u.brugernavn }}</option>
+                {% endfor %}
+              {% else %}
+                <option value="" disabled selected>Ingen brugere</option>
+              {% endif %}
+            </select>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <div class="field">
+              <label>Dato</label>
+              <input type="date" name="dato" required>
+            </div>
+            <div class="field">
+              <label>Slot</label>
+              <select name="slot" required>
+                <option value="0">Slot 0</option>
+                <option value="1">Slot 1</option>
+                <option value="2">Slot 2</option>
+                <option value="3">Slot 3</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:8px;">
+            <label>Type</label>
+            <div class="radios">
+              <label><input type="radio" name="type" value="full" checked> Fuld</label>
+              <label><input type="radio" name="type" value="early"> Tidlig</label>
+              <label><input type="radio" name="type" value="late"> Sen</label>
+            </div>
+          </div>
+
+          <div class="btnbar" style="margin-top:10px;">
+            <button class="btn save" type="submit">Book</button>
+            <button class="btn ghost" type="reset">Nulstil</button>
+          </div>
+        </form>
+
+        <div class="hr"></div>
+        <div class="muted">
+          Bemærk: Systemets regler (fx <strong>maks. 2 bookinger pr. dag</strong>) håndhæves stadig.  
+          Hvis du skal overstyre reglerne for admin, kan backenden tillade en “force”-parameter.
+        </div>
+      </div>
+    </div>
   </div>
 
   <footer>© Hornsberg Group</footer>

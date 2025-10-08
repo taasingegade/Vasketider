@@ -770,7 +770,7 @@ def send_email(modtager: str, emne: str, besked: str) -> bool:
 def send_sms_twilio(modtager, besked):
     account_sid = os.environ.get("Twilio_SID")
     auth_token = os.environ.get("Twilio_token")
-    afsender_nummer = "+13515298337"
+    afsender_nummer = "+16209822117"
 
     if not all([account_sid, auth_token, afsender_nummer]):
         print("Twilio mangler data.")

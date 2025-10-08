@@ -288,8 +288,36 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .status-time{color:#ffcc00;}
 
 footer{
-  position:fixed; bottom:10px; left:10px;
-  color:#fff; font-size:12px; z-index:3000;
+  position:fixed; 
+  bottom:10px; 
+  left:10px;
+  right: 10px;                  /* giver os hele bredden */
+  height: 40px;
+  display: flex;
+  justify-content: center;      /* centrerer socials */
+  align-items: center;
+  color:#fff; 
+  font-size:12px; 
+  z-index:3000;
+}
+
+/* Venstre side – Hornsberg Group */
+.footer-left {
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+  color: #fff;
+  font-size: 12px;
+}
+
+/* Midten – sociale ikoner */
+footer .socials {
+  display: flex;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  align-items: center;
 }
 
 /* =========================
@@ -367,12 +395,10 @@ footer{
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
 
-.icon-wrap img{
-  width: 58%;
-  height: 58%;
-  object-fit: contain;
-  /* gør mørke SVG'er hvide uden at ændre filerne */
-  filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+.icon-wrap img {
+  width: 14px;
+  height: 14px;
+  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35));
   pointer-events: none;
 }
 
@@ -392,9 +418,8 @@ footer{
 
 /* Dark/light kompatibel – ser crisp ud på både lyse og mørke baggrunde */
 @media (prefers-color-scheme: light){
-  :root{
-    --frost: rgba(255,255,255,0.5);
-    --frost-border: rgba(255,255,255,0.65);
-    --frost-highlight: rgba(255,255,255,0.65);
+  .socials a{
+    background:rgba(0,0,0,.06);
+    border-color:rgba(0,0,0,.12);
   }
 }
