@@ -1,5 +1,5 @@
 /* =========================
-   BASE & THEME
+   THEME TOKENS
    ========================= */
 :root{
   --ok:#28a745;
@@ -7,11 +7,19 @@
   --service:rgba(255,193,7,0.9);
   --booked:rgba(220,53,69,0.95);
   --focus:0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95);
-  --slot-h:40px; /* ↑ højere rækker for tydelige halvtider */
-  --social-size: 48px; /* skift til 40/56/64 for andre størrelser */
-  --frost: rgba(255,255,255,0.12);
-  --frost-border: rgba(255,255,255,0.35);
-  --frost-highlight: rgba(255,255,255,0.22);
+  --slot-h:40px;
+
+  /* Frost + glas */
+  --frost-bg: rgba(255,255,255,0.28);
+  --frost-brd: rgba(255,255,255,0.45);
+  --frost-txt: #0e1013;
+  --glass-brd: rgba(255,255,255,0.35);
+  --glass-bg: rgba(255,255,255,0.10);
+  --glass-bg-hover: rgba(255,255,255,0.18);
+
+  --danger: #d93025;
+  --page-max: 1100px;
+  --social-size: 48px;
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
@@ -30,92 +38,104 @@ body{
 }
 
 /* =========================
-   TOP BAR
+   FROST FAST TOPPANEL
    ========================= */
 .toppanel{
   position:fixed; top:0; left:0; right:0;
-  display:flex; gap:15px; flex-wrap:wrap;
-  background:rgba(0,0,0,0.6);
-  padding:10px 20px;
-  border-bottom:1px solid rgba(255,255,255,0.2);
-  backdrop-filter:blur(6px);
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+  padding:10px 16px;
+  background:var(--frost-bg);
+  border-bottom:1px solid var(--frost-brd);
+  color:var(--frost-txt);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
   z-index:3000;
 }
-.toppanel .brand{margin-right:auto;font-weight:700;}
-.toppanel .brand a{color:#fff;text-decoration:none;}
-.toppanel-links{display:flex;gap:10px;}
-.toppanel-auth{display:flex;gap:10px;align-items:center;}
-.toppanel-knap{
-  background:rgba(255,255,255,0.2); color:#000!important; border:none;
-  padding:10px 15px; border-radius:8px; cursor:pointer;
-  transition:.3s; box-shadow:0 2px 4px rgba(0,0,0,0.7);
+.toppanel .brand{ margin-right:auto; font-weight:700; color:var(--frost-txt); }
+.toppanel .brand a{ color:inherit; text-decoration:none; }
+
+/* Glas-knapper (bruges i top + generelt) */
+.toppanel-knap,
+.button,
+.btn,
+.glass-btn{
+  appearance:none;
+  border:1px solid var(--glass-brd);
+  background:var(--glass-bg);
+  color:var(--frost-txt);
+  padding:9px 14px;
+  border-radius:10px;
+  cursor:pointer;
+  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  text-decoration:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-weight:600;
 }
-.toppanel-knap:hover{background:rgba(255,255,255,0.3); transform:scale(1.03);}
+.toppanel-knap:hover,
+.button:hover,
+.btn:hover,
+.glass-btn:hover{
+  background:var(--glass-bg-hover);
+  color:var(--danger);                 /* rød tekst ved hover */
+  border-color: rgba(255,255,255,0.55);
+  transform: translateY(-1px);
+}
+.toppanel-knap:active,
+.button:active,
+.btn:active,
+.glass-btn:active{ transform: translateY(0) scale(0.98); }
 .toppanel-knap:focus-visible{ outline:none; box-shadow:var(--focus); }
 
-/* =========================
-   WRAPPER & MAIN
-   ========================= */
+/* Wrapper under fast top */
 .wrapper{
-  width:100%; max-width:1100px;
-  margin:100px auto 24px;
-  padding:25px;
+  width:100%;
+  max-width: var(--page-max);
+  margin:90px auto 24px;
+  padding:22px;
   background:rgba(255,255,255,0.05);
   border-radius:12px;
-  overflow:visible;
 }
-.main{
-  padding-top:80px; width:100%; max-width:1000px; margin:0 auto;
-  overflow:visible;
-}
+.main{ width:100%; max-width: calc(var(--page-max) - 60px); margin:0 auto; }
 
 /* =========================
-   GENERELLE KNAPPER & INPUTS
+   FORMS & INPUTS
    ========================= */
-input{
-  margin:5px 10px 5px 0;
-  padding:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-  color:#000;
+input, select, textarea{
+  margin:5px 8px 5px 0;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.08);
+  color:#fff;
 }
-/* >>> VIGTIGT: udeluk .hamburger fra global knap-style */
-button:not(.slot-btn):not(.hamburger){
-  background-color:rgba(220,220,220,0.9);
-  color:black;
-  border:none;
-  padding:10px 15px;
-  border-radius:6px;
-  margin:8px 0;
-  cursor:pointer;
-}
-button:not(.slot-btn):not(.hamburger):hover{ background-color:rgba(180,180,180,0.9); }
+label{ user-select:none; }
+button{ font: inherit; }
+button.slot-btn, button.hamburger{ all: unset; }
 
 /* =========================
-   LOGIN / FORMS (GENERIC)
+   AUTH-BOKSE (Login / Opret / Skift kode)
    ========================= */
-.form-box{
-  text-align:center;
-  display:flex; flex-direction:column; justify-content:center;
-  background-color:rgba(0,0,0,0.7);
-  padding:20px;
-  border-radius: 10px 60px 30px;
-  width:100%; max-width:400px;
-  margin:10vh auto 0;
+.auth-wrap{
+  margin:110px auto 40px;
+  width:100%;
+  max-width:420px;
+  padding:0 16px;
 }
-.form-box h2{ margin:0 0 8px; }
+.auth-box{
+  background: rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.35);
+  border-radius: 16px;
+  padding: 22px;
+  backdrop-filter: blur(8px);
+}
+.auth-box h2{ margin:0 0 8px 0; text-align:center; }
+.auth-form{ display:flex; flex-direction:column; gap:12px; }
 
-.center { text-align: center; }
 .msg { margin: 8px 0; font-weight: 600; }
 .msg-ok { color: #77e085; }
 .msg-error { color: #ff9b9b; }
 
-.login-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
+/* On/off-switch */
 .switch{position:relative;display:inline-block;width:46px;height:26px;}
 .switch input{display:none;}
 .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;transition:.2s;border-radius:26px;}
@@ -127,19 +147,49 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .slider.round{border-radius:26px;}
 
 /* =========================
-   CALENDAR (ALT scoped under .calendar)
+   LOGIN: Hamburger + menu
+   ========================= */
+.toppanel.toppanel--login { position:fixed; display:flex; align-items:center; gap:12px; z-index:4000; }
+
+/* Sorte streger */
+.hamburger{
+  all: unset;
+  display:flex; flex-direction:column; gap:8px;
+  width:32px; padding:6px 8px; cursor:pointer;
+}
+.hamburger:focus-visible{ outline:2px solid rgba(0,0,0,0.35); border-radius:6px; }
+.hamburger-bar{
+  display:block; width:100%; height:3px;
+  background:#000;                    /* ← sorte streger */
+  border-radius:2px;
+  transition:transform .25s ease, opacity .25s ease;
+}
+
+/* Fold-ud login-menu */
+.login-menu{
+  position:absolute; top:52px; left:12px;
+  display:none; flex-direction:column; gap:8px; padding:10px;
+  z-index:3500;
+  background:rgba(255,255,255,0.85);
+  color:#111;
+  border:1px solid rgba(0,0,0,.15);
+  border-radius:12px;
+  backdrop-filter: blur(6px);
+}
+.login-menu.show{ display:flex; }
+.login-menu .toppanel-knap{ width:200px; background:rgba(255,255,255,0.55); }
+.login-menu .toppanel-knap:hover{ color:var(--danger); }
+
+/* =========================
+   KALENDER
    ========================= */
 .calendar{
   display:grid;
   grid-template-columns:140px repeat(7, 1fr);
   grid-auto-rows:var(--slot-h);
-  gap:40px; /* ↑ mere mellemrum mellem rækker */
-  align-items:stretch;
-  justify-items:stretch;
-  overflow:visible;
+  gap:40px;
+  align-items:stretch; justify-items:stretch;
 }
-
-/* Header (weekday + date) */
 .calendar > div:nth-child(-n+8){
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:3px; padding:8px 6px;
@@ -150,49 +200,29 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
 .calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
 .calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
 
-/* Time column */
 .calendar > div:nth-child(8n+1){
   display:flex; align-items:center; justify-content:flex-end;
-  font-weight:700; font-size:16px;
-  padding-right:12px;
-  height:var(--slot-h);
+  font-weight:700; font-size:16px; padding-right:12px; height:var(--slot-h);
 }
 
-/* Cells */
 .calendar > div{
   padding:0; margin:0;
   display:flex; align-items:center; justify-content:center;
-  position:relative; overflow:visible;
+  position:relative;
 }
 .calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
+.calendar > div > div{ display:flex; flex-wrap:wrap; gap:14px !important; justify-content:center; }
 
-/* Ekstra luft mellem knapper i samme celle */
-.calendar > div > div{
-  display:flex;
-  flex-wrap:wrap;
-  gap:14px !important;     /* afstand mellem knapper i samme felt */
-  justify-content:center;
-}
-
-/* Overstyr inline min-height:42px fra HTML cellerne */
-.calendar > div > div[style*="min-height"]{
-  min-height: var(--slot-h) !important;
-}
-
-/* Lift the row when dropdown is open */
+/* Løft række ved åben dropdown */
 .calendar > div:has(.split-details[open]){ z-index:9999; }
 
-/* Slot buttons + summary */
+/* Slot knapper + summary */
 .calendar .slot-btn,
 .calendar .split-details > summary{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
-  padding:0 10px;
-  font-size:14px;
-  border:none; border-radius:6px;
-  line-height:1.2;
-  cursor:pointer;
-  position:relative; gap:8px;
+  padding:0 10px; font-size:14px; border:none; border-radius:6px;
+  line-height:1.2; cursor:pointer; gap:8px;
   box-shadow:0 3px 6px rgba(0,0,0,0.25);
   transition:transform .1s ease, box-shadow .2s ease;
 }
@@ -202,51 +232,33 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
   box-shadow:0 5px 12px rgba(0,0,0,0.35);
 }
 .calendar .slot-btn:focus-visible,
-.calendar .split-details > summary:focus-visible{
-  outline:none; box-shadow:var(--focus);
-}
+.calendar .split-details > summary:focus-visible{ outline:none; box-shadow:var(--focus); }
 
-/* Dropdown (early/late menu) */
-.calendar .split-details{
-  position:relative;
-  display:inline-block;
-  overflow:visible;
-}
+/* Dropdown (early/late) */
+.calendar .split-details{ position:relative; display:inline-block; overflow:visible; }
 .calendar .split-details[open]{ z-index:10000; }
 .calendar .split-details > summary::-webkit-details-marker{ display:none; }
 .calendar .split-panel{
-  position:absolute;
-  top:calc(100% + 8px);
-  left:50%;
-  transform:translateX(-50%);
-  min-width:240px;
-  background:#1f1f1f; color:#fff;
+  position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  min-width:240px; background:#1f1f1f; color:#fff;
   border:1px solid #444; border-radius:10px; padding:10px;
   box-shadow:0 14px 28px rgba(0,0,0,0.45);
-  z-index:11000;
 }
 .calendar .split-details:not([open]) .split-panel{ display:none; }
 .calendar .menu-btn{
-  width:100%; padding:12px 14px;
-  border-radius:8px; border:1px solid #666;
+  width:100%; padding:12px 14px; border-radius:8px; border:1px solid #666;
   background:#2b2b2b; color:#fff; cursor:pointer; font-size:15px; margin:5px 0;
   transition:background .2s ease;
 }
 .calendar .menu-btn:hover{ background:#343434; }
 
-/* ===== STATES ===== */
-
-/* SERVICE */
+/* STATES */
 .calendar .slot-btn.service,
-.calendar .split-details.service > summary,
-.calendar .slot-btn[data-state="service"],
-.calendar .split-details[data-state="service"] > summary{
+.calendar .split-details.service > summary{
   background:var(--service) !important;
   color:#000 !important;
   border:1px solid rgba(0,0,0,0.2) !important;
 }
-
-/* OPTAGET */
 .calendar .slot-btn.optaget,
 .calendar .optaget-knap,
 .calendar .split-details.booked > summary{
@@ -255,193 +267,159 @@ input:checked + .slider:after{content:"I";left:8px;right:auto;}
   border:1px solid rgba(255,255,255,0.25);
 }
 
-/* LEDIG — TVANG: ALTID MASSIV GRØN */
+/* LEDIG — altid kraftig grøn */
 .calendar :is(.slot-btn.ledig,
               .ledig-knap,
               .split-details.ledig > summary,
               .split-details[data-state="free"] > summary,
               .slot-btn[data-state="free"],
               form[action$="/book"] .slot-btn){
-  background-color: #28a745 !important;
-  background: #28a745 !important;
-  color: #fff !important;
-  border: 1px solid #1e7e34 !important;
-  opacity: 1 !important;
-  filter: none !important;
-  backdrop-filter: none !important;
-  box-shadow: none !important;
+  background:#28a745 !important;
+  color:#fff !important;
+  border:1px solid #1e7e34 !important;
 }
 .calendar :is(.slot-btn.ledig:hover,
               .split-details.ledig > summary:hover,
               .split-details:not(.service):not(.booked) > summary:hover,
               form[action$="/book"] .slot-btn:hover){
-  background-color: #218838 !important;
-}
-
-/* Sørg for at “Ledig”-summary uden klasse også er grøn */
-.calendar .split-details:not(.service):not(.booked) > summary{
-  background:#28a745 !important;
-  color:#fff !important;
-  border:none !important;
-  opacity:1 !important;
+  background:#218838 !important;
 }
 
 /* =========================
    STATUS & FOOTER
    ========================= */
 .status{
-  margin-top:15px; background:rgba(0,0,0,0.5); color:#fff;
-  padding:10px 14px; border-radius:8px;
-  display:flex; flex-wrap:wrap; gap:8px; align-content:center; font-size:15px;
+  margin-left:12px;
+  background:rgba(255,255,255,0.18);
+  color:#111;
+  padding:8px 10px;
+  border-radius:10px;
+  display:flex; flex-wrap:wrap; gap:6px; align-content:center; font-size:14px;
+  border:1px solid rgba(0,0,0,0.15);
 }
 .status-label{font-weight:bold;}
-.status-time{color:#ffcc00;}
-.status-eta { color:#ffcc00; font-weight:700; }
+.status-eta { color:#b36b00; font-weight:700; }
 .status-sep { opacity:.6; padding:0 6px; }
 
-/* >>> FAST PLACERING OG CENTRERING AF FOOTER */
 footer{
-  position:fixed; 
-  bottom:10px; 
-  left:0;
-  right:0;
-  height: 50px;
-  display:flex;
-  align-items:center;
-  justify-content:center;   /* centrerer socials */
-  color:#fff; 
-  font-size:12px; 
-  z-index:3000;
-  background:transparent;
-}
-
-/* >>> IKKE space-between – vi vil have socials i midten */
-.footer{ 
-  display:flex;
-  align-items:center;
-  justify-content:center;   /* centrér! */
-  gap:12px;
-}
-
-/* Venstre — Hornsberg Group (absolut, så midten kan centreres rigtigt) */
-.footer-left {
-  position: absolute;
-  left: 20px;
-  bottom: 14px;
-  color: #fff;
-  font-size: 12px;
-}
-
-/* Sociale ikoner – centreres af footer-flex */
-.socials{
-  list-style: none;
-  display: flex;
-  gap: 14px;
-  padding: 0;
-  margin: 0;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Glaslook på ikonrammen */
-.icon-wrap{
-  width: var(--social-size);
-  height: var(--social-size);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--frost) 0%, rgba(255,255,255,0.06) 100%);
-  border: 1px solid var(--frost-border);
-  box-shadow:
-    0 4px 24px rgba(0,0,0,0.25),
-    inset 0 1px 0 rgba(255,255,255,0.25);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
-}
-.icon-wrap img {
-  width: 14px;
-  height: 14px;
-  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35));
-  pointer-events: none;
-}
-.socials a{ display:inline-flex; text-decoration:none; outline:none; }
-.socials a:focus .icon-wrap,
-.socials a:hover .icon-wrap{
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, var(--frost-highlight) 0%, rgba(255,255,255,0.10) 100%);
-  box-shadow:
-    0 8px 28px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.35);
-}
-.socials a:active .icon-wrap{
-  transform: translateY(0) scale(0.97);
-}
-@media (prefers-color-scheme: light){
-  .socials a{
-    background:rgba(0,0,0,.06);
-    border-color:rgba(0,0,0,.12);
-  }
+  position:fixed; bottom:10px; left:0; right:0;
+  height:50px; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:12px; z-index:1000; background:transparent;
 }
 
 /* =========================
-   LOGIN-SPECIFIK (hamburger + fold-ud)
+   SOCIAL IKONER (footer)
+   ========================= */
+.socials{ list-style:none; display:flex; gap:14px; padding:0; margin:0; align-items:center; justify-content:center; }
+.icon-wrap{
+  width: var(--social-size); height: var(--social-size);
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid var(--glass-brd);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+  backdrop-filter: blur(8px) saturate(140%);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.icon-wrap img{ width:14px; height:14px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35)); pointer-events:none; }
+.socials a{ display:inline-flex; text-decoration:none; outline:none; }
+.socials a:hover .icon-wrap{ transform: translateY(-2px); }
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+@media (max-width:768px){
+  .calendar{
+    grid-template-columns:100px repeat(7, minmax(140px,1fr));
+    gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  .wrapper{ margin:86px 8px 18px; padding:16px; }
+}
+
+/* =========================
+   KOMPAT-LAG FOR ÆLDRE TEMPLATES
+   (tilføj nederst i den nye style.css)
    ========================= */
 
-/* >>> ÆGTE minimalistisk hamburger med ekstra luft */
-.toppanel.toppanel--login {
-  position: relative;
+/* Topbar under-containere fra gammel CSS */
+.toppanel-links,
+.toppanel-auth {
   display: flex;
+  gap: 10px;
   align-items: center;
+}
+
+/* Gammel login-boks -> brug ny auth-visning */
+.form-box {
+  /* bevar størrelse, men skin den som auth-box */
+  background: rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.35);
+  border-radius: 16px;
+  padding: 22px;
+  backdrop-filter: blur(8px);
+  width: 100%;
+  max-width: 420px;
+  margin: 110px auto 40px;
+}
+.form-box h2 { margin: 0 0 8px; text-align: center; }
+
+/* Gammel login-form layout */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;   /* var center; men bedre for knapper i glas-stil */
   gap: 12px;
 }
-.hamburger{
-  all: unset;                 /* fjerner al knap-styling */
-  display:flex;
-  flex-direction:column;
-  gap: 8px;                   /* MERE spredning mellem linjer */
-  width: 30px;
-  padding: 6px 8px;           /* klik-område, men ingen baggrund */
-  cursor:pointer;
-}
-.hamburger:focus-visible { outline: 2px solid rgba(255,255,255,0.6); border-radius: 6px; }
-.hamburger-bar{
-  display:block;
-  width:100%;
-  height:3px;                 /* tykkelse på hver streg */
-  background:#fff;
-  border-radius:2px;
-  transition: transform .25s ease, opacity .25s ease;
-}
 
-/* Fold-ud menu */
-.login-menu {
-  position: absolute;
-  top: 52px;           /* lige under toppanel */
-  left: 12px;
-  display: none;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  z-index: 1001;
-  background: rgba(0,0,0,0.7);
-  border: 1px solid rgba(255,255,255,0.25);
+/* Fallback for rå <button> i ældre templates (giver glas-look) */
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn) {
+  appearance: none;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass-bg);
+  color: var(--frost-txt);
+  padding: 9px 14px;
   border-radius: 10px;
-  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  font-weight: 600;
 }
-.login-menu.show { display: flex; }
-.login-menu .toppanel-knap {
-  width: 180px;
-  justify-content: center;
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover {
+  background: var(--glass-bg-hover);
+  color: var(--danger);
+  border-color: rgba(255,255,255,0.55);
+  transform: translateY(-1px);
 }
 
-/* Admins adresse-vælger i login-toppen */
-.login-adresseform {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
+/* Gammel status-box mørk stil -> map til den nye, men tillad begge */
+.status.status--legacy,
+.legacy-status {
+  margin-top: 15px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-content: center; font-size: 15px;
 }
+
+/* Tidligere footer-helpers */
+.footer { display:flex; align-items:center; justify-content:center; gap:12px; }
+.footer-left { position:absolute; left:20px; bottom:14px; color:#fff; font-size:12px; }
+
+/* Sørg for at gamle farve-tokens stadig virker for social-glasramme */
+:root{
+  --frost: rgba(255,255,255,0.12);
+  --frost-border: rgba(255,255,255,0.35);
+  --frost-highlight: rgba(255,255,255,0.22);
+}
+
+/* Login-menu (gammel mørk version), hvis nogen skabelon enten kræver den */
+.login-menu.login-menu--dark {
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+/* Select i topbaren (fra ældre login) */
 .toppanel-select {
   height: 38px;
   padding: 6px 12px;
@@ -452,78 +430,42 @@ footer{
 }
 
 /* =========================
-   MOBILE
+   DANGER ZONE – RYD LOGNINGER / SLET DATA
    ========================= */
-@media (max-width:768px){
-  .calendar{
-    grid-template-columns:100px repeat(7, minmax(140px,1fr));
-    gap:20px;
-    overflow-x:auto; -webkit-overflow-scrolling:touch;
-  }
-  .calendar .slot-btn, .calendar .split-details > summary{ font-size:18px; }
-  .wrapper{ margin-top:110px; }
-  .main{ padding-top:100px; }
-}
-@media (max-width: 640px) {
-  .login-menu { left: 8px; right: 8px; width: auto; }
-  .login-menu .toppanel-knap { width: 100%; }
-  .toppanel-select { max-width: 60vw; }
+
+.window.danger {
+  position: relative;
+  z-index: 5;
+  margin-top: 32px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(6px);
 }
 
-/* ---- Login-aktivitet layout fix ---- */
-.dotlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.login-item {
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-left: 6px solid rgba(0,200,0,0.5);
-  border-radius: 10px;
-  padding: 10px 12px;
-  line-height: 1.35;
-  font-size: 14px;
-}
-.login-item[data-status="fejl"] { border-left-color: rgba(255,0,0,0.6); background: rgba(50,0,0,0.35); }
-
-.login-item .row {
-  display: grid;
-  grid-template-columns: 140px 1fr; /* venstre kolonne = labels */
-  gap: 6px 12px;
-  align-items: baseline;
-}
-.login-item .k { opacity: .9; }
-.login-item .v { overflow-wrap: anywhere; }
-
-.badge-ok   { display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(0,200,0,.5); background: rgba(0,200,0,.1); font-weight:600; font-size:12px; }
-.badge-fail { display:inline-block; padding:2px 8px; border-radius:10px; border:1px solid rgba(255,0,0,.5); background: rgba(255,0,0,.1); font-weight:600; font-size:12px; }
-
-details.ua { margin-top: 6px; }
-details.ua summary { cursor: pointer; color: #9fd8ff; font-size: 13px; user-select: none; }
-
-/* Scroll-vinduet holder højden og gør knappen klikbar */
-.login-window { position: relative; display: flex; flex-direction: column; max-height: 520px; }
-.login-scroll { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; margin-top: 8px; padding-right: 6px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.2); }
-.login-scroll::-webkit-scrollbar { width: 8px; }
-.login-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 6px; }
-.login-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }
-
-/* Danger Zone i én ren kolonne */
+/* Hele formularen er lodret kolonneret */
 .window.danger form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* .grid-2 bruges til at liste checkboxes i én kolonne */
 .window.danger .grid-2 {
   display: flex;
-  flex-direction: column;      /* én kolonne i stedet for to */
+  flex-direction: column;
   gap: 10px;
 }
 
+/* Hver boks (checkbox + label) står lodret med luft */
 .window.danger .grid-2 div {
   display: flex;
   flex-direction: column;
-  gap: 6px;                    /* afstand mellem hver checkbox */
+  gap: 6px;
 }
 
+/* Selve label/checkbox-linjen */
 .window.danger .grid-2 label {
   display: flex;
   align-items: center;
@@ -532,55 +474,63 @@ details.ua summary { cursor: pointer; color: #9fd8ff; font-size: 13px; user-sele
   line-height: 1.4;
 }
 
-.window.danger { position: relative; z-index: 5; margin-top: 32px; }
-
-.dotlist li {
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-left: 6px solid rgba(0,255,0,0.5);
-  border-radius: 10px;
-  padding: 10px 14px;
-  line-height: 1.4;
-  font-size: 14px;
-  position: relative;
-}
-
-.dotlist li[data-status="fejl"] {
-  border-left-color: rgba(255,0,0,0.55);
-  background: rgba(50,0,0,0.35);
-}
-
-.dotlist li strong {
-  display: inline-block;
-  min-width: 70px;
-}
-
-.kv {
-  display: inline-block;
-  margin-right: 14px;
-  white-space: nowrap;
-}
-
-details.ua {
-  margin-top: 6px;
-}
-details.ua summary {
-  cursor: pointer;
-  color: #9fd8ff;
-  font-size: 13px;
-  user-select: none;
-}
-
+/* Checkbox-udseende */
 .window.danger input[type="checkbox"] {
   transform: scale(1.1);
-  accent-color: #d33;          /* rød markering – matcher Danger-farven */
+  accent-color: #d33;              /* rød markering – danger-farve */
 }
 
+/* Grå sekundær tekst */
 .window.danger .muted {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
   margin-top: 4px;
 }
 
+/* Primær knap (ryd/slet) */
 .window.danger button[type="submit"] {
   align-self: flex-start;
-  margin-top: 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: var(--danger);
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+.window.danger button[type="submit"]:hover {
+  background: rgba(255,0,0,0.15);
+  color: #fff;
+}
+
+/* Scrollområde til login-aktivitet */
+.login-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;
+}
+.login-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 8px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.3) rgba(0,0,0,0.2);
+}
+.login-scroll::-webkit-scrollbar { width: 8px; }
+.login-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.3);
+  border-radius: 6px;
+}
+.login-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.5);
+}
+
+/* Mobiljusteringer fra gamle skabeloner */
+@media (max-width:768px){
+  .wrapper { margin-top: 100px; }
+  .main { padding-top: 0; }
 }
