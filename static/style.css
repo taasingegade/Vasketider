@@ -469,3 +469,23 @@ footer{
   .login-menu .toppanel-knap { width: 100%; }
   .toppanel-select { max-width: 60vw; }
 }
+.dotlist {
+  list-style-type: disc;
+  padding-left: 22px;
+  margin: 10px 0;
+}
+.dotlist li {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.dotlist li[data-status="fejl"] {
+  border-color: rgba(255,0,0,0.4);
+  background: rgba(255,0,0,0.08);
+}
+.dotlist li[data-status="succes"] {
+  border-color: rgba(0,200,0,0.3);
+  background: rgba(0,200,0,0.08);
+}
