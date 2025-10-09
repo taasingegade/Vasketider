@@ -100,7 +100,7 @@
                     <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                     <input type="hidden" name="tid" value="{{ i }}">
                     <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                    <button type="submit" class="slot-btn optaget">{{ f.navn }} (fuld)</button>
+                    <button type="submit" class="slot-btn optaget">{{ f.navn }}</button>
                   </form>
                 {% else %}
                   <button class="slot-btn optaget" disabled>{{ f.navn }}</button>
