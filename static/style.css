@@ -148,7 +148,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .glass-btn:active{ transform:scale(.98); }
 
 /* ---------- Hamburger (højre) + menu ---------- */
-.toppanel.toppanel--login{ position:fixed; display:flex; align-items:center; gap:12px; }
+.toppanel.toppanel--login{ position:fixed; display:flex; align-items:center; gap:12px; z-index: 5000; }
 .hamburger.right {
   margin-left: auto;
 }
@@ -165,7 +165,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
   cursor: pointer;
   margin: 0;                     /* fjern evt. indbyggede margin */
   position: relative;
-  z-index: 4000;                 /* højere end toppanel indhold */
+  z-index: 6000;                 /* højere end toppanel indhold */
   -webkit-tap-highlight-color: transparent;
   background: transparent;
   border-radius: 8px;
@@ -186,7 +186,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
   top: 56px;
   right: 12px;
   display: none;
-  z-index: 4500;
+  z-index: 6500;
   flex-direction: column;
   gap: 8px;
   padding: 10px;
@@ -282,7 +282,7 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
 .socials a{ display:inline-flex; text-decoration:none; outline:none; }
 .socials a:hover .icon-wrap{ transform: translateY(-2px); background: linear-gradient(135deg, var(--frost-highlight) 0%, rgba(255,255,255,0.10) 100%); box-shadow: 0 8px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.35); }
 .footer{ display:flex; align-items:center; justify-content:center; gap:12px; }
-.footer-left{ position:absolute; left:20px; bottom:14px; color:#fff; font-size:12px; }
+.footer-left{ position:absolute; left:22px; bottom:14px; color:#fff; font-size:12px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width:768px){
@@ -295,4 +295,7 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
   .login-menu{ left:8px; right:8px; width:auto; }
   .login-menu .toppanel-knap{ width:100%; }
   .toppanel-select{ max-width:60vw; }
+}
+@media (max-width: 480px){
+  .auth-box { max-width: 360px; padding: 28px 24px; }
 }

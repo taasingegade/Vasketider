@@ -326,21 +326,20 @@
       <div class="window danger" style="margin-top:16px;">
         <h3>⚠️ Ryd logninger (Danger Zone)</h3>
         <form method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker? Dette kan ikke fortrydes.');">
-          <div class="grid-2">
-            <div>
-              <label><input type="checkbox" name="slet_login"> Slet <strong>login_log</strong></label>
-              <label><input type="checkbox" name="slet_booking"> Slet <strong>booking_log</strong></label>
-              <label><input type="checkbox" name="slet_attempts"> Slet <strong>booking_attempts</strong></label>
-              <label><input type="checkbox" name="slet_kaeder"> Slet <strong>direkte_kæder</strong></label>
-            </div>
-            <div>
-              <label><input type="checkbox" name="slet_miele_act"> Slet <strong>miele_activity</strong></label>
-              <label><input type="checkbox" name="slet_miele_stat"> Slet <strong>miele_status</strong></label>
-              <label><input type="checkbox" name="slet_statistik"> Slet <strong>statistik</strong></label>
-              <label style="margin-top:8px;"><input type="checkbox" name="slet_alt"> <strong>TRUNCATE ALT</strong></label>
-            </div>
-          </div>
-
+  <div class="grid-2">
+    <div>
+      <label><input type="checkbox" name="slet_login" value="1"> Slet <strong>login_log</strong></label>
+      <label><input type="checkbox" name="slet_booking" value="1"> Slet <strong>booking_log</strong></label>
+      <label><input type="checkbox" name="slet_attempts" value="1"> Slet <strong>booking_attempts</strong></label>
+      <label><input type="checkbox" name="slet_kaeder" value="1"> Slet <strong>direkte_kæder</strong></label>
+    </div>
+    <div>
+      <label><input type="checkbox" name="slet_miele_act" value="1"> Slet <strong>miele_activity</strong></label>
+      <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
+      <label><input type="checkbox" name="slet_statistik" value="1"> Slet <strong>statistik</strong></label>
+      <label style="margin-top:8px;"><input type="checkbox" name="slet_alt" value="1"> <strong>TRUNCATE ALT</strong></label>
+    </div>
+  </div>
           <div style="margin-top:12px;">
             <div class="muted">Valgfrit dato-interval:</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">

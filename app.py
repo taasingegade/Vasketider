@@ -1586,15 +1586,15 @@ def admin_ryd_logs():
     if session.get('brugernavn', '').lower() != 'admin':
         return redirect('/login')
 
-    # Hent valg fra formular
-    slet_login      = request.form.get("slet_login") == "on"
-    slet_booking    = request.form.get("slet_booking") == "on"
-    slet_attempts   = request.form.get("slet_attempts") == "on"
-    slet_kaeder     = request.form.get("slet_kaeder") == "on"
-    slet_miele_act  = request.form.get("slet_miele_act") == "on"
-    slet_miele_stat = request.form.get("slet_miele_stat") == "on"
-    slet_statistik  = request.form.get("slet_statistik") == "on"
-    slet_alt        = request.form.get("slet_alt") == "on"
+    # Checkboxe: læs eksplicit value="1"
+    slet_login      = request.form.get("slet_login") == "1"
+    slet_booking    = request.form.get("slet_booking") == "1"
+    slet_attempts   = request.form.get("slet_attempts") == "1"
+    slet_kaeder     = request.form.get("slet_kaeder") == "1"
+    slet_miele_act  = request.form.get("slet_miele_act") == "1"
+    slet_miele_stat = request.form.get("slet_miele_stat") == "1"
+    slet_statistik  = request.form.get("slet_statistik") == "1"
+    slet_alt        = request.form.get("slet_alt") == "1"
 
     # Dato-interval (valgfrit)
     fra = (request.form.get("fra_dato") or "").strip()
@@ -1604,29 +1604,31 @@ def admin_ryd_logs():
     def build_where(colname: str):
         parts, params = [], []
         if fra:
-            parts.append(f'{colname}::date >= %s')
-            params.append(fra)
+            parts.append(f'{colname}::date >= %s'); params.append(fra)
         if til:
-            parts.append(f'{colname}::date <= %s')
-            params.append(til)
-        if parts:
-            return " WHERE " + " AND ".join(parts), tuple(params)
-        return "", tuple()
+            parts.append(f'{colname}::date <= %s'); params.append(til)
+        return (" WHERE " + " AND ".join(parts), tuple(params)) if parts else ("", tuple())
 
     # Map: “checkbox” → (SQL tabelnavn med korrekt citat, kolonne til dato-filter)
     targets = {
-        "login_log":      ('login_log',            'tidspunkt'),
-        "booking_log":    ('booking_log',          'tidspunkt'),
+        "login_log":        ('login_log',          'tidspunkt'),
+        "booking_log":      ('booking_log',        'tidspunkt'),
         "booking_attempts": ('booking_attempts',   'ts'),
-        # NB: æ kræver citat i PostgreSQL
-        "direkte_kæder":  ('"direkte_kæder"',      'created_at'),
-        "miele_activity": ('miele_activity',       'ts'),
-        "miele_status":   ('miele_status',         'opdateret'),
-        "statistik":      ('statistik',            'dato'),
+        "direkte_kæder":    ('\"direkte_kæder\"',  'created_at'),
+        "miele_activity":   ('miele_activity',     'ts'),
+        "miele_status":     ('miele_status',       'opdateret'),
+        "statistik":        ('statistik',          'dato'),
     }
 
     conn = get_db_connection(); cur = conn.cursor()
     slettet_info = []  # tekst-liste til besked
+
+    # TRUNCATE ALT har førsteprioritet
+    if slet_alt:
+        for t, _ in targets.values():
+            cur.execute(f"TRUNCATE TABLE {t} RESTART IDENTITY")
+        conn.commit()
+        return redirect("/statistik?besked=Alle+tabeller+truncated")
 
     try:
         if slet_alt:
