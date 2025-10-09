@@ -327,13 +327,15 @@
   <h2>Danger Zone</h2>
   <p class="muted">Handlinger her kan ikke fortrydes.</p>
 
-  <form id="dangerForm" method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker på at du vil slette valgte logninger?')">
+  <form id="dangerForm" method="post" action="/admin/ryd_logs">
     <div class="grid-2">
       <div>
         <label><input type="checkbox" name="slet_login"      value="1"> Slet <strong>login_log</strong></label>
         <label><input type="checkbox" name="slet_booking"    value="1"> Slet <strong>booking_log</strong></label>
         <label><input type="checkbox" name="slet_attempts"   value="1"> Slet <strong>booking_attempts</strong></label>
         <label><input type="checkbox" name="slet_kaeder"     value="1"> Slet <strong>direkte_kæder</strong></label>
+      </div>
+      <div>
         <label><input type="checkbox" name="slet_miele_act"  value="1"> Slet <strong>miele_activity</strong></label>
         <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
         <label><input type="checkbox" name="slet_statistik"  value="1"> Slet <strong>statistik</strong></label>
@@ -342,12 +344,20 @@
     </div>
 
     <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-      <input type="date" name="fra_dato"  aria-label="Fra dato">
-      <input type="date" name="til_dato"  aria-label="Til dato">
+      <input type="date" name="fra_dato" aria-label="Fra dato">
+      <input type="date" name="til_dato" aria-label="Til dato">
     </div>
-
-    <button type="submit" class="glass-btn" style="max-width:260px; margin-top:14px;">Slet valgte logninger</button>
   </form>
+
+  <!-- Placeret udenfor form-blokken og bundet via form="dangerForm" -->
+  <div style="margin-top:14px;">
+    <input
+      type="submit"
+      form="dangerForm"
+      class="glass-btn"
+      style="max-width:260px;"
+      value="Slet valgte logninger">
+  </div>
 </section>
   </div>
 

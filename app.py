@@ -789,9 +789,8 @@ def send_sms_twilio(modtager, besked):
     except Exception as e:
         print("Twilio fejl:", e)
 
-def _truthy(v):
-    if v is None: return False
-    return str(v).strip().lower() in ("1","true","on","yes","ja","t","y","checked")
+def truthy(v):
+    return (v or "").strip().lower() in ("1","true","on","yes","ja","t","y","checked")
 
 def ensure_stat_support_tables(cur):
     # Kun små hjælpe-tabeller; vi ændrer ikke dine primære tabeller.
@@ -1582,21 +1581,18 @@ def _testmail():
 
 @app.route("/admin/ryd_logs", methods=["POST"])
 def admin_ryd_logs():
-    # Kun admin
-    if session.get('brugernavn', '').lower() != 'admin':
-        return redirect(url_for("login"))
+    if session.get('brugernavn','').lower() != 'admin':
+        return redirect(url_for('login'))
 
-    # Læs checkboxe robust (accepterer 'on', '1', 'true', 'ja' mv.)
-    slet_login      = _truthy(request.form.get("slet_login"))
-    slet_booking    = _truthy(request.form.get("slet_booking"))
-    slet_attempts   = _truthy(request.form.get("slet_attempts"))
-    slet_kaeder     = _truthy(request.form.get("slet_kaeder"))
-    slet_miele_act  = _truthy(request.form.get("slet_miele_act"))
-    slet_miele_stat = _truthy(request.form.get("slet_miele_stat"))
-    slet_statistik  = _truthy(request.form.get("slet_statistik"))
-    slet_alt        = _truthy(request.form.get("slet_alt"))
+    slet_login      = truthy(request.form.get("slet_login"))
+    slet_booking    = truthy(request.form.get("slet_booking"))
+    slet_attempts   = truthy(request.form.get("slet_attempts"))
+    slet_kaeder     = truthy(request.form.get("slet_kaeder"))
+    slet_miele_act  = truthy(request.form.get("slet_miele_act"))
+    slet_miele_stat = truthy(request.form.get("slet_miele_stat"))
+    slet_statistik  = truthy(request.form.get("slet_statistik"))
+    slet_alt        = truthy(request.form.get("slet_alt"))
 
-    # Dato-interval (valgfrit)
     fra = (request.form.get("fra_dato") or "").strip()
     til = (request.form.get("til_dato") or "").strip()
 
@@ -1674,7 +1670,7 @@ def admin_ryd_logs():
             pass
 
     flash("Slettede: " + (", ".join(slettet_info) if slettet_info else "ingen ændringer"), "ok")
-    return redirect(url_for("statistik"))
+    return redirect(url_for("statistik", besked="Slettede logninger"))
 
 @app.route('/admin')
 def admin():
