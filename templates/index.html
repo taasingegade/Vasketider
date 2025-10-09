@@ -100,10 +100,10 @@
                     <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                     <input type="hidden" name="tid" value="{{ i }}">
                     <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                    <button type="submit" class="slot-btn booked-own"> {{ f.navn }} (fuld) </button>
+                    <button type="submit" class="slot-btn optaget">{{ f.navn }} (fuld)</button>
                   </form>
                 {% else %}
-                  <button class="slot-btn booked" disabled>{{ f.navn }}</button>
+                  <button class="slot-btn optaget" disabled>{{ f.navn }}</button>
                 {% endif %}
 
               {% else %}
@@ -113,7 +113,7 @@
                 {% set both_taken = has_early and has_late %}
 
                 {% if not both_taken %}
-                  <details class="split-details {% if (cell and cell.early and cell.early.navn=='service') or (cell and cell.late and cell.late.navn=='service') %}service{% endif %}">
+                  <details class="split-details {% if (cell and cell.early and cell.early.navn=='service') or (cell and cell.late and cell.late.navn=='service') %}service{% else %}ledig{% endif %}">
                     <summary>Ledig</summary>
                     <div class="split-panel">
                       {% set fuld_disabled = has_early and has_late %}
@@ -159,10 +159,10 @@
                         <input type="hidden" name="tid" value="{{ i }}">
                         <input type="hidden" name="sub" value="early">
                         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                        <button type="submit" class="slot-btn booked-own half">Tidlig</button>
+                        <button type="submit" class="slot-btn optaget half">Tidlig</button>
                       </form>
                     {% elif e %}
-                      <button class="slot-btn booked half" disabled>1 {{ e.navn }}</button>
+                      <button class="slot-btn optaget half" disabled>1 {{ e.navn }}</button>
                     {% endif %}
                   {% endif %}
 
@@ -176,10 +176,10 @@
                         <input type="hidden" name="tid" value="{{ i }}">
                         <input type="hidden" name="sub" value="late">
                         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                        <button type="submit" class="slot-btn booked-own half">Senere</button>
+                        <button type="submit" class="slot-btn optaget half">Senere</button>
                       </form>
                     {% elif l %}
-                      <button class="slot-btn booked half" disabled>2 {{ l.navn }}</button>
+                      <button class="slot-btn optaget half" disabled>2 {{ l.navn }}</button>
                     {% endif %}
                   {% endif %}
                 </div>

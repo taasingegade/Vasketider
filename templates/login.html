@@ -84,27 +84,23 @@
 <body>
 
   <!-- FROST-HVID FAST TOPPANEL -->
-  <div class="toppanel toppanel--login">
-    <div class="brand">Velkommen til Vasketider</div>
+  <!-- Hamburger (sorte streger) placeret i højre side -->
+  <header class="toppanel toppanel--login">
+  <div class="brand">Velkommen til Vasketider</div>
+  <button class="hamburger right" type="button" aria-label="Menu" onclick="toggleLoginMenu()">
+    <span class="hamburger-bar"></span>
+    <span class="hamburger-bar"></span>
+    <span class="hamburger-bar"></span>
+  </button>
 
-    <!-- Hamburger (sorte streger) placeret i højre side -->
-    <button class="hamburger right" type="button" aria-label="Åbn menu" onclick="toggleMenu()">
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-    </button>
-
-    <!-- Fold-ud login-menu (glas-knapper, rød hover-tekst) -->
-    <div class="login-menu" role="menu" aria-label="Login-menu">
-      <!-- Trigger selve formularen i boksen -->
-      <button type="button" class="toppanel-knap" onclick="submitLoginForm()">Log ind</button>
-
-      <!-- Opret / Skift / Regler kun i menuen -->
-      <form method="get" action="/opret"><button type="submit" class="toppanel-knap">Opret ny bruger</button></form>
-      <form method="get" action="/skiftkode"><button type="submit" class="toppanel-knap">Skift adgangskode</button></form>
-      <form method="get" action="/regler"><button type="submit" class="toppanel-knap">Regler</button></form>
-    </div>
+  <div class="login-menu" id="loginMenu">
+    <a class="toppanel-knap" href="/login">Log ind</a>
+    <a class="toppanel-knap" href="/opret">Opret ny bruger</a>
+    <a class="toppanel-knap" href="/skift_kode">Skift adgangskode</a>
+    <a class="toppanel-knap" href="/regler">Regler</a>
   </div>
+</header>
+</div>
 
   <!-- AUTH-VINDUE (kun login – opret/skift er flyttet i menuen) -->
   <div class="auth-wrap">
@@ -159,5 +155,18 @@
       </li>
     </ul>
   </footer>
+  <script>
+  function toggleLoginMenu(){
+    const m = document.getElementById('loginMenu');
+    if (m) m.classList.toggle('show');
+  }
+  // Luk ved klik udenfor
+  document.addEventListener('click', (e)=>{
+    const m = document.getElementById('loginMenu');
+    const b = document.querySelector('.toppanel--login .hamburger');
+    if (!m || !b) return;
+    if (!m.contains(e.target) && !b.contains(e.target)) m.classList.remove('show');
+  });
+</script>
 </body>
 </html>
