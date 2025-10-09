@@ -1586,16 +1586,17 @@ def admin_ryd_logs():
     if session.get('brugernavn', '').lower() != 'admin':
         return redirect(url_for("login"))
 
-    # Læs checkboxe (værdi er "1" når checked)
-    slet_login      = request.form.get("slet_login")      == "1"
-    slet_booking    = request.form.get("slet_booking")    == "1"
-    slet_attempts   = request.form.get("slet_attempts")   == "1"
-    slet_kaeder     = request.form.get("slet_kaeder")     == "1"
-    slet_miele_act  = request.form.get("slet_miele_act")  == "1"
-    slet_miele_stat = request.form.get("slet_miele_stat") == "1"
-    slet_statistik  = request.form.get("slet_statistik")  == "1"
-    slet_alt        = request.form.get("slet_alt")        == "1"
+    # Læs checkboxe robust (accepterer 'on', '1', 'true', 'ja' mv.)
+    slet_login      = _truthy(request.form.get("slet_login"))
+    slet_booking    = _truthy(request.form.get("slet_booking"))
+    slet_attempts   = _truthy(request.form.get("slet_attempts"))
+    slet_kaeder     = _truthy(request.form.get("slet_kaeder"))
+    slet_miele_act  = _truthy(request.form.get("slet_miele_act"))
+    slet_miele_stat = _truthy(request.form.get("slet_miele_stat"))
+    slet_statistik  = _truthy(request.form.get("slet_statistik"))
+    slet_alt        = _truthy(request.form.get("slet_alt"))
 
+    # Dato-interval (valgfrit)
     fra = (request.form.get("fra_dato") or "").strip()
     til = (request.form.get("til_dato") or "").strip()
 
@@ -1604,51 +1605,75 @@ def admin_ryd_logs():
         flash("Vælg mindst én logtype.", "fejl")
         return redirect(url_for("statistik"))
 
-    # Hjælper til WHERE mellem datoer
-    def build_where(col):
+    # Helper til WHERE for timestamp/date kolonner
+    def build_where(colname: str):
         parts, params = [], []
-        if fra: parts.append(f"{col}::date >= %s"); params.append(fra)
-        if til: parts.append(f"{col}::date <= %s"); params.append(til)
-        return (" WHERE " + " AND ".join(parts), params) if parts else ("", [])
+        if fra:
+            parts.append(f'{colname}::date >= %s'); params.append(fra)
+        if til:
+            parts.append(f'{colname}::date <= %s'); params.append(til)
+        return (" WHERE " + " AND ".join(parts), tuple(params)) if parts else ("", tuple())
 
-    # Tabeller og tidskolonner
-    targets = [
-        (slet_login,      "login_log",        "tidspunkt"),
-        (slet_booking,    "booking_log",      "tidspunkt"),
-        (slet_attempts,   "booking_attempts", "ts"),
-        (slet_kaeder,     '\"direkte_kæder\"',"created_at"),
-        (slet_miele_act,  "miele_activity",   "ts"),
-        (slet_miele_stat, "miele_status",     "opdateret"),
-        (slet_statistik,  "statistik",        "dato"),
-    ]
+    # Map: tabel + kolonne for datofilter
+    targets = {
+        "login_log":        ('login_log',            'tidspunkt'),
+        "booking_log":      ('booking_log',          'tidspunkt'),
+        "booking_attempts": ('booking_attempts',     'ts'),
+        "direkte_kæder":    ('\"direkte_kæder\"',    'created_at'),  # bemærk citat
+        "miele_activity":   ('miele_activity',       'ts'),
+        "miele_status":     ('miele_status',         'opdateret'),
+        "statistik":        ('statistik',            'dato'),
+    }
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = get_db_connection(); cur = conn.cursor()
+    slettet_info = []
 
     try:
         if slet_alt:
-            for _, table, _ in targets:
-                cur.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY")
+            for t, _ in [(v[0], v[1]) for v in targets.values()]:
+                cur.execute(f"TRUNCATE TABLE {t} RESTART IDENTITY")
             conn.commit()
-            flash("Alle tabeller er nulstillet.", "ok")
+            flash("Alle log-tabeller er nulstillet.", "ok")
             return redirect(url_for("statistik"))
 
-        total = 0
-        for flag, table, col in targets:
-            if not flag: continue
-            where_sql, params = build_where(col)
-            cur.execute(f"DELETE FROM {table}{where_sql}", params)
-            total += cur.rowcount if cur.rowcount is not None else 0
+        # Hjælpefunktion til sletning med faldbak uden filter,
+        # hvis en kolonne ikke findes i et miljø.
+        def delete_with_optional_filter(table, col):
+            where, params = build_where(col)
+            try:
+                cur.execute(f"DELETE FROM {table}{where} RETURNING 1", params)
+            except Exception as e:
+                print(f"⚠️ {table} delete med filter fejlede → prøver uden filter:", e, flush=True)
+                cur.execute(f"DELETE FROM {table} RETURNING 1")
+            return cur.rowcount
+
+        if slet_login:
+            t, col = targets["login_log"];       rc = delete_with_optional_filter(t, col); slettet_info.append(f"login_log: {rc}")
+        if slet_booking:
+            t, col = targets["booking_log"];     rc = delete_with_optional_filter(t, col); slettet_info.append(f"booking_log: {rc}")
+        if slet_attempts:
+            t, col = targets["booking_attempts"];rc = delete_with_optional_filter(t, col); slettet_info.append(f"booking_attempts: {rc}")
+        if slet_kaeder:
+            t, col = targets["direkte_kæder"];   rc = delete_with_optional_filter(t, col); slettet_info.append(f"direkte_kæder: {rc}")
+        if slet_miele_act:
+            t, col = targets["miele_activity"];  rc = delete_with_optional_filter(t, col); slettet_info.append(f"miele_activity: {rc}")
+        if slet_miele_stat:
+            t, col = targets["miele_status"];    rc = delete_with_optional_filter(t, col); slettet_info.append(f"miele_status: {rc}")
+        if slet_statistik:
+            t, col = targets["statistik"];       rc = delete_with_optional_filter(t, col); slettet_info.append(f"statistik: {rc}")
 
         conn.commit()
-        flash(f"Slettede {total} rækker.", "ok")
     except Exception as e:
         conn.rollback()
-        flash(f"Fejl ved sletning: {e}", "fejl")
+        print("❌ Fejl ved rydning af logs:", e, flush=True)
+        flash("Fejl under sletning.", "fejl")
     finally:
-        cur.close()
-        conn.close()
+        try:
+            cur.close(); conn.close()
+        except Exception:
+            pass
 
+    flash("Slettede: " + (", ".join(slettet_info) if slettet_info else "ingen ændringer"), "ok")
     return redirect(url_for("statistik"))
 
 @app.route('/admin')
