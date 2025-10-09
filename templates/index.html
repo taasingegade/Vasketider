@@ -14,37 +14,43 @@
 </head>
 <body>
   <!-- TOPPANEL -->
-...
-      <button class="toppanel-knap">Kommentar</button>
+  <div class="toppanel">
+    <div class="brand"><a href="/index">Vasketider</a></div>
+
+    <form method="post" action="/logout">
+      <button class="toppanel-knap" type="submit">Log ud</button>
+    </form>
+    <form method="get" action="/kommentar">
+      <button class="toppanel-knap" type="submit">Kommentar</button>
     </form>
     <form method="get" action="/dokumenter">
-      <button class="toppanel-knap">Dokumenter</button>
+      <button class="toppanel-knap" type="submit">Dokumenter</button>
     </form>
     <form method="get" action="/profil">
-      <button class="toppanel-knap">Min profil</button>
+      <button class="toppanel-knap" type="submit">Min profil</button>
     </form>
     <form method="get" action="/regler">
-      <button class="toppanel-knap">Regler</button>
+      <button class="toppanel-knap" type="submit">Regler</button>
     </form>
 
     <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
       <span class="status-label">🧺 Status:</span>
-      <span class="status-value">{{ miele_status | capitalize }}</span>
+      <span class="status-value">{{ (miele_status or 'Ukendt') | capitalize }}</span>
       <span class="status-sep">•</span>
       <span class="status-eta" id="status-eta" style="display:none;"></span>
     </div>
 
-    <form method="get" action="/index" style="margin-left:auto; display:flex; gap:10px;">
-      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
-      <span style="color:white; align-self:center;">Uge {{ valgt_uge }}</span>
-      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
+    <form method="get" action="/index" class="week-switch">
+      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
+      <span class="week-label">Uge {{ valgt_uge }}</span>
+      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
     </form>
   </div>
 
   <!-- WRAPPER -->
   <div class="wrapper">
     <div class="main">
-      <banner><h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2></banner>
+      <h2 class="page-title">Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
 
       {% if request.args.get("besked") %}
         <div id="popup-besked" class="popup-ok">
@@ -60,16 +66,19 @@
 
       <!-- KALENDER -->
       <div class="calendar">
+        <!-- Header tom celle -->
         <div></div>
         {% for dag in ugedage_dk %}
           {% set dhead = ugedage_dato[loop.index0] %}
-          <div style="text-align:center;">
-            <strong>{{ dag }}</strong><br>d. {{ dhead.day }}/{{ dhead.month }}
+          <div class="cal-head">
+            <span class="cal-head-dag"><strong>{{ dag }}</strong></span>
+            <span class="cal-head-dato">d. {{ dhead.day }}/{{ dhead.month }}</span>
           </div>
         {% endfor %}
 
         {% for i in range(4) %}
-          <div><strong>{{ tider[i] }}</strong></div>
+          <!-- Row label (tidsrum) -->
+          <div class="time-label"><strong>{{ tider[i] }}</strong></div>
 
           {% for j in range(7) %}
             {% set dato = ugedage_dato[j] %}
@@ -79,10 +88,8 @@
               {# 1) FULD BOOKET? #}
               {% if cell and cell.full %}
                 {% set f = cell.full %}
-
                 {% if f and f.navn == 'service' %}
                   <button class="slot-btn service" disabled>Service</button>
-
                 {% elif f and f.navn == bruger %}
                   <form method="POST" action="/slet">
                     <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
@@ -90,13 +97,12 @@
                     <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
                     <button type="submit" class="slot-btn booked-own"> {{ f.navn }} (fuld) </button>
                   </form>
-
                 {% else %}
                   <button class="slot-btn booked" disabled>{{ f.navn }}</button>
                 {% endif %}
 
               {% else %}
-                {# 2) IKKE fuld → menu + halvtider #}
+                {# 2) IKKE fuld → menu + halvtider (vælg) #}
                 {% set has_early = cell and (cell.early is not none) %}
                 {% set has_late  = cell and (cell.late  is not none) %}
                 {% set both_taken = has_early and has_late %}
@@ -135,45 +141,39 @@
                   </details>
                 {% endif %}
 
-                {# 3) VIS KNAPPER TIL AT ANNULLERE EGEN HALVDEL #}
-                <div class="split-pair" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
-                  {# Tidlig #}
+                {# 3) VIS SPLIT-KNAPPER (HORIZONTALE, INGEN OVERLAP) #}
+                <div class="split-pair">
                   {% if has_early %}
                     {% set e = cell.early %}
-              {% if e and e.navn == 'service' %}
-                      <button class="slot-btn service" disabled>Service (tidlig)</button>
+                    {% if e and e.navn == 'service' %}
+                      <button class="slot-btn service half" disabled>Service (tidlig)</button>
                     {% elif e and e.navn == bruger %}
                       <form method="POST" action="/slet">
                         <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                         <input type="hidden" name="tid" value="{{ i }}">
                         <input type="hidden" name="sub" value="early">
                         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                        <button type="submit" class="slot-btn" style="background-color:crimson;">Tidlig</button>
+                        <button type="submit" class="slot-btn booked-own half">Tidlig</button>
                       </form>
                     {% elif e %}
-                      <button class="slot-btn" style="background-color:crimson;" disabled>
-                        1 {{ e.navn }}
-                      </button>
+                      <button class="slot-btn booked half" disabled>1 {{ e.navn }}</button>
                     {% endif %}
                   {% endif %}
 
-                  {# Sen #}
                   {% if has_late %}
                     {% set l = cell.late %}
                     {% if l and l.navn == 'service' %}
-                      <button class="slot-btn service" disabled>Service (sen)</button>
+                      <button class="slot-btn service half" disabled>Service (sen)</button>
                     {% elif l and l.navn == bruger %}
                       <form method="POST" action="/slet">
                         <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                         <input type="hidden" name="tid" value="{{ i }}">
                         <input type="hidden" name="sub" value="late">
                         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                        <button type="submit" class="slot-btn" style="background-color:crimson;">Senere</button>
+                        <button type="submit" class="slot-btn booked-own half">Senere</button>
                       </form>
                     {% elif l %}
-                      <button class="slot-btn" style="background-color:crimson;" disabled>
-                        2 {{ l.navn }}
-                      </button>
+                      <button class="slot-btn booked half" disabled>2 {{ l.navn }}</button>
                     {% endif %}
                   {% endif %}
                 </div>
@@ -183,9 +183,10 @@
         {% endfor %}
       </div>
 
-      <hr>
+      <hr class="section-div">
+
       <h3>Alle bookede tider (næste 14 dage):</h3>
-      <ul id="bookinger_14_ul">
+      <ul id="bookinger_14_ul" class="bullet-list">
         {% if kommende_bookinger %}
           {% for b in kommende_bookinger %}
             <li><strong>{{ b.dato_dk }}</strong> – <strong>{{ b.slot_tekst }}</strong> → {{ b.brugernavn }}</li>
@@ -203,7 +204,7 @@
       fetch('/bookinger_json')
         .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
         .then(data => {
-          let ul = document.getElementById('bookinger_14_ul');
+          const ul = document.getElementById('bookinger_14_ul');
           if (!ul) return;
           ul.innerHTML = "";
           if (data.length === 0) {
@@ -217,7 +218,7 @@
         .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
     }
 
-    // Miele ETA
+    // ETA for Miele (enkel, baseret på resterende minutter)
     function renderETA() {
       const box = document.getElementById('miele-status');
       const etaSpan = document.getElementById('status-eta');
