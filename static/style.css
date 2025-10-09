@@ -344,7 +344,7 @@ footer, .footer{ z-index: 1000; }
 footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; z-index:1000; background:transparent; }
 
 /* ---------- Social ikoner ---------- */
-.socials{ list-style:none; display:flex; gap:14px; padding:0; margin:0; align-items:center; justify-content:center; }
+.socials{ list-style:none; display:flex; gap:14px; padding:0; margin:0; align-items:center; justify-content:right; }
 .icon-wrap{ width:var(--social-size); height:var(--social-size); display:inline-flex; align-items:center; justify-content:center; border-radius:14px; background:linear-gradient(135deg, var(--frost) 0%, rgba(255,255,255,0.06) 100%); border:1px solid var(--frost-border); box-shadow:0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25); backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%); transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
 .icon-wrap img{ width:14px; height:14px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35)); pointer-events:none; }
 .socials a{ display:inline-flex; text-decoration:none; outline:none; }
@@ -367,7 +367,37 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
   }
   .page{ display:block; }
   .page:not(.active){ display:none; }
-/* ---------- Responsive ---------- */
+
+button{ font:inherit; }
+button.slot-btn,button.hamburger{ all:unset; }
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){
+  appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg);
+  color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600;
+}
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
+  background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px);
+}
+/* === ADDED: Split-pair to render two half-slot buttons side-by-side without overlap === */
+.split-pair{
+  display:flex;
+  flex-wrap: nowrap !important;  /* override inline wrap to keep in one line */
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height: var(--slot-h);
+}
+.split-pair form{ flex:1 1 0; min-width:0; }
+.split-pair .slot-btn{
+  height: calc(var(--slot-h) - 8px);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 8px;
+  width:100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.split-pair:has(> :only-child) .slot-btn{ height: var(--slot-h); }
+  /* ---------- Responsive ---------- */
 @media (max-width:768px){
   .calendar{ grid-template-columns:100px repeat(7, minmax(140px,1fr)); gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .wrapper{ margin:86px 8px 18px; padding:16px; }

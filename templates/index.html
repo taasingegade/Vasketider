@@ -14,11 +14,7 @@
 </head>
 <body>
   <!-- TOPPANEL -->
-  <div class="toppanel">
-    <form method="post" action="/logout">
-      <button class="toppanel-knap">Log ud</button>
-    </form>
-    <form method="get" action="/kommentar">
+...
       <button class="toppanel-knap">Kommentar</button>
     </form>
     <form method="get" action="/dokumenter">
@@ -51,13 +47,13 @@
       <banner><h2>Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2></banner>
 
       {% if request.args.get("besked") %}
-        <div id="popup-besked" style="position: relative; padding: 10px; background-color: rgba(0,150,0,0.7); color: white; border-radius: 8px; font-weight: bold; margin-top: 10px; max-width: 300px;">
+        <div id="popup-besked" class="popup-ok">
           {{ request.args.get("besked") }}
         </div>
       {% endif %}
 
       {% if request.args.get("fejl") %}
-        <div id="popup-fejl" style="position: relative; padding: 10px; background-color: rgba(200,0,0,0.8); color: white; border-radius: 8px; font-weight: bold; margin-top: 10px; max-width: 300px;">
+        <div id="popup-fejl" class="popup-error">
           {{ request.args.get("fejl") }}
         </div>
       {% endif %}
@@ -79,8 +75,7 @@
             {% set dato = ugedage_dato[j] %}
             {% set cell = bookinger.get((dato, i)) %}
 
-            <div style="display:flex;justify-content:center;align-items:center;min-height:42px;flex-wrap:wrap;gap:6px;">
-
+            <div class="cell-inner">
               {# 1) FULD BOOKET? #}
               {% if cell and cell.full %}
                 {% set f = cell.full %}
@@ -93,24 +88,19 @@
                     <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                     <input type="hidden" name="tid" value="{{ i }}">
                     <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
-                    <button type="submit" class="slot-btn" style="background-color:crimson;">
-                      {{ f.navn }} (fuld)
-                    </button>
+                    <button type="submit" class="slot-btn booked-own"> {{ f.navn }} (fuld) </button>
                   </form>
 
                 {% else %}
-                  <button class="slot-btn" style="background-color:crimson;" disabled>
-                    {{ f.navn }}
-                  </button>
+                  <button class="slot-btn booked" disabled>{{ f.navn }}</button>
                 {% endif %}
 
               {% else %}
-                {# 2) IKKE fuld → menu + halvtider (ÆNDRET LOGIK) #}
+                {# 2) IKKE fuld → menu + halvtider #}
                 {% set has_early = cell and (cell.early is not none) %}
                 {% set has_late  = cell and (cell.late  is not none) %}
                 {% set both_taken = has_early and has_late %}
 
-                {# Viser IKKE "Ledig"-dropdown hvis begge halvdele er taget #}
                 {% if not both_taken %}
                   <details class="split-details {% if (cell and cell.early and cell.early.navn=='service') or (cell and cell.late and cell.late.navn=='service') %}service{% endif %}">
                     <summary>Ledig</summary>
@@ -146,11 +136,11 @@
                 {% endif %}
 
                 {# 3) VIS KNAPPER TIL AT ANNULLERE EGEN HALVDEL #}
-                <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+                <div class="split-pair" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
                   {# Tidlig #}
                   {% if has_early %}
                     {% set e = cell.early %}
-                    {% if e and e.navn == 'service' %}
+              {% if e and e.navn == 'service' %}
                       <button class="slot-btn service" disabled>Service (tidlig)</button>
                     {% elif e and e.navn == bruger %}
                       <form method="POST" action="/slet">
@@ -188,7 +178,6 @@
                   {% endif %}
                 </div>
               {% endif %}
-
             </div>
           {% endfor %}
         {% endfor %}
