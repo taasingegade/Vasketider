@@ -13,38 +13,52 @@
   </script>
 </head>
 <body>
-  <!-- TOPPANEL -->
-  <div class="toppanel">
-    <div class="brand"><a href="/index">Vasketider</a></div>
 
-    <button class="toppanel-knap">Kommentar</button>
-    </form>
-    <form method="get" action="/dokumenter">
-      <button class="toppanel-knap">Dokumenter</button>
-    </form>
-    <form method="get" action="/profil">
-      <button class="toppanel-knap">Min profil</button>
-    </form>
-    <form method="get" action="/regler">
-      <button class="toppanel-knap">Regler</button>
-    </form>
-
-    <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
-      <span class="status-label">🧺 Status:</span>
-      <span class="status-value">{{ (miele_status or 'Ukendt') | capitalize }}</span>
-      <span class="status-sep">•</span>
-      <span class="status-eta" id="status-eta" style="display:none;"></span>
+  <!-- TOPBAR -->
+  <header class="toppanel" role="banner">
+    <!-- Venstre: Hamburger + brand -->
+    <div class="top-left">
+      <button class="hamburger" id="hamburger" type="button" aria-label="Åbn menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
 
-    <form method="get" action="/index" class="week-switch">
-      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
-      <span class="week-label">Uge {{ valgt_uge }}</span>
-      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
-    </form>
-  </div>
+    <!-- Center: Status -->
+    <div class="top-center">
+      <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
+        <span class="status-label">🧺 Status:</span>
+        <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
+        <span class="status-sep">•</span>
+        <span class="status-eta" id="status-eta" style="display:none;"></span>
+      </div>
+    </div>
+
+    <!-- Højre: Ugevælger -->
+    <div class="top-right">
+      <form method="get" action="/index" class="week-switch" aria-label="Ugevælger">
+        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
+        <span class="week-label">Uge {{ valgt_uge }}</span>
+        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
+      </form>
+      <form method="post" action="/logout">
+        <button class="toppanel-knap" type="submit" aria-label="Log ud">Log ud</button>
+      </form>
+    </div>
+  </header>
+
+  <!-- Skuffe-menu (venstre) -->
+  <aside class="nav-drawer" id="navDrawer" aria-hidden="true">
+    <nav class="nav-list" aria-label="Hovedmenu">
+      <a href="/kommentar">Kommentar</a>
+      <a href="/dokumenter">Dokumenter</a>
+      <a href="/profil">Min profil</a>
+      <a href="/regler">Regler</a>
+    </nav>
+  </aside>
+  <div class="nav-scrim" id="navScrim" hidden></div>
 
   <!-- WRAPPER -->
-  <div class="wrapper">
+  <main class="wrapper" role="main">
     <div class="main">
       <h2 class="page-title">Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
 
@@ -62,8 +76,10 @@
 
       <!-- KALENDER -->
       <div class="calendar">
-        <!-- Header tom celle -->
+        <!-- tom celle i hjørnet -->
         <div></div>
+
+        <!-- Ugedage -->
         {% for dag in ugedage_dk %}
           {% set dhead = ugedage_dato[loop.index0] %}
           <div class="cal-head">
@@ -72,8 +88,8 @@
           </div>
         {% endfor %}
 
+        <!-- Rækker for tidsrum -->
         {% for i in range(4) %}
-          <!-- Row label (tidsrum) -->
           <div class="time-label"><strong>{{ tider[i] }}</strong></div>
 
           {% for j in range(7) %}
@@ -81,7 +97,7 @@
             {% set cell = bookinger.get((dato, i)) %}
 
             <div class="cell-inner">
-              {# 1) FULD BOOKET? #}
+              {# 1) Fuldt booket #}
               {% if cell and cell.full %}
                 {% set f = cell.full %}
                 {% if f and f.navn == 'service' %}
@@ -98,7 +114,7 @@
                 {% endif %}
 
               {% else %}
-                {# 2) IKKE fuld → menu + halvtider (vælg) #}
+                {# 2) Halvt booket? #}
                 {% set has_early = cell and (cell.early is not none) %}
                 {% set has_late  = cell and (cell.late  is not none) %}
                 {% set both_taken = has_early and has_late %}
@@ -114,6 +130,7 @@
                         <input type="hidden" name="valgt_uge" value="{{ valgt_uge }}">
                         <button type="submit" class="menu-btn" {% if fuld_disabled %}disabled{% endif %}>Book fuld</button>
                       </form>
+
                       <hr class="menu-sep">
 
                       <!-- Tidlig halvdel -->
@@ -137,7 +154,7 @@
                   </details>
                 {% endif %}
 
-                {# 3) VIS SPLIT-KNAPPER (HORIZONTALE, INGEN OVERLAP) #}
+                <!-- 3) Split-knapper (vandret, lavere, farver) -->
                 <div class="split-pair">
                   {% if has_early %}
                     {% set e = cell.early %}
@@ -192,10 +209,29 @@
         {% endif %}
       </ul>
     </div>
-  </div>
+  </main>
 
   <!-- SCRIPTS -->
   <script>
+    // Hamburger/drawer
+    const burger = document.getElementById('hamburger');
+    const drawer = document.getElementById('navDrawer');
+    const scrim  = document.getElementById('navScrim');
+    if (burger && drawer && scrim){
+      const toggle = () => {
+        const open = !drawer.classList.contains('open');
+        drawer.classList.toggle('open', open);
+        scrim.classList.toggle('show', open);
+        scrim.hidden = !open;
+        burger.classList.toggle('is-open', open);
+        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+      };
+      burger.addEventListener('click', toggle);
+      scrim.addEventListener('click', toggle);
+    }
+
+    // Liste med bookinger
     function hentBookinger() {
       fetch('/bookinger_json')
         .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
@@ -214,7 +250,7 @@
         .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
     }
 
-    // ETA for Miele (enkel, baseret på resterende minutter)
+    // Miele ETA (simpel client-timer)
     function renderETA() {
       const box = document.getElementById('miele-status');
       const etaSpan = document.getElementById('status-eta');
@@ -225,11 +261,9 @@
         etaSpan.style.display = 'none';
         return;
       }
-
       const end = new Date(Date.now() + mins * 60000);
       const hh = String(end.getHours()).padStart(2, '0');
       const mm = String(end.getMinutes()).padStart(2, '0');
-
       etaSpan.textContent = `⏱ ~${mins} min (færdig ca. kl. ${hh}:${mm})`;
       etaSpan.style.display = '';
     }
@@ -246,12 +280,10 @@
     setInterval(hentBookinger, 10000);
     window.onload = function() {
       hentBookinger();
-
       const popupOK = document.getElementById('popup-besked');
       if (popupOK) setTimeout(() => { popupOK.style.display = 'none'; }, 3000);
       const popupErr = document.getElementById('popup-fejl');
       if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
-
       renderETA();
       setInterval(tickETA, 60000);
     };

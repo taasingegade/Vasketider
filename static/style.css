@@ -71,6 +71,32 @@ body{
   height:38px; padding:6px 12px; border-radius:10px;
   border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.10); color:#fff;
 }
+.toppanel .status.status-center{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+}
+
+/* Topbar dropdown-menu (venstre) */
+.topmenu{
+  position:absolute !important;
+  left:12px !important;          /* venstre side */
+  top:56px !important;
+  display:none;
+  z-index:6500 !important;
+  min-width:220px;
+  flex-direction:column;
+  gap:8px;
+  padding:10px;
+  background:rgba(255,255,255,0.95);
+  color:#111;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+}
+.topmenu.show{ display:flex !important; }
+.topmenu .toppanel-knap{ width:100%; justify-content:center; background:rgba(255,255,255,0.6); color:#000; }
+.topmenu .toppanel-knap:hover{ color: var(--danger); background: rgba(255,255,255,0.85); }
 
 /* ---------- WRAPPER ---------- */
 .wrapper{ width:100%; max-width:var(--page-max); margin:90px auto 24px; padding:22px; background:rgba(255,255,255,0.05); border-radius:12px; }
@@ -344,7 +370,7 @@ footer, .footer{ z-index: 1000; }
 footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; z-index:1000; background:transparent; }
 
 /* ---------- Social ikoner ---------- */
-.socials{ list-style:none; display:flex; gap:14px; padding:0; margin:0; align-items:center; justify-content:right; }
+.socials{ list-style:none; display:flex; gap:14px; padding:0; margin:0; align-items:right; justify-content:right; }
 .icon-wrap{ width:var(--social-size); height:var(--social-size); display:inline-flex; align-items:center; justify-content:center; border-radius:14px; background:linear-gradient(135deg, var(--frost) 0%, rgba(255,255,255,0.06) 100%); border:1px solid var(--frost-border); box-shadow:0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25); backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%); transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
 .icon-wrap img{ width:14px; height:14px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.35)); pointer-events:none; }
 .socials a{ display:inline-flex; text-decoration:none; outline:none; }
