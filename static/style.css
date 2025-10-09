@@ -300,18 +300,15 @@ details.ua{ margin-top:6px; } details.ua summary{ cursor:pointer; color:#9fd8ff;
 .window.danger { position: relative; isolation: isolate; }
 .window.danger::before,
 .window.danger::after { pointer-events: none !important; }
-
-#dzSubmit.dz-submit {
+.window.danger *::before,
+.window.danger *::after { pointer-events: none !important; }
+#dzSubmit.dz-submit{
   position: relative;
-  z-index: 200;                  /* over glaslag */
-  display: inline-flex;          /* hele knapfladen er klikbar */
+  z-index: 9999;               /* over alt i sektionen */
+  pointer-events: auto !important;
+  display: inline-flex;        /* fuld hitbox */
   align-items: center;
   justify-content: center;
-  pointer-events: auto !important;
-  /* behold eksisterende størrelse via dine glas-btn værdier */
-  padding: 8px 14px;             /* samme padding som du allerede bruger */
-  border-radius: 12px;           /* samme radius */
-  cursor: pointer;
 }
 
 #dzSubmit.dz-submit:hover {

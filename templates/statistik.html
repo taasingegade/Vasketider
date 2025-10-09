@@ -349,7 +349,7 @@
             <input type="date" name="til_dato" aria-label="Til dato">
           </div>
 
-          <button id="dzSubmit" type="submit" class="glass-btn dz-submit" style="margin-top:14px;">
+          <button id="dzSubmit" type="submit" class="glass-btn dz-submit">
             Slet valgte logninger
           </button>
         </form>
@@ -454,5 +454,29 @@
     }, false);
   })();
   </script>
+  <script>
+document.addEventListener('DOMContentLoaded', function(){
+  var btn  = document.getElementById('dzSubmit');
+  var form = document.getElementById('dangerForm');
+  if (!btn || !form) return;
+
+  function forceSubmit(ev){
+    // stop alt andet fra at stjæle eventet
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      if (form.requestSubmit) form.requestSubmit();
+      else form.submit();
+    } catch(e) {
+      form.submit();
+    }
+  }
+
+  // fang klik allerede i capture-fasen og også på touch/pointer
+  ['pointerdown','click','touchstart'].forEach(function(type){
+    btn.addEventListener(type, forceSubmit, true);
+  });
+});
+</script>
 </body>
 </html>
