@@ -17,20 +17,16 @@
   <div class="toppanel">
     <div class="brand"><a href="/index">Vasketider</a></div>
 
-    <form method="post" action="/logout">
-      <button class="toppanel-knap" type="submit">Log ud</button>
-    </form>
-    <form method="get" action="/kommentar">
-      <button class="toppanel-knap" type="submit">Kommentar</button>
+    <button class="toppanel-knap">Kommentar</button>
     </form>
     <form method="get" action="/dokumenter">
-      <button class="toppanel-knap" type="submit">Dokumenter</button>
+      <button class="toppanel-knap">Dokumenter</button>
     </form>
     <form method="get" action="/profil">
-      <button class="toppanel-knap" type="submit">Min profil</button>
+      <button class="toppanel-knap">Min profil</button>
     </form>
     <form method="get" action="/regler">
-      <button class="toppanel-knap" type="submit">Regler</button>
+      <button class="toppanel-knap">Regler</button>
     </form>
 
     <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
