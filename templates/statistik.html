@@ -322,38 +322,35 @@
         </div>
       </div>
 
-      <!-- Danger Zone (ryd logninger) – virker sammen med /admin/ryd_logs i app.py -->
-      <div class="window danger" style="margin-top:16px;">
-        <h3>⚠️ Ryd logninger (Danger Zone)</h3>
-        <form method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker? Dette kan ikke fortrydes.');">
-  <div class="grid-2">
-    <div>
-      <label><input type="checkbox" name="slet_login" value="1"> Slet <strong>login_log</strong></label>
-      <label><input type="checkbox" name="slet_booking" value="1"> Slet <strong>booking_log</strong></label>
-      <label><input type="checkbox" name="slet_attempts" value="1"> Slet <strong>booking_attempts</strong></label>
-      <label><input type="checkbox" name="slet_kaeder" value="1"> Slet <strong>direkte_kæder</strong></label>
-    </div>
-    <div>
-      <label><input type="checkbox" name="slet_miele_act" value="1"> Slet <strong>miele_activity</strong></label>
-      <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
-      <label><input type="checkbox" name="slet_statistik" value="1"> Slet <strong>statistik</strong></label>
-      <label style="margin-top:8px;"><input type="checkbox" name="slet_alt" value="1"> <strong>TRUNCATE ALT</strong></label>
-    </div>
-  </div>
-          <div style="margin-top:12px;">
-            <div class="muted">Valgfrit dato-interval:</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
-              <div><label>Fra dato</label><br><input type="date" name="fra_dato"></div>
-              <div><label>Til dato</label><br><input type="date" name="til_dato"></div>
-            </div>
-          </div>
+      <!-- DANGER ZONE: Slet logninger -->
+<section class="window danger" aria-label="Danger Zone">
+  <h2>Danger Zone</h2>
+  <p class="muted">Handlinger her kan ikke fortrydes.</p>
 
-          <div style="margin-top:14px;">
-            <button class="toppanel-knap" type="submit" style="background:rgba(220,0,0,.85);color:#fff;border:1px solid rgba(255,255,255,.25);">Slet valgte logninger</button>
-          </div>
-        </form>
+  <form id="dangerForm" method="post" action="/admin/ryd_logs" onsubmit="return confirm('Er du sikker på at du vil slette valgte logninger?')">
+    <div class="grid-2">
+      <div>
+        <label><input type="checkbox" name="slet_login"      value="1"> Slet <strong>login_log</strong></label>
+        <label><input type="checkbox" name="slet_booking"    value="1"> Slet <strong>booking_log</strong></label>
+        <label><input type="checkbox" name="slet_attempts"   value="1"> Slet <strong>booking_attempts</strong></label>
+        <label><input type="checkbox" name="slet_kaeder"     value="1"> Slet <strong>direkte_kæder</strong></label>
       </div>
-    </section>
+      <div>
+        <label><input type="checkbox" name="slet_miele_act"  value="1"> Slet <strong>miele_activity</strong></label>
+        <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
+        <label><input type="checkbox" name="slet_statistik"  value="1"> Slet <strong>statistik</strong></label>
+        <label style="margin-top:8px;"><input type="checkbox" name="slet_alt" value="1"> <strong>TRUNCATE ALT</strong></label>
+      </div>
+    </div>
+
+    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+      <input type="date" name="fra_dato"  aria-label="Fra dato">
+      <input type="date" name="til_dato"  aria-label="Til dato">
+    </div>
+
+    <button type="submit" class="glass-btn" style="max-width:260px; margin-top:14px;">Slet valgte logninger</button>
+  </form>
+</section>
   </div>
 
   <footer>© Hornsberg Group</footer>

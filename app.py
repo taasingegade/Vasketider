@@ -1584,128 +1584,72 @@ def _testmail():
 def admin_ryd_logs():
     # Kun admin
     if session.get('brugernavn', '').lower() != 'admin':
-        return redirect('/login')
+        return redirect(url_for("login"))
 
-    # Checkboxe: læs eksplicit value="1"
-    slet_login      = request.form.get("slet_login") == "1"
-    slet_booking    = request.form.get("slet_booking") == "1"
-    slet_attempts   = request.form.get("slet_attempts") == "1"
-    slet_kaeder     = request.form.get("slet_kaeder") == "1"
-    slet_miele_act  = request.form.get("slet_miele_act") == "1"
+    # Læs checkboxe (værdi er "1" når checked)
+    slet_login      = request.form.get("slet_login")      == "1"
+    slet_booking    = request.form.get("slet_booking")    == "1"
+    slet_attempts   = request.form.get("slet_attempts")   == "1"
+    slet_kaeder     = request.form.get("slet_kaeder")     == "1"
+    slet_miele_act  = request.form.get("slet_miele_act")  == "1"
     slet_miele_stat = request.form.get("slet_miele_stat") == "1"
-    slet_statistik  = request.form.get("slet_statistik") == "1"
-    slet_alt        = request.form.get("slet_alt") == "1"
+    slet_statistik  = request.form.get("slet_statistik")  == "1"
+    slet_alt        = request.form.get("slet_alt")        == "1"
 
-    # Dato-interval (valgfrit)
     fra = (request.form.get("fra_dato") or "").strip()
     til = (request.form.get("til_dato") or "").strip()
 
-    # Helper til WHERE for timestamp/date kolonner
-    def build_where(colname: str):
+    if not any([slet_login, slet_booking, slet_attempts, slet_kaeder,
+                slet_miele_act, slet_miele_stat, slet_statistik, slet_alt]):
+        flash("Vælg mindst én logtype.", "fejl")
+        return redirect(url_for("statistik"))
+
+    # Hjælper til WHERE mellem datoer
+    def build_where(col):
         parts, params = [], []
-        if fra:
-            parts.append(f'{colname}::date >= %s'); params.append(fra)
-        if til:
-            parts.append(f'{colname}::date <= %s'); params.append(til)
-        return (" WHERE " + " AND ".join(parts), tuple(params)) if parts else ("", tuple())
+        if fra: parts.append(f"{col}::date >= %s"); params.append(fra)
+        if til: parts.append(f"{col}::date <= %s"); params.append(til)
+        return (" WHERE " + " AND ".join(parts), params) if parts else ("", [])
 
-    # Map: “checkbox” → (SQL tabelnavn med korrekt citat, kolonne til dato-filter)
-    targets = {
-        "login_log":        ('login_log',          'tidspunkt'),
-        "booking_log":      ('booking_log',        'tidspunkt'),
-        "booking_attempts": ('booking_attempts',   'ts'),
-        "direkte_kæder":    ('\"direkte_kæder\"',  'created_at'),
-        "miele_activity":   ('miele_activity',     'ts'),
-        "miele_status":     ('miele_status',       'opdateret'),
-        "statistik":        ('statistik',          'dato'),
-    }
+    # Tabeller og tidskolonner
+    targets = [
+        (slet_login,      "login_log",        "tidspunkt"),
+        (slet_booking,    "booking_log",      "tidspunkt"),
+        (slet_attempts,   "booking_attempts", "ts"),
+        (slet_kaeder,     '\"direkte_kæder\"',"created_at"),
+        (slet_miele_act,  "miele_activity",   "ts"),
+        (slet_miele_stat, "miele_status",     "opdateret"),
+        (slet_statistik,  "statistik",        "dato"),
+    ]
 
-    conn = get_db_connection(); cur = conn.cursor()
-    slettet_info = []  # tekst-liste til besked
-
-    # TRUNCATE ALT har førsteprioritet
-    if slet_alt:
-        for t, _ in targets.values():
-            cur.execute(f"TRUNCATE TABLE {t} RESTART IDENTITY")
-        conn.commit()
-        return redirect("/statistik?besked=Alle+tabeller+truncated")
+    conn = get_db_connection()
+    cur = conn.cursor()
 
     try:
         if slet_alt:
-            # TRUNCATE alle – husk citat for direkte_kæder
-            for tname in ['login_log','booking_log','booking_attempts','"direkte_kæder"','miele_activity','miele_status','statistik']:
-                try:
-                    cur.execute(f"TRUNCATE {tname} RESTART IDENTITY")
-                    slettet_info.append(f"TRUNCATE {tname}")
-                except Exception as e:
-                    print(f"⚠️ TRUNCATE fejlede for {tname}: {e}", flush=True)
-                    slettet_info.append(f"TRUNCATE {tname} (fejl)")
-        else:
-            # Selectivt DELETE med evt. dato-filter og tællere
-            if slet_login:
-                t, col = targets["login_log"]
-                where, params = build_where(col)
-                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                slettet_info.append(f"login_log: {cur.rowcount} rækker")
-            if slet_booking:
-                t, col = targets["booking_log"]
-                where, params = build_where(col)
-                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                slettet_info.append(f"booking_log: {cur.rowcount} rækker")
-            if slet_attempts:
-                t, col = targets["booking_attempts"]
-                where, params = build_where(col)
-                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                slettet_info.append(f"booking_attempts: {cur.rowcount} rækker")
-            if slet_kaeder:
-                t, col = targets["direkte_kæder"]
-                where, params = build_where(col)
-                try:
-                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                except Exception as e:
-                    # Faldbak uden filter hvis kolonnenavn afviger i nogle miljøer
-                    print("⚠️ direkte_kæder delete med filter fejlede → prøver uden filter:", e, flush=True)
-                    cur.execute(f"DELETE FROM {t} RETURNING 1")
-                slettet_info.append(f'direkte_kæder: {cur.rowcount} rækker')
-            if slet_miele_act:
-                t, col = targets["miele_activity"]
-                where, params = build_where(col)
-                try:
-                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                except Exception as e:
-                    print("⚠️ miele_activity delete med filter fejlede → prøver uden filter:", e, flush=True)
-                    cur.execute(f"DELETE FROM {t} RETURNING 1")
-                slettet_info.append(f"miele_activity: {cur.rowcount} rækker")
-            if slet_miele_stat:
-                t, col = targets["miele_status"]
-                where, params = build_where(col)
-                try:
-                    cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                except Exception as e:
-                    print("⚠️ miele_status delete med filter fejlede → prøver uden filter:", e, flush=True)
-                    cur.execute(f"DELETE FROM {t} RETURNING 1")
-                slettet_info.append(f"miele_status: {cur.rowcount} rækker")
-            if slet_statistik:
-                t, col = targets["statistik"]
-                where, params = build_where(col)
-                cur.execute(f"DELETE FROM {t}{where} RETURNING 1", params)
-                slettet_info.append(f"statistik: {cur.rowcount} rækker")
+            for _, table, _ in targets:
+                cur.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY")
+            conn.commit()
+            flash("Alle tabeller er nulstillet.", "ok")
+            return redirect(url_for("statistik"))
+
+        total = 0
+        for flag, table, col in targets:
+            if not flag: continue
+            where_sql, params = build_where(col)
+            cur.execute(f"DELETE FROM {table}{where_sql}", params)
+            total += cur.rowcount if cur.rowcount is not None else 0
 
         conn.commit()
-
+        flash(f"Slettede {total} rækker.", "ok")
     except Exception as e:
         conn.rollback()
-        print("❌ Fejl ved rydning af logs:", e, flush=True)
-        slettet_info.append("Fejl under sletning")
+        flash(f"Fejl ved sletning: {e}", "fejl")
     finally:
-        try:
-            cur.close(); conn.close()
-        except Exception:
-            pass
+        cur.close()
+        conn.close()
 
-    besked = "Slettede: " + (", ".join(slettet_info) if slettet_info else "ingen ændringer")
-    # tilbage til statistik-siden (din formular peger allerede her)
-    return redirect(f"/statistik?besked={besked}")
+    return redirect(url_for("statistik"))
 
 @app.route('/admin')
 def admin():

@@ -299,3 +299,8 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
 @media (max-width: 480px){
   .auth-box { max-width: 360px; padding: 28px 24px; }
 }
+@media (max-width: 820px){
+  .mobile-block { display: none !important; } /* intet overlay */
+  .container    { display: block !important; }
+  body          { overflow: auto !important; }
+}
