@@ -448,11 +448,11 @@
 
     btn.addEventListener('click', function(){
       setTimeout(function(){
-        try { if (form.requestSubmit) form.requestSubmit(btn); else form.submit(); }
-        catch(e){ form.submit(); }
+        try { form.requestSubmit ? form.requestSubmit(btn) : form.submit(); }
+        catch(_){ form.submit(); }
       }, 0);
-    }, false);
-  })();
+    }, true);
+  });
   </script>
   <script>
 document.addEventListener('DOMContentLoaded', function(){

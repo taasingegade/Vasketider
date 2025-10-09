@@ -297,20 +297,21 @@ details.ua{ margin-top:6px; } details.ua summary{ cursor:pointer; color:#9fd8ff;
   color: #d93025; /* rød hover-tekst som resten af UI */
 }
 /* Danger-knap: fuld hitbox, samme størrelse/udseende */
-.window.danger { position: relative; isolation: isolate; }
+.window.danger { position: relative; z-index: 4000; margin-bottom: 80px; isolation: isolate; }
 .window.danger::before,
 .window.danger::after { pointer-events: none !important; }
 .window.danger *::before,
 .window.danger *::after { pointer-events: none !important; }
 #dzSubmit.dz-submit{
   position: relative;
-  z-index: 9999;               /* over alt i sektionen */
+  z-index: 4001;               /* over alt i sektionen */
   pointer-events: auto !important;
   display: inline-flex;        /* fuld hitbox */
   align-items: center;
   justify-content: center;
+  width: auto;
 }
-
+footer, .footer{ z-index: 1000; }
 #dzSubmit.dz-submit:hover {
   background: var(--glass-bg-hover);
   color: var(--danger);
