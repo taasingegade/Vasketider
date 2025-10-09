@@ -350,15 +350,12 @@
   </form>
 
   <!-- Placeret udenfor form-blokken og bundet via form="dangerForm" -->
-  <div class="action">
-    <button
-      type="submit"
-      form="dangerForm"
-      class="glass-btn dz-submit"
-      aria-label="Slet valgte logninger">
-      Slet valgte logninger
-      </button>
-      </div>
+  <form id="dangerForm" method="post" action="/admin/ryd_logs">
+  <!-- dine checkbokse + datoer -->
+  <button type="submit" class="glass-btn dz-submit">
+    Slet valgte logninger
+  </button>
+</form>
   </div>
 </section>
   </div>
