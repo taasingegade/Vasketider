@@ -789,8 +789,10 @@ def send_sms_twilio(modtager, besked):
     except Exception as e:
         print("Twilio fejl:", e)
 
-def truthy(v):
-    return (v or "").strip().lower() in ("1","true","on","yes","ja","t","y","checked")
+def _truthy(v):
+    if v is None:
+        return False
+    return str(v).strip().lower() in ("1","true","on","yes","ja","t","y","checked")
 
 def ensure_stat_support_tables(cur):
     # Kun små hjælpe-tabeller; vi ændrer ikke dine primære tabeller.
