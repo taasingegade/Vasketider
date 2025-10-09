@@ -296,11 +296,29 @@ details.ua{ margin-top:6px; } details.ua summary{ cursor:pointer; color:#9fd8ff;
   background: rgba(255,255,255,.22);
   color: #d93025; /* rød hover-tekst som resten af UI */
 }
-/* ==== Danger Zone – klik skal virke uden at ændre størrelsen ==== */
-.window.danger { isolation: isolate; }
+/* Danger-knap: fuld hitbox, samme størrelse/udseende */
+.window.danger { position: relative; isolation: isolate; }
 .window.danger::before,
 .window.danger::after { pointer-events: none !important; }
 
+#dzSubmit.dz-submit {
+  position: relative;
+  z-index: 200;                  /* over glaslag */
+  display: inline-flex;          /* hele knapfladen er klikbar */
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto !important;
+  /* behold eksisterende størrelse via dine glas-btn værdier */
+  padding: 8px 14px;             /* samme padding som du allerede bruger */
+  border-radius: 12px;           /* samme radius */
+  cursor: pointer;
+}
+
+#dzSubmit.dz-submit:hover {
+  background: var(--glass-bg-hover);
+  color: var(--danger);
+  border-color: rgba(255,255,255,.55);
+}
 .window.danger .dz-submit{
   /* INGEN all: unset her! */
   display: inline-flex;              /* hele knappen er klikbar */

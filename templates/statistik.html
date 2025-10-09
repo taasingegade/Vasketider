@@ -352,7 +352,7 @@
   <!-- Placeret udenfor form-blokken og bundet via form="dangerForm" -->
   <form id="dangerForm" method="post" action="/admin/ryd_logs">
   <!-- dine checkbokse + datoer -->
-  <button type="submit" class="glass-btn dz-submit">
+  <button id="dzSubmit" type="submit" class="glass-btn dz-submit">
     Slet valgte logninger
   </button>
 </form>
@@ -362,43 +362,63 @@
 
   <footer>© Hornsberg Group</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    // Tabs
-    const tabs = document.querySelectorAll('.tab-btn');
-    const pages = document.querySelectorAll('.page');
-    tabs.forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        tabs.forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        const id = btn.dataset.tab;
-        pages.forEach(p=>p.classList.toggle('active', p.id===id));
-      });
-    });
+<!-- Chart.js SKAL være indlæst før vi kalder new Chart(...) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    // Chart: direkte pr. dag (serveren giver "direkte_pr_dag" som liste af [dato, antal])
-    (function(){
-      const el = document.getElementById('chartDirekte');
-      if(!el) return;
-      const labels = {{ direkte_pr_dag|map(attribute=0)|list|tojson }};
-      const dataVals = {{ direkte_pr_dag|map(attribute=1)|list|tojson }};
-      new Chart(el.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: labels.reverse(),
-          datasets: [{
-            label: 'Direktetid',
-            data: dataVals.reverse(),
-            tension: 0.2,
-            fill: false
-          }]
-        },
-        options: {
-          plugins: { legend: { display: true }},
-          scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 10 } } }
-        }
-      });
-    })();
-  </script>
+<script>
+/* Chart: direkte pr. dag (serveren giver direkte_pr_dag som [[dato, antal], ...]) */
+document.addEventListener('DOMContentLoaded', function(){
+  const el = document.getElementById('chartDirekte');
+  if (!el) return;
+
+  // Hent hele listen fra Jinja som rå JSON og del den op i JS
+  const rå = JSON.parse(document.getElementById('direkte-data').textContent || "[]");
+  // beskyt mod forkert format
+  const arr = Array.isArray(rå) ? rå : [];
+  const labels  = arr.map(r => r[0]).slice().reverse();
+  const dataVals= arr.map(r => r[1]).slice().reverse();
+
+  // Hvis Chart.js ikke er klar, undgå fejl
+  if (typeof Chart === 'undefined') return;
+
+  const ctx = el.getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Direktetid',
+        data: dataVals,
+        tension: 0.2,
+        fill: false
+      }]
+    },
+    options: {
+      plugins: { legend: { display: true } },
+      scales: {
+        x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+      }
+    }
+  });
+});
+</script>
+
+<script>
+/* Fail-safe: tving submit igennem hvis noget overlay stjæler klik */
+(function () {
+  var btn  = document.getElementById('dzSubmit');
+  var form = document.getElementById('dangerForm');
+  if (!btn || !form) return;
+
+  btn.addEventListener('click', function () {
+    try {
+      if (form.requestSubmit) form.requestSubmit(btn);
+      else form.submit();
+    } catch (e) {
+      form.submit();
+    }
+  }, false);
+})();
+</script>
 </body>
 </html>
