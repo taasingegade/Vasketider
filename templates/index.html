@@ -18,44 +18,37 @@
   <header class="toppanel" role="banner">
     <!-- Venstre: Hamburger + brand -->
     <div class="top-left">
-      <button class="hamburger" id="hamburger" type="button" aria-label="Åbn menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
+      <button class="hamburger" type="button" aria-label="Åbn menu"
+          onclick="document.querySelector('.topmenu').classList.toggle('show')">
+    <span class="hamburger-bar"></span>
+    <span class="hamburger-bar"></span>
+    <span class="hamburger-bar"></span>
+  </button>
     </div>
-
+<!-- DROPDOWN-MENU (venstre) -->
+  <div class="topmenu" role="menu" aria-label="Hovedmenu">
+    <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
+    <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
+    <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
+    <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
+    <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
+  </div>
     <!-- Center: Status -->
-    <div class="top-center">
-      <div class="status" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
+    
+      <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
         <span class="status-label">🧺 Status:</span>
         <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
         <span class="status-sep">•</span>
         <span class="status-eta" id="status-eta" style="display:none;"></span>
       </div>
-    </div>
 
-    <!-- Højre: Ugevælger -->
-    <div class="top-right">
-      <form method="get" action="/index" class="week-switch" aria-label="Ugevælger">
-        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
-        <span class="week-label">Uge {{ valgt_uge }}</span>
-        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
-      </form>
-      <form method="post" action="/logout">
-        <button class="toppanel-knap" type="submit" aria-label="Log ud">Log ud</button>
-      </form>
-    </div>
-  </header>
-
-  <!-- Skuffe-menu (venstre) -->
-  <aside class="nav-drawer" id="navDrawer" aria-hidden="true">
-    <nav class="nav-list" aria-label="Hovedmenu">
-      <a href="/kommentar">Kommentar</a>
-      <a href="/dokumenter">Dokumenter</a>
-      <a href="/profil">Min profil</a>
-      <a href="/regler">Regler</a>
-    </nav>
-  </aside>
-  <div class="nav-scrim" id="navScrim" hidden></div>
+   <!-- Højre: Ugevælger -->
+  <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
+    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
+    <span class="week-label">Uge {{ valgt_uge }}</span>
+    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
+  </form>
+</header>
 
   <!-- WRAPPER -->
   <main class="wrapper" role="main">
@@ -288,7 +281,14 @@
       setInterval(tickETA, 60000);
     };
   </script>
-
+<script>
+  document.addEventListener('click', (e)=>{
+    const menu = document.querySelector('.topmenu');
+    const btn  = document.querySelector('.hamburger');
+    if (!menu || !btn) return;
+    if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.remove('show');
+  });
+</script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
