@@ -354,7 +354,21 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
 .footer{ display:flex; align-items:center; justify-content:center; gap:12px; }
 .footer-left{ position:absolute; left:22px; bottom:14px; color:#fff; font-size:12px; }
 
-
+.tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 14px; }
+  .tab-btn{
+    border:1px solid rgba(255,255,255,.25);
+    background:rgba(255,255,255,.10);
+    color:#fff; padding:8px 12px;
+    border-radius:10px; cursor:pointer; font-weight:600;
+  }
+  .tab-btn.active{
+    outline:2px solid rgba(106,160,255,.9);
+    color: var(--danger);
+    background: rgba(255,255,255,.15);
+    border-color: rgba(255,255,255,.55);
+  }
+  .page{ display:block; }
+  .page:not(.active){ display:none; }
 /* ---------- Responsive ---------- */
 @media (max-width:768px){
   .calendar{ grid-template-columns:100px repeat(7, minmax(140px,1fr)); gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch; }

@@ -727,7 +727,7 @@ def send_email(modtager: str, emne: str, besked: str) -> bool:
     # Byg mail
     msg = MIMEText(besked or "", "plain", "utf-8")
     msg["Subject"] = emne or ""
-    msg["From"] = f"Vasketidssystemet<{afsender}>"   # SKAL matche SMTP_USER
+    msg["From"] = f"NO-REPLY Vasketider<{afsender}>"   # SKAL matche SMTP_USER
     msg["To"] = modtager
     msg.add_header("Reply-To", "noreply@vasketider.dk")
 

@@ -170,7 +170,7 @@
     </section>
 
     <!-- ===================== SIDE 2 – BRUGSMØNSTRE ===================== -->
-    <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2">
+    <section id="page2" class="page" role="tabpanel" aria-labelledby="tab-page2" hidden>
       <div class="grid-2">
         <div class="window">
           <h3>Udnyttelse pr. slot (30 dage)</h3>
@@ -238,7 +238,7 @@
     </section>
 
     <!-- ===================== SIDE 3 – SIKKERHED & REGLER ===================== -->
-    <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3">
+    <section id="page3" class="page" role="tabpanel" aria-labelledby="tab-page3" hidden>
       <div class="grid-3">
         <div class="kpi"><div class="t">Miele status</div><div class="v">{{ miele_status|default('Ukendt') }}</div></div>
         <div class="kpi"><div class="t">Miele opdateret</div><div class="v">{{ miele_opdateret|default('—') }}</div></div>
@@ -247,49 +247,49 @@
 
       <div class="grid-2" style="margin-top:16px;">
         <div class="window login-window">
-  <h3>Login-aktivitet (30 dage)</h3>
-  <div class="muted">OK/afvist, IP, device, UA og (hvis tilgængeligt) geo/ASN</div>
+          <h3>Login-aktivitet (30 dage)</h3>
+          <div class="muted">OK/afvist, IP, device, UA og (hvis tilgængeligt) geo/ASN</div>
 
-<div class="login-scroll">
-  <ul id="loginList" class="dotlist" role="list">
-    {% if logins and logins|length > 0 %}
-      {% for r in logins %}
-        <li class="login-item" data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
-          <div class="row">
-            <span class="k"><b>Tid</b></span><span class="v">{{ r.tidspunkt }}</span>
-            <span class="k"><b>Bruger</b></span><span class="v">{{ r.brugernavn }}</span>
-            <span class="k"><b>Status</b></span>
-            <span class="v">
-              {% if r.indikator_ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-fail">Afvist</span>{% endif %}
-              {% if r.ip_is_datacenter %}<span class="badge-fail" title="Datacenter/bot?">DC</span>{% endif %}
-            </span>
+          <div class="login-scroll">
+            <ul id="loginList" class="dotlist" role="list">
+              {% if logins and logins|length > 0 %}
+                {% for r in logins %}
+                  <li class="login-item" data-status="{{ 'succes' if r.indikator_ok else 'fejl' }}">
+                    <div class="row">
+                      <span class="k"><b>Tid</b></span><span class="v">{{ r.tidspunkt }}</span>
+                      <span class="k"><b>Bruger</b></span><span class="v">{{ r.brugernavn }}</span>
+                      <span class="k"><b>Status</b></span>
+                      <span class="v">
+                        {% if r.indikator_ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-fail">Afvist</span>{% endif %}
+                        {% if r.ip_is_datacenter %}<span class="badge-fail" title="Datacenter/bot?">DC</span>{% endif %}
+                      </span>
 
-            <span class="k"><b>Browser/OS</b></span><span class="v">{{ r.ua_browser }} / {{ r.ua_os }}</span>
-            <span class="k"><b>Enhed</b></span><span class="v">{{ r.ua_device }}</span>
+                      <span class="k"><b>Browser/OS</b></span><span class="v">{{ r.ua_browser }} / {{ r.ua_os }}</span>
+                      <span class="k"><b>Enhed</b></span><span class="v">{{ r.ua_device }}</span>
 
-            <span class="k"><b>IP</b></span><span class="v">{{ r.ip or '—' }}{% if r.ip_hash %} <span class="muted">(hash: {{ r.ip_hash[:10] }}…)</span>{% endif %}</span>
+                      <span class="k"><b>IP</b></span><span class="v">{{ r.ip or '—' }}{% if r.ip_hash %} <span class="muted">(hash: {{ r.ip_hash[:10] }}…)</span>{% endif %}</span>
 
-            {% if r.ip_city or r.ip_region or r.ip_country or r.ip_org %}
-              <span class="k"><b>Geo/ASN</b></span>
-              <span class="v">
-                {{ r.ip_city }}{% if r.ip_city and (r.ip_region or r.ip_country) %}, {% endif %}
-                {{ r.ip_region }}{% if r.ip_region and r.ip_country %}, {% endif %}
-                {{ r.ip_country }}{% if r.ip_org %} — {{ r.ip_org }}{% endif %}
-              </span>
-            {% endif %}
+                      {% if r.ip_city or r.ip_region or r.ip_country or r.ip_org %}
+                        <span class="k"><b>Geo/ASN</b></span>
+                        <span class="v">
+                          {{ r.ip_city }}{% if r.ip_city and (r.ip_region or r.ip_country) %}, {% endif %}
+                          {{ r.ip_region }}{% if r.ip_region and r.ip_country %}, {% endif %}
+                          {{ r.ip_country }}{% if r.ip_org %} — {{ r.ip_org }}{% endif %}
+                        </span>
+                      {% endif %}
+                    </div>
+
+                    <details class="ua"><summary>Vis fuld User-Agent</summary>
+                      <div class="muted">{{ r.enhed or '—' }}</div>
+                    </details>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li class="muted">Ingen login-aktivitet i perioden.</li>
+              {% endif %}
+            </ul>
           </div>
-
-          <details class="ua"><summary>Vis fuld User-Agent</summary>
-            <div class="muted">{{ r.enhed or '—' }}</div>
-          </details>
-        </li>
-      {% endfor %}
-    {% else %}
-      <li class="muted">Ingen login-aktivitet i perioden.</li>
-    {% endif %}
-  </ul>
-</div>
-</div>
+        </div>
 
         <div class="window">
           <h3>Bookingforsøg pr. dag (30 dage)</h3>
@@ -323,102 +323,136 @@
       </div>
 
       <!-- DANGER ZONE: Slet logninger -->
-<section class="window danger" aria-label="Danger Zone">
-  <h2>Danger Zone</h2>
-  <p class="muted">Handlinger her kan ikke fortrydes.</p>
+      <section class="window danger" aria-label="Danger Zone">
+        <h2>Danger Zone</h2>
+        <p class="muted">Handlinger her kan ikke fortrydes.</p>
 
-  <form id="dangerForm" method="post" action="/admin/ryd_logs">
-    <div class="grid-2">
-      <div>
-        <label><input type="checkbox" name="slet_login"      value="1"> Slet <strong>login_log</strong></label>
-        <label><input type="checkbox" name="slet_booking"    value="1"> Slet <strong>booking_log</strong></label>
-        <label><input type="checkbox" name="slet_attempts"   value="1"> Slet <strong>booking_attempts</strong></label>
-        <label><input type="checkbox" name="slet_kaeder"     value="1"> Slet <strong>direkte_kæder</strong></label>
-      </div>
-      <div>
-        <label><input type="checkbox" name="slet_miele_act"  value="1"> Slet <strong>miele_activity</strong></label>
-        <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
-        <label><input type="checkbox" name="slet_statistik"  value="1"> Slet <strong>statistik</strong></label>
-        <label style="margin-top:8px;"><input type="checkbox" name="slet_alt" value="1"> <strong>TRUNCATE ALT</strong></label>
-      </div>
-    </div>
+        <!-- KUN ÉN FORM! -->
+        <form id="dangerForm" method="post" action="/admin/ryd_logs">
+          <div class="grid-2">
+            <div>
+              <label><input type="checkbox" name="slet_login"      value="1"> Slet <strong>login_log</strong></label>
+              <label><input type="checkbox" name="slet_booking"    value="1"> Slet <strong>booking_log</strong></label>
+              <label><input type="checkbox" name="slet_attempts"   value="1"> Slet <strong>booking_attempts</strong></label>
+              <label><input type="checkbox" name="slet_kaeder"     value="1"> Slet <strong>direkte_kæder</strong></label>
+            </div>
+            <div>
+              <label><input type="checkbox" name="slet_miele_act"  value="1"> Slet <strong>miele_activity</strong></label>
+              <label><input type="checkbox" name="slet_miele_stat" value="1"> Slet <strong>miele_status</strong></label>
+              <label><input type="checkbox" name="slet_statistik"  value="1"> Slet <strong>statistik</strong></label>
+              <label style="margin-top:8px;"><input type="checkbox" name="slet_alt" value="1"> <strong>TRUNCATE ALT</strong></label>
+            </div>
+          </div>
 
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-      <input type="date" name="fra_dato" aria-label="Fra dato">
-      <input type="date" name="til_dato" aria-label="Til dato">
-    </div>
-  </form>
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="date" name="fra_dato" aria-label="Fra dato">
+            <input type="date" name="til_dato" aria-label="Til dato">
+          </div>
 
-  <!-- Placeret udenfor form-blokken og bundet via form="dangerForm" -->
-  <form id="dangerForm" method="post" action="/admin/ryd_logs">
-  <!-- dine checkbokse + datoer -->
-  <button id="dzSubmit" type="submit" class="glass-btn dz-submit">
-    Slet valgte logninger
-  </button>
-</form>
-  </div>
-</section>
+          <button id="dzSubmit" type="submit" class="glass-btn dz-submit" style="margin-top:14px;">
+            Slet valgte logninger
+          </button>
+        </form>
+      </section>
+    </section>
   </div>
 
   <footer>© Hornsberg Group</footer>
 
-<!-- Chart.js SKAL være indlæst før vi kalder new Chart(...) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- DATA TIL CHART SOM JSON (sikker) -->
+  <script id="direkte-data" type="application/json">
+    {{ direkte_pr_dag | default([]) | tojson | safe }}
+  </script>
 
-<script>
-/* Chart: direkte pr. dag (serveren giver direkte_pr_dag som [[dato, antal], ...]) */
-document.addEventListener('DOMContentLoaded', function(){
-  const el = document.getElementById('chartDirekte');
-  if (!el) return;
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  // Hent hele listen fra Jinja som rå JSON og del den op i JS
-  const rå = JSON.parse(document.getElementById('direkte-data').textContent || "[]");
-  // beskyt mod forkert format
-  const arr = Array.isArray(rå) ? rå : [];
-  const labels  = arr.map(r => r[0]).slice().reverse();
-  const dataVals= arr.map(r => r[1]).slice().reverse();
+  <!-- CHART -->
+  <script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const el = document.getElementById('chartDirekte');
+    if (!el || typeof Chart === 'undefined') return;
 
-  // Hvis Chart.js ikke er klar, undgå fejl
-  if (typeof Chart === 'undefined') return;
+    let rå = [];
+    try { rå = JSON.parse(document.getElementById('direkte-data').textContent || "[]"); } catch(e){ rå = []; }
+    const arr = Array.isArray(rå) ? rå : [];
+    const labels  = arr.map(r => r[0]).slice().reverse();
+    const dataVals= arr.map(r => r[1]).slice().reverse();
 
-  const ctx = el.getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Direktetid',
-        data: dataVals,
-        tension: 0.2,
-        fill: false
-      }]
-    },
-    options: {
-      plugins: { legend: { display: true } },
-      scales: {
-        x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+    const ctx = el.getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{ label: 'Direktetid', data: dataVals, tension: 0.2, fill: false }]
+      },
+      options: {
+        plugins: { legend: { display: true } },
+        scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 10 } } }
       }
-    }
+    });
   });
-});
-</script>
+  </script>
 
-<script>
-/* Fail-safe: tving submit igennem hvis noget overlay stjæler klik */
-(function () {
-  var btn  = document.getElementById('dzSubmit');
-  var form = document.getElementById('dangerForm');
-  if (!btn || !form) return;
+  <!-- FANER (klik + tastatur) -->
+  <script>
+  (function(){
+    const tablist = document.querySelector('.tabs');
+    if (!tablist) return;
+    const tabs   = Array.from(tablist.querySelectorAll('.tab-btn'));
+    const pages  = ['page1','page2','page3'].map(id => document.getElementById(id)).filter(Boolean);
 
-  btn.addEventListener('click', function () {
-    try {
-      if (form.requestSubmit) form.requestSubmit(btn);
-      else form.submit();
-    } catch (e) {
-      form.submit();
+    function activateById(id, focusTab = false){
+      tabs.forEach(btn => {
+        const isActive = btn.dataset.tab === id;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+        btn.setAttribute('tabindex', isActive ? '0' : '-1');
+        if (focusTab && isActive) btn.focus();
+      });
+      pages.forEach(p => {
+        const show = p.id === id;
+        p.classList.toggle('active', show);
+        p.hidden = !show;
+      });
     }
-  }, false);
-})();
-</script>
+
+    tabs.forEach(btn => btn.addEventListener('click', () => activateById(btn.dataset.tab)));
+    tablist.addEventListener('keydown', (e) => {
+      const current = document.activeElement;
+      const idx = tabs.indexOf(current);
+      if (idx === -1) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Home' || e.key === 'End'){
+        e.preventDefault();
+        let nextIdx = idx;
+        if (e.key === 'ArrowRight') nextIdx = (idx + 1) % tabs.length;
+        if (e.key === 'ArrowLeft')  nextIdx = (idx - 1 + tabs.length) % tabs.length;
+        if (e.key === 'Home')       nextIdx = 0;
+        if (e.key === 'End')        nextIdx = tabs.length - 1;
+        const next = tabs[nextIdx];
+        activateById(next.dataset.tab, true);
+      }
+    });
+
+    const preActive = tabs.find(b => b.classList.contains('active')) || tabs[0];
+    if (preActive) activateById(preActive.dataset.tab);
+  })();
+  </script>
+
+  <!-- FAIL-SAFE SUBMIT (tving POST hvis noget blokerer klik) -->
+  <script>
+  (function(){
+    const form = document.getElementById('dangerForm');
+    const btn  = document.getElementById('dzSubmit');
+    if (!form || !btn) return;
+
+    btn.addEventListener('click', function(){
+      setTimeout(function(){
+        try { if (form.requestSubmit) form.requestSubmit(btn); else form.submit(); }
+        catch(e){ form.submit(); }
+      }, 0);
+    }, false);
+  })();
+  </script>
 </body>
 </html>
