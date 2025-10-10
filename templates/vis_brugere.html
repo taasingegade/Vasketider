@@ -61,6 +61,14 @@
     <form method="get" action="/statistik"><button class="toppanel-knap">Statistik</button></form>
     <div style="margin-left:auto;"></div>
   </div>
+  {% if request.args.get('besked') %}
+  <div class="badge">{{ request.args.get('besked') }}</div>
+{% endif %}
+{% if request.args.get('fejl') %}
+  <div class="badge" style="background: rgba(220,53,69,.2); border-color: rgba(220,53,69,.5);">
+    {{ request.args.get('fejl') }}
+  </div>
+{% endif %}
 {% if besked %}<div class="alert-ok">✅ {{ besked }}</div>{% endif %}
 {% if fejl %}<div class="alert-err">⚠️ {{ fejl }}</div>{% endif %}
   <div class="wrap">

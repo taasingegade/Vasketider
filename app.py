@@ -2056,37 +2056,35 @@ def admin_book_for_user():
     btype = (request.form.get("type") or "full").strip()  # full/early/late
 
     if not bnavn or not dato or slot is None:
-        return redirect("/vis_brugere?fejl=Udfyld+bruger%2C+dato+og+slot")
-
-    # debug: se formdata i serverlog
-    try:
-        print("➡️  /admin/brugere/book FORM:", dict(request.form), flush=True)
-    except Exception:
-        pass
+        return redirect(url_for("admin_vis_brugere",
+                                fejl="Udfyld bruger, dato og slot"))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # bruger findes og er godkendt
+        # tjek at bruger findes og er godkendt
         cur.execute("""
-            SELECT 1 FROM brugere
-            WHERE LOWER(brugernavn)=LOWER(%s) AND COALESCE(godkendt,TRUE)=TRUE
+            SELECT 1 FROM public.brugere
+            WHERE LOWER(brugernavn)=LOWER(%s)
+              AND COALESCE(godkendt,TRUE)=TRUE
         """, (bnavn,))
         if not cur.fetchone():
-            return redirect("/vis_brugere?fejl=Bruger+findes+ikke+eller+ikke+godkendt")
+            return redirect(url_for("admin_vis_brugere",
+                                    fejl="Bruger findes ikke eller ikke godkendt"))
 
         # max 2 pr. dag
         cur.execute("""
-            SELECT COUNT(*) FROM bookinger
+            SELECT COUNT(*) FROM public.bookinger
             WHERE LOWER(brugernavn)=LOWER(%s)
               AND dato_rigtig::date = %s::date
               AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
         """, (bnavn, dato))
         if int(cur.fetchone()[0] or 0) >= 2:
-            return redirect(f"/vis_brugere?fejl={bnavn}+har+allerede+2+bookinger+den+dag")
+            return redirect(url_for("admin_vis_brugere",
+                                    fejl=f"{bnavn} har allerede 2 bookinger den dag"))
 
-        # indsæt booking – sæt sub_slot='full' så UI/queries ser den korrekt
+        # indsæt booking
         cur.execute("""
-            INSERT INTO bookinger (
+            INSERT INTO public.bookinger (
                 brugernavn, dato_rigtig, slot_index, sub_slot,
                 booking_type, status, activation_required, created_at
             )
@@ -2096,27 +2094,29 @@ def admin_book_for_user():
         """, (bnavn, dato, int(slot), btype))
         bid = cur.fetchone()[0]
 
-        # robust logging: brug kun kolonner der med sikkerhed findes
+        # best-effort log
         try:
             cur.execute("""
-                INSERT INTO booking_log (brugernavn, handling, dato, slot_index, resultat, tidspunkt)
-                VALUES (%s,'admin_book',%s::date,%s::int,'ok',NOW())
-            """, (bnavn, dato, int(slot)))
+                INSERT INTO public.booking_log (
+                    brugernavn, handling, dato, slot_index, booking_type, resultat, tidspunkt
+                )
+                VALUES (%s,'admin_book',%s::date,%s::int,%s,'ok',NOW())
+            """, (bnavn, dato, int(slot), btype))
         except Exception as logerr:
-            # Log kun til konsol — påvirker IKKE commit
-            print("ℹ️  booking_log springes over:", logerr, flush=True)
+            print("booking_log skip:", logerr)
 
         conn.commit()
 
     except Exception as e:
         conn.rollback()
-        print("❌ admin_book_for_user fejl:", e, flush=True)
-        return redirect("/vis_brugere?fejl=Kunne+ikke+booke%3A+" + str(e).replace(" ", "+"))
+        print("Fejl admin_book_for_user:", e)
+        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke booke"))
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
 
-    return redirect(f"/vis_brugere?besked=Booket+for+{bnavn}+%28id+{bid}%29")
+    return redirect(url_for("admin_vis_brugere",
+                            besked=f"Booket for {bnavn} (id {bid})"))
 
 
 # ===============
@@ -2722,37 +2722,35 @@ def vis_brugere():
     conn = get_db_connection(); cur = conn.cursor()
     brugere = []
     try:
-        ensure_user_columns(cur); conn.commit()
+        # behold dit ensure_user_columns call
+        try:
+            ensure_user_columns(cur)
+            conn.commit()
+        except Exception as e:
+            print("ensure_user_columns:", e)
+
         cur.execute("""
             SELECT brugernavn, kode, email, sms,
                    COALESCE(notifikation,'ja') AS notifikation,
                    COALESCE(notif_email,'ja')  AS notif_email,
                    COALESCE(notif_sms,'nej')   AS notif_sms,
                    COALESCE(godkendt, TRUE)    AS godkendt
-            FROM brugere
+            FROM public.brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
-        cols = [
-            'brugernavn','adgangskode','email','sms',
-            'notifikation','notif_email','notif_sms','godkendt'
-        ]
+        cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
         brugere = [dict(zip(cols, r)) for r in rows]
     finally:
-        try:
-            cur.close(); conn.close()
-        except Exception:
-            pass
+        try: cur.close(); conn.close()
+        except Exception: pass
 
-    # læs evt. ?besked=... / ?fejl=...
-    besked = request.args.get("besked") or ""
-    fejl   = request.args.get("fejl")   or ""
-
+    # send besked/fejl videre til din HTML (du har allerede alert-ok i toppen)
     return render_template(
         "vis_brugere.html",
         brugere=brugere,
-        besked=besked,
-        fejl=fejl
+        besked=request.args.get("besked") or "",
+        fejl=request.args.get("fejl") or ""
     )
 
 @app.route("/opret_bruger", methods=["POST"])
