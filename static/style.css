@@ -94,7 +94,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .toppanel--login .hamburger-bar{ position: relative !important; display: block; margin: 3px 0 0 0; width: 22px !important; height: 3px !important; background: #000 !important; border-radius: 3px !important; box-shadow: none !important; }
 .login-menu.show{ display:flex !important; flex-direction:column; gap:8px; }
 .login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
-.login-menu .toppanel-knap:hover { color: var(--danger); background: rgba(255,255,255,0.85); }
+.login-menu .toppanel-knap:hover { color: rgba(0, 0, 0, 0.12); background: rgba(255,255,255,0.85); }
 .toppanel *, .hamburger, .login-menu{ opacity: 1 !important; visibility: visible !important; }
 /* ---------- Kalender (uændret funktion) ---------- */
 .calendar{ display:grid; grid-template-columns:140px repeat(7, 1fr); grid-auto-rows:var(--slot-h); gap:40px; align-items:stretch; justify-items:stretch; }
