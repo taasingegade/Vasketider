@@ -75,6 +75,7 @@ body{
   position:absolute;
   left:50%;
   transform:translateX(-50%);
+  background:rgba(5, 5, 5, 0.95);
 }
 
 /* Topbar dropdown-menu (venstre) */
@@ -185,22 +186,29 @@ input:checked + .slider:before{ transform:translateX(20px); }
   top: 50% !important;
   transform: translateY(-50%) !important;
   width: 44px !important;
-  height: 38px !important;
-  padding: 6px !important;
-  border: 1px solid var(--glass-brd) !important;
+  height: 44px !important;
+  padding: 0px !important;
+  border: none !important;
+  box-shadow: none !important;
   border-radius: 10px !important;
   background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer !important;
   z-index: 6600 !important;
 }
 .hamburger:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); border-radius:6px; }
 .toppanel--login .hamburger-bar{
+  position: relative !important;
+  display: block !important;
   width: 22px !important;
-  height: 3px !important;
-  background: #000 !important;    /* SORTE streger */
-  border-radius: 3px !important;
-  box-shadow: 0 0 2px rgba(255,255,255,.7) !important; /* let glød */
+  height: 2px !important;
+  background: #000 !important;              /* sort på login; skift til #fff hvis du vil have hvide */
+  border-radius: 2px !important;
+  box-shadow: none !important;
 }
+.toppanel--login .hamburger-bar + .hamburger-bar{ margin-top: 5px !important; }
 .hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
 .toppanel--login .login-menu{
   position: absolute !important;
@@ -472,16 +480,25 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   transform: translateY(-50%);
   display: flex;
   align-items: center;
+  justify-content:center;
   gap: 10px;
   z-index: 6000;
 }
 .toppanel:not(.toppanel--login) .top-left .hamburger{
   width: 44px;
-  height: 36px;
-  padding: 6px;
-  border: 1px solid var(--glass-brd);
+  height: 44px;
+  padding: 0px;
+  border: none !important;
+  box-shadow:none !important;
   border-radius: 10px;
+  display:flex; 
+  align-items:center; 
+  justify-content:center;
 }
+.toppanel:not(.toppanel--login) .top-left .hamburger-bar{
+  position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px;
+}
+.toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
 /* Hvis din index-topbar IKKE har en .top-left wrapper, brug denne fallback: */
 .toppanel:not(.toppanel--login) > .hamburger:first-child{
   position: absolute;
