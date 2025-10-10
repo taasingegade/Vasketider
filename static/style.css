@@ -230,7 +230,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
   border: 1px solid rgba(0,0,0,0.12);
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
-.toppanel--login .hamburger:hover{ background: var(--glass-bg-hover) !important; }
+.toppanel--login .hamburger:hover{ filter:brightness(.85) !important; }
 .toppanel--login .hamburger-bar{
   position: relative !important;
   display: block;
@@ -524,6 +524,19 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   border-radius: 2px; 
   background: #fff; 
 }
+.toppanel--login .hamburger::before{
+  content:"";
+  display:block;
+  width:22px; height:14px;          /* samlet ikon-boks */
+  background:
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 4.5px) / 22px 2px, /* top */
+    linear-gradient(currentColor,currentColor) no-repeat center / 22px 2px,                   /* midt */
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 4.5px) / 22px 2px; /* bund */
+  border-radius:2px;
+}
+
+.toppanel--login .hamburger .hamburger-bar{ display:none !important; }
+.toppanel--login .hamburger > span{ display:none !important; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{ margin-top: 5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar:first-child{ margin-top:0; }
@@ -534,22 +547,17 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 /* === LOGIN — gør topbaren lidt højere og centrer hamburger, større klikflade === */
 .toppanel--login{min-height: 68px; position: fixed; left:0; right:0; top:0; z-index:5000; }
 .toppanel--login .hamburger{
-  position: absolute !important; 
-  top: 50% !important;
-  right: 12px !important;
-  transform: translateY(-50%) !important;
-  width: 44px !important;                   /* stor klikflade */
-  height: 44px !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer !important;
-  border-radius: 10px !important;
+  position:absolute !important;
+  right:12px !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  width:44px !important; height:44px !important;
+  padding:0 !important;
+  display:flex !important; align-items:center !important; justify-content:center !important;
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  color:#000;          /* sort ikon på login; skift til #fff hvis du vil have hvide streger */
+  z-index:6600 !important;
+  overflow:hidden !important;
 }
 .toppanel--login .login-menu{ top: 68px !important; }
 .toppanel--login .hamburger-bar:first-child{ margin-top:0; }
