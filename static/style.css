@@ -71,6 +71,7 @@ body{
   height:38px; padding:6px 12px; border-radius:10px;
   border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.10); color:#fff;
 }
+/* Vaskemaskine status */
 .toppanel .status.status-center{
   position:absolute;
   left:50%;
@@ -229,6 +230,8 @@ input:checked + .slider:before{ transform:translateX(20px); }
 }
 .toppanel--login .hamburger:hover{ background: var(--glass-bg-hover) !important; }
 .toppanel--login .hamburger-bar{
+  display: block;
+  margin: 3px 0 0 0;
   width: 22px !important;
   height: 3px !important;
   background: #000 !important;
@@ -487,7 +490,8 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 }
 .toppanel:not(.toppanel--login) .top-left .hamburger{
   position: relative !important;              /* gør knappen til “containing block” */
-  display: flex; 
+  display: flex !important;
+  flex-direction: column !important;
   align-items: center; 
   justify-content: center;
   width: 44px; 
@@ -510,6 +514,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   left: auto !important; top: auto !important; 
   transform: none !important;
   display: block; 
+  margin: 3px 0 0 0;
   width: 22px; 
   height: 2px; 
   border-radius: 2px; 
@@ -518,6 +523,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{
   margin-top: 5px;
 }
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar:first-child{ margin-top:0; }
 /* Hvis din index-topbar IKKE har en .top-left wrapper, brug denne fallback: */
 .toppanel:not(.toppanel--login) > .hamburger:first-child{
   position: absolute;
@@ -537,6 +543,10 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 }
 .toppanel--login .hamburger{
   right: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center;
+  justify-content: center;
   top: 50% !important;
   transform: translateY(-50%) !important;
   width: 48px !important;
@@ -546,3 +556,4 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   border-radius: 10px !important;
 }
 .toppanel--login .login-menu{ top: 68px !important; }
+.toppanel--login .hamburger-bar:first-child{ margin-top:0; }
