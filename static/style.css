@@ -446,7 +446,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel{ position:fixed; left:0; right:0; top:0; z-index:5000; display:flex; align-items:center; gap:10px; }
 .status.status-center{ position:absolute; left:50%; transform:translateX(-50%); }
 
-.hamburger{ position:relative; width:44px; height:36px; border-radius:10px; background:transparent; border:1px solid var(--glass-brd);
+.hamburger{ position:relative; width:44px; height:44px; border-radius:10px; background:transparent; border:1px solid var(--glass-brd);
   display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 .hamburger:hover{ background:var(--glass-bg-hover); transform:translateY(-1px); }
 .hamburger-bar{ position:absolute; left:50%; transform:translateX(-50%); width:22px; height:2px; background:#fff; border-radius:2px; }
@@ -527,7 +527,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel--login .hamburger::before{
   content:"";
   display:block;
-  width:22px; height:14px;          /* samlet ikon-boks */
+  width:22px; height:22px;          /* samlet ikon-boks */
   background:
     linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 6.7px) / 22px 3px, /* top */
     linear-gradient(currentColor,currentColor) no-repeat center / 22px 3px,                   /* midt */
