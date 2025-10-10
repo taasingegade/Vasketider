@@ -18,9 +18,11 @@
   --frost-border: rgba(255,255,255,0.35);
   --frost-highlight: rgba(255,255,255,0.22);
 
+  --accent-light:#9fc5ff;
+  --accent:#6aa0ff;
   --danger:#d93025;
   --page-max:1100px;
-  --social-size:48px;
+  --social-size:28px;
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
@@ -32,7 +34,7 @@ body{ background:url('/static/Bg.jpg') no-repeat center center fixed; background
 .toppanel .brand{ margin-right:12px; order: 0; }
 .toppanel .brand a{ color:inherit; text-decoration:none; }
 .toppanel-knap,.button,.btn,.glass-btn{ appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg); color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
-.toppanel-knap:hover,.button:hover,.btn:hover,.glass-btn:hover{ background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px); }
+.toppanel-knap:hover,.button:hover,.btn:hover,.glass-btn:hover{ background:var(--glass-bg-hover); color: #fff; border-color: var(--accent-light); box-shadow: 0 0 0 2px var(accent); transform: translateY(-1px); }
 .toppanel-knap:active,.button:active,.btn:active,.glass-btn:active{ transform: translateY(0) scale(0.98); }
 .toppanel-select{ height:38px; padding:6px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.10); color:#fff; }
 /* Vaskemaskine status */
@@ -76,91 +78,27 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 input:checked + .slider{ background:var(--ok); }
 input:checked + .slider:before{ transform:translateX(20px); }
 /* Log ind knap */
-.glass-btn{
-  display:inline-flex; justify-content:center; align-items:center;
-  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4);
-  border-radius:12px; color:#fff; padding:10px 20px; font-weight:600; transition: all .25s ease; width:100%; cursor:pointer;
-}
+.glass-btn{ display:inline-flex; justify-content:center; align-items:center; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); border-radius:12px; color:#fff; padding:10px 20px; font-weight:600; transition: all .25s ease; width:100%; cursor:pointer; }
 .glass-btn:hover{ color:var(--danger); background:rgba(255,255,255,0.25); border-color:rgba(255,255,255,0.55); }
 .glass-btn:active{ transform:scale(.98); }
-
 /* ---------- Hamburger (højre) + menu ---------- */
 .toppanel.toppanel--login{ position:fixed; display:flex; align-items:center; gap:12px; z-index: 5000; }
-.hamburger.right {
-  margin-left: auto;
-}
-.toppanel--login .hamburger{
-  position: absolute !important;
-  right: 12px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  width: 44px !important;
-  height: 44px !important;
-  padding: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;   /* streger under hinanden */
-  align-items: center !important;
-  justify-content: center !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  overflow: hidden !important;     
-  cursor: pointer !important;
-  z-index: 6600 !important;
-}
+.hamburger.right { margin-left: auto; }
+.toppanel--login .hamburger{ position: absolute !important; right: 12px !important; top: 50% !important; transform: translateY(-50%) !important; width: 44px !important; height: 44px !important; padding: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; border: none !important; background: transparent !important; box-shadow: none !important; overflow: hidden !important; cursor: pointer !important; z-index: 6600 !important; }
 .hamburger:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); border-radius:6px; }
-.toppanel--login .hamburger-bar{
-  position: relative !important;
-  display: block !important;
-  width: 22px !important;
-  height: 2px !important;
-  margin: 3px 0 0 0;
-  background: #000 !important;              /* sort på login; skift til #fff hvis du vil have hvide */
-  border-radius: 2px !important;
-  box-shadow: none !important;
-}
+.toppanel--login .hamburger-bar{ position: relative !important; display: block !important; width: 22px !important; height: 2px !important; margin: 3px 0 0 0; background: #000 !important; border-radius: 2px !important; box-shadow: none !important; }
 .toppanel--login .hamburger-bar + .hamburger-bar{ margin-top: 5px !important; }
 .hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
-.toppanel--login .login-menu{
-  position: absolute !important;
-  right: 12px !important;
-  top: 56px !important;
-  display: none;                 /* nu bliver menuen skjult */
-  z-index: 6500 !important;
-  min-width: 220px;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  background: rgba(255,255,255,0.95);
-  color: #111;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-}
+.toppanel--login .login-menu{ position: absolute !important; right: 12px !important; top: 56px !important; display: none; z-index: 6500 !important; min-width: 220px; flex-direction: column; gap: 8px; padding: 10px; background: rgba(255,255,255,0.95); color: #111; border-radius: 10px; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .toppanel--login .hamburger:hover{ filter:brightness(.85) !important; }
-.toppanel--login .hamburger-bar{
-  position: relative !important;
-  display: block;
-  margin: 3px 0 0 0;
-  width: 22px !important;
-  height: 3px !important;
-  background: #000 !important;
-  border-radius: 3px !important;
-  box-shadow: none !important;
-}
+.toppanel--login .hamburger-bar{ position: relative !important; display: block; margin: 3px 0 0 0; width: 22px !important; height: 3px !important; background: #000 !important; border-radius: 3px !important; box-shadow: none !important; }
 .login-menu.show{ display:flex !important; flex-direction:column; gap:8px; }
 .login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
 .login-menu .toppanel-knap:hover { color: var(--danger); background: rgba(255,255,255,0.85); }
 .toppanel *, .hamburger, .login-menu{ opacity: 1 !important; visibility: visible !important; }
 /* ---------- Kalender (uændret funktion) ---------- */
-.calendar{
-  display:grid; grid-template-columns:140px repeat(7, 1fr);
-  grid-auto-rows:var(--slot-h); gap:40px; align-items:stretch; justify-items:stretch;
-}
-.calendar > div:nth-child(-n+8){
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:3px; padding:8px 6px; background:rgba(0,0,0,0.28); border-radius:10px; font-weight:600; line-height:1.2;
-}
+.calendar{ display:grid; grid-template-columns:140px repeat(7, 1fr); grid-auto-rows:var(--slot-h); gap:40px; align-items:stretch; justify-items:stretch; }
+.calendar > div:nth-child(-n+8){ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px 6px; background:rgba(0,0,0,0.28); border-radius:10px; font-weight:600; line-height:1.2; }
 .calendar > div:nth-child(-n+8) span:first-child{font-size:15px;}
 .calendar > div:nth-child(-n+8) span:last-child{font-size:13px;opacity:.9;}
 .calendar > div:nth-child(8n+1){ display:flex; align-items:center; justify-content:flex-end; font-weight:700; font-size:16px; padding-right:12px; height:var(--slot-h); }
@@ -168,26 +106,15 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
 .calendar > div > div{ display:flex; flex-wrap:wrap; gap:14px !important; justify-content:center; }
 .calendar > div:has(.split-details[open]){ z-index:9999; }
-.calendar .slot-btn,.calendar .split-details > summary{
-  display:flex; align-items:center; justify-content:center; width:100%; height:100%;
-  padding:0 10px; font-size:14px; border:none; border-radius:6px; line-height:1.2; cursor:pointer; gap:8px;
-  box-shadow:0 3px 6px rgba(0,0,0,0.25); transition:transform .1s ease, box-shadow .2s ease;
-}
+.calendar .slot-btn,.calendar .split-details > summary{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:0 10px; font-size:14px; border:none; border-radius:6px; line-height:1.2; cursor:pointer; gap:8px; box-shadow:0 3px 6px rgba(0,0,0,0.25); transition:transform .1s ease, box-shadow .2s ease; }
 .calendar .slot-btn:hover,.calendar .split-details > summary:hover{ transform:translateY(-1px); box-shadow:0 5px 12px rgba(0,0,0,0.35); }
 .calendar .slot-btn:focus-visible,.calendar .split-details > summary:focus-visible{ outline:none; box-shadow:var(--focus); }
 .calendar .split-details{ position:relative; display:inline-block; overflow:visible; }
 .calendar .split-details[open]{ z-index:10000; }
 .calendar .split-details > summary::-webkit-details-marker{ display:none; }
-.calendar .split-panel{
-  position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
-  min-width:240px; background:#1f1f1f; color:#fff; border:1px solid #444; border-radius:10px; padding:10px;
-  box-shadow:0 14px 28px rgba(0,0,0,0.45);
-}
+.calendar .split-panel{ position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); min-width:240px; background:#1f1f1f; color:#fff; border:1px solid #444; border-radius:10px; padding:10px; box-shadow:0 14px 28px rgba(0,0,0,0.45); }
 .calendar .split-details:not([open]) .split-panel{ display:none; }
-.calendar .menu-btn{
-  width:100%; padding:12px 14px; border-radius:8px; border:1px solid #666;
-  background:#2b2b2b; color:#fff; cursor:pointer; font-size:15px; margin:5px 0; transition:background .2s ease;
-}
+.calendar .menu-btn{ width:100%; padding:12px 14px; border-radius:8px; border:1px solid #666; background:#2b2b2b; color:#fff; cursor:pointer; font-size:15px; margin:5px 0; transition:background .2s ease; }
 .calendar .menu-btn:hover{ background:#343434; }
 .calendar .slot-btn.service,.calendar .split-details.service > summary{ background:var(--service) !important; color:#000 !important; border:1px solid rgba(0,0,0,0.2) !important; }
 .calendar .slot-btn.optaget,.calendar .optaget-knap,.calendar .split-details.booked > summary{ background:rgba(220,53,69,0.9); color:#fff; border:1px solid rgba(255,255,255,0.25); }
@@ -218,56 +145,21 @@ details.ua{ margin-top:6px; } details.ua summary{ cursor:pointer; color:#9fd8ff;
 .window.danger button[type="submit"]{ align-self:flex-start; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.35); color: var(--danger); font-weight:600; border-radius:8px; padding:8px 14px; cursor:pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
 .window.danger button[type="submit"]:hover{ background: rgba(255,0,0,0.15); color:#fff; border-color: rgba(255,255,255,0.55); }
 .window.danger form,
-.window.danger input[type="submit"] {
-  position: relative;
-  z-index: 10;
-  pointer-events: auto !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
+.window.danger input[type="submit"] { position: relative; z-index: 10; pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
 /* Hvis du et sted har "all: unset" på generelle knapper, neutralisér det for submit */
-.window.danger input[type="submit"] {
-  all: revert !important;            /* giver standard knap-adfærd tilbage */
-  -webkit-appearance: button;
-  appearance: button;
-  display: inline-block;
-  cursor: pointer;
-}
-
+.window.danger input[type="submit"] { all: revert !important; -webkit-appearance: button; appearance: button; display: inline-block; cursor: pointer; }
 /* Glaslook bevares (kun kosmetik) */
-.window.danger input[type="submit"].glass-btn {
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.12);
-  border-radius: 10px;
-  color: #fff;
-  font-weight: 600;
-  padding: 10px 16px;
-}
-.window.danger input[type="submit"].glass-btn:hover {
-  background: rgba(255,255,255,.22);
-  color: #d93025; /* rød hover-tekst som resten af UI */
-}
+.window.danger input[type="submit"].glass-btn { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); border-radius: 10px; color: #fff; font-weight: 600; padding: 10px 16px; }
+.window.danger input[type="submit"].glass-btn:hover { background: rgba(255,255,255,.22); color: #d93025; }
 /* Danger-knap: fuld hitbox, samme størrelse/udseende */
 .window.danger { position: relative; z-index: 4000; margin-bottom: 80px; isolation: isolate; }
 .window.danger::before,
 .window.danger::after { pointer-events: none !important; }
 .window.danger *::before,
 .window.danger *::after { pointer-events: none !important; }
-#dzSubmit.dz-submit{
-  position: relative;
-  z-index: 4001;               /* over alt i sektionen */
-  pointer-events: auto !important;
-  display: inline-flex;        /* fuld hitbox */
-  align-items: center;
-  justify-content: center;
-  width: auto;
-}
+#dzSubmit.dz-submit{ position: relative; z-index: 4001; pointer-events: auto !important; display: inline-flex; align-items: center; justify-content: center; width: auto; }
 footer, .footer{ z-index: 1000; }
-#dzSubmit.dz-submit:hover {
-  background: var(--glass-bg-hover);
-  color: var(--danger);
-  border-color: rgba(255,255,255,.55);
-}
+#dzSubmit.dz-submit:hover { background: var(--glass-bg-hover); color: var(--danger); border-color: rgba(255,255,255,.55); }
 .window.danger .dz-submit{
   /* INGEN all: unset her! */
   display: inline-flex;              /* hele knappen er klikbar */
@@ -321,13 +213,8 @@ footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex;
 
 button{ font:inherit; }
 button.slot-btn,button.hamburger{ all:unset; }
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){
-  appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg);
-  color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600;
-}
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
-  background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px);
-}
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){ appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg); color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600; }
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{ background:var(--glass-bg-hover); color: #fff; border-color: var(--accent-light); box-shadow: 0 0 0 2px var(--accent); transform: translateY(-1px); }
 /* === ADDED: Split-pair to render two half-slot buttons side-by-side without overlap === */
 .split-pair{ display:flex; flex-wrap: nowrap !important; gap:8px; align-items:center; justify-content:center; width:100%; min-height: var(--slot-h); }
 .split-pair form{ flex:1 1 0; min-width:0; }
@@ -336,8 +223,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .week-switch{ margin-left:auto; display:flex; gap:10px; align-items:center; }
 .toppanel{ position:fixed; left:0; right:0; top:0; z-index:5000; display:flex; align-items:center; gap:10px; }
 .status.status-center{ position:absolute; left:50%; transform:translateX(-50%); }
-.hamburger{ position:relative; width:44px; height:44px; border-radius:10px; background:transparent; border:1px solid var(--glass-brd);
-  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.hamburger{ position:relative; width:44px; height:44px; border-radius:10px; background:transparent; border:1px solid var(--glass-brd); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 .hamburger:hover{ background:var(--glass-bg-hover); transform:translateY(-1px); }
 .hamburger-bar{ position:absolute; left:50%; transform:translateX(-50%); width:22px; height:2px; background:#fff; border-radius:2px; transition: all 0.3s ease; }
 .hamburger-bar:nth-child(1){ top:12px; } .hamburger-bar:nth-child(2){ top:18px; } .hamburger-bar:nth-child(3){ top:24px; }
