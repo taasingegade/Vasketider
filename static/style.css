@@ -529,9 +529,9 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   display:block;
   width:22px; height:14px;          /* samlet ikon-boks */
   background:
-    linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 6px) / 22px 3px, /* top */
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 8.3px) / 22px 3px, /* top */
     linear-gradient(currentColor,currentColor) no-repeat center / 22px 3px,                   /* midt */
-    linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 6px) / 22px 3px; /* bund */
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 8px) / 22px 3px; /* bund */
   border-radius:2px;
 }
 
