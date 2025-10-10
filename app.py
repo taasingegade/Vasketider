@@ -1872,15 +1872,18 @@ def reset_direkte():
     # Vis password til admin via flash/besked (eller redirect med querystring)
     return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
 
-@app.route("/admin/brugere")
+@app.route("/admin/brugere", methods=["GET"])
 def admin_vis_brugere():
-    if not require_admin():
-        return redirect("/login")
+    # Kun admin
+    if session.get('brugernavn','').lower() != 'admin':
+        return redirect('/login')
 
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Sikr kolonnerne findes (nød-fallback hvis migrering ikke er kørt)
+        # (valgfrit) Behold din nød-migrering for de FELTER du SELV har valgt at understøtte
+        # Jeg lader den være som hos dig, men uden at røre notif_email (tekst-varianten),
+        # så vi ikke laver datatype-konflikter:
         cur.execute("""
             DO $$
             BEGIN
@@ -1908,20 +1911,89 @@ def admin_vis_brugere():
         """)
         conn.commit()
 
+        # Find hvilke notif-kolonner der faktisk findes
         cur.execute("""
-            SELECT id, brugernavn, kode, email, sms, COALESCE(godkendt, TRUE),
-                   COALESCE(notif_mail, TRUE), COALESCE(notif_sms, FALSE)
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name='brugere'
+        """)
+        info = cur.fetchall() or []
+        have_notif_mail_bool = any(c[0] == 'notif_mail' and 'bool' in c[1] for c in info)
+        have_notif_sms_bool  = any(c[0] == 'notif_sms'  and 'bool' in c[1] for c in info)
+        have_notif_email_txt = any(c[0] == 'notif_email' for c in info)  # tekst 'ja'/'nej' i nogle skemaer
+        have_notifikation_txt= any(c[0] == 'notifikation' for c in info) # samlet 'ja'/'nej' i nogle skemaer
+
+        # Hent brugere (tag kun de felter vi HAR)
+        cur.execute("""
+            SELECT id, brugernavn, kode, email, sms,
+                   COALESCE(godkendt, TRUE) AS godkendt
             FROM brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
-        cols = ["id","brugernavn","kode","email","sms","godkendt","notif_mail","notif_sms"]
-        brugere = [user_row_to_dict(r, cols) for r in rows]
-    finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
 
-    return render_template("vis_brugere.html", brugere=brugere)
+        brugere = []
+        for r in rows:
+            u = {
+                "id":          r[0],
+                "brugernavn":  r[1],
+                "adgangskode": r[2],
+                "email":       r[3],
+                "sms":         r[4],
+                "godkendt":    bool(r[5]),
+            }
+
+            # Standard default
+            u["notifikation"] = "ja"
+
+            # Læs notif fra boolean- eller tekstfelter og normalisér til 'ja'/'nej'
+            if have_notif_mail_bool:
+                # ny boolean-kolonne
+                cur.execute("SELECT COALESCE(notif_mail, TRUE) FROM brugere WHERE id=%s", (u["id"],))
+                v = cur.fetchone()[0]
+                u["notif_email"] = "ja" if v else "nej"
+            elif have_notif_email_txt:
+                # gammel tekstkolonne
+                cur.execute("SELECT COALESCE(notif_email, 'ja') FROM brugere WHERE id=%s", (u["id"],))
+                v = (cur.fetchone()[0] or 'ja').strip().lower()
+                u["notif_email"] = "ja" if v == "ja" else "nej"
+            else:
+                # ingen kolonne → default
+                u["notif_email"] = "ja"
+
+            if have_notif_sms_bool:
+                cur.execute("SELECT COALESCE(notif_sms, FALSE) FROM brugere WHERE id=%s", (u["id"],))
+                v = cur.fetchone()[0]
+                u["notif_sms"] = "ja" if v else "nej"
+            else:
+                # tekst-kolonne 'notif_sms' kan også være 'ja'/'nej' i nogle miljøer
+                if any(c[0] == 'notif_sms' for c in info):
+                    cur.execute("SELECT COALESCE(notif_sms, 'nej') FROM brugere WHERE id=%s", (u["id"],))
+                    v = (cur.fetchone()[0] or 'nej').strip().lower()
+                    u["notif_sms"] = "ja" if v == "ja" else "nej"
+                else:
+                    u["notif_sms"] = "nej"
+
+            if have_notifikation_txt:
+                cur.execute("SELECT COALESCE(notifikation, 'ja') FROM brugere WHERE id=%s", (u["id"],))
+                v = (cur.fetchone()[0] or 'ja').strip().lower()
+                u["notifikation"] = "ja" if v == "ja" else "nej"
+
+            brugere.append(u)
+
+    finally:
+        try:
+            cur.close(); conn.close()
+        except Exception:
+            pass
+
+    # Sørg for at besked/fejl kan vises i din template (du har allerede blokken i HTML)
+    return render_template(
+        "vis_brugere.html",
+        brugere=brugere,
+        besked=request.args.get("besked") or "",
+        fejl=request.args.get("fejl") or ""
+    )
 
 @app.route("/admin/brugere/opret", methods=["POST"])
 def admin_opret_bruger():
