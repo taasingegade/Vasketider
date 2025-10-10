@@ -422,42 +422,26 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px);
 }
 /* === ADDED: Split-pair to render two half-slot buttons side-by-side without overlap === */
-.split-pair{
-  display:flex;
-  flex-wrap: nowrap !important;  /* override inline wrap to keep in one line */
-  gap:8px;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  min-height: var(--slot-h);
-}
+.split-pair{ display:flex; flex-wrap: nowrap !important; gap:8px; align-items:center; justify-content:center; width:100%; min-height: var(--slot-h); }
 .split-pair form{ flex:1 1 0; min-width:0; }
-.split-pair .slot-btn{
-  height: calc(var(--slot-h) - 8px);
-  font-size: 13px;
-  line-height: 1;
-  padding: 0 8px;
-  width:100%;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.split-pair .slot-btn{ height: calc(var(--slot-h) - 8px); font-size: 13px; line-height: 1; padding: 0 8px; width:100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .split-pair:has(> :only-child) .slot-btn{ height: var(--slot-h); }
-
 .week-switch{ margin-left:auto; display:flex; gap:10px; align-items:center; }
 .toppanel{ position:fixed; left:0; right:0; top:0; z-index:5000; display:flex; align-items:center; gap:10px; }
 .status.status-center{ position:absolute; left:50%; transform:translateX(-50%); }
-
 .hamburger{ position:relative; width:44px; height:44px; border-radius:10px; background:transparent; border:1px solid var(--glass-brd);
   display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 .hamburger:hover{ background:var(--glass-bg-hover); transform:translateY(-1px); }
-.hamburger-bar{ position:absolute; left:50%; transform:translateX(-50%); width:22px; height:2px; background:#fff; border-radius:2px; }
+.hamburger-bar{ position:absolute; left:50%; transform:translateX(-50%); width:22px; height:2px; background:#fff; border-radius:2px; transition: all 0.3s ease; }
 .hamburger-bar:nth-child(1){ top:12px; } .hamburger-bar:nth-child(2){ top:18px; } .hamburger-bar:nth-child(3){ top:24px; }
-
-.topmenu{ position:absolute; left:12px; top:56px; display:none; flex-direction:column; gap:8px; min-width:220px; padding:10px;
-  background:rgba(255,255,255,0.95); color:#111; border-radius:10px; border:1px solid rgba(0,0,0,0.12); box-shadow:0 10px 30px rgba(0,0,0,0.25); z-index:6500; }
+/* Animation når aktiv */
+.hamburger.active .hamburger-bar:nth-child(1) { transform: translateY(9px) rotate(45deg); }
+.hamburger.active .hamburger-bar:nth-child(2) { opacity: 0; }
+.hamburger.active .hamburger-bar:nth-child(3) { transform: translateY(-9px) rotate(-45deg); }
+.topmenu{ position:absolute; left:12px; top:56px; display:none; flex-direction:column; gap:8px; min-width:220px; padding:10px; background:rgba(255,255,255,0.95); color:#111; border-radius:10px; border:1px solid rgba(0,0,0,0.12); box-shadow:0 10px 30px rgba(0,0,0,0.25); z-index:6500; }
 .topmenu.show{ display:flex; }
 .topmenu .toppanel-knap{ width:100%; justify-content:center; background:rgba(255,255,255,0.7); color:#000; }
 .topmenu .toppanel-knap:hover{ background:rgba(255,255,255,0.9); color:var(--danger); }
-
 .wrapper{ margin-top:90px; }
   /* ---------- Responsive ---------- */
 @media (max-width:768px){
@@ -505,36 +489,14 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   border: none !important; 
   box-shadow: none !important;
 }
-.toppanel:not(.toppanel--login) .top-left .hamburger-bar{
-  position:relative; 
-  display:block; 
-  width:22px; 
-  height:2px; 
-  background:#fff; 
-  border-radius:2px;
-}
-.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ 
-  position: relative !important;
-  left: auto !important; top: auto !important; 
-  transform: none !important;
-  display: block; 
-  margin: 3px 0 0 0;
-  width: 22px; 
-  height: 2px; 
-  border-radius: 2px; 
-  background: #fff; 
-}
-.toppanel--login .hamburger::before{
-  content:"";
-  display:block;
-  width:22px; height:22px;          /* samlet ikon-boks */
+.toppanel:not(.toppanel--login) .top-left .hamburger-bar{ position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px; }
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ position: relative !important; left: auto !important; top: auto !important; transform: none !important; display: block; margin: 3px 0 0 0; width: 22px; height: 2px; border-radius: 2px; background: #fff; }
+.toppanel--login .hamburger::before{ content:""; display:block; width:22px; height:22px;
   background:
     linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 6.7px) / 22px 3px, /* top */
     linear-gradient(currentColor,currentColor) no-repeat center / 22px 3px,                   /* midt */
     linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 6.5px) / 22px 3px; /* bund */
-  border-radius:2px;
-}
-
+  border-radius:2px; }
 .toppanel--login .hamburger .hamburger-bar{ display:none !important; }
 .toppanel--login .hamburger > span{ display:none !important; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{ margin-top: 5px; }
@@ -546,18 +508,6 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel:not(.toppanel--login) .topmenu{ top: 56px !important; }
 /* === LOGIN — gør topbaren lidt højere og centrer hamburger, større klikflade === */
 .toppanel--login{min-height: 68px; position: fixed; left:0; right:0; top:0; z-index:5000; }
-.toppanel--login .hamburger{
-  position:absolute !important;
-  right:12px !important;
-  top:50% !important;
-  transform:translateY(-50%) !important;
-  width:44px !important; height:44px !important;
-  padding:0 !important;
-  display:flex !important; align-items:center !important; justify-content:center !important;
-  background:transparent !important; border:none !important; box-shadow:none !important;
-  color:#000;          /* sort ikon på login; skift til #fff hvis du vil have hvide streger */
-  z-index:6600 !important;
-  overflow:hidden !important;
-}
+.toppanel--login .hamburger{ position:absolute !important; right:12px !important; top:50% !important; transform:translateY(-50%) !important; width:44px !important; height:44px !important; padding:0 !important; display:flex !important; align-items:center !important; justify-content:center !important; background:transparent !important; border:none !important; box-shadow:none !important; color:#000; z-index:6600 !important; overflow:hidden !important; }
 .toppanel--login .login-menu{ top: 68px !important; }
 .toppanel--login .hamburger-bar:first-child{ margin-top:0; }

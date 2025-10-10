@@ -168,5 +168,25 @@
     if (!m.contains(e.target) && !b.contains(e.target)) m.classList.remove('show');
   });
 </script>
+<script>
+  function toggleMenu(){
+    const m = document.querySelector('.login-menu');
+    const btn = document.querySelector('.hamburger');
+    if (m) m.classList.toggle('show');
+    if (btn) btn.classList.toggle('active'); // ← tilføjer animation
+  }
+
+  // Luk menu ved klik udenfor
+  document.addEventListener('click', (e)=>{
+    const menu = document.querySelector('.login-menu');
+    const btn  = document.querySelector('.hamburger');
+    if (!menu || !btn) return;
+    const outside = !menu.contains(e.target) && !btn.contains(e.target);
+    if (outside) {
+      menu.classList.remove('show');
+      btn.classList.remove('active'); // ← fjern animation når man klikker udenfor
+    }
+  });
+</script>
 </body>
 </html>
