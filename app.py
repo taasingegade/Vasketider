@@ -2714,28 +2714,46 @@ def opret():
 
     return render_template("opret bruger.html")
 
-@app.route("/vis_brugere")
+@app.route("/vis_brugere", methods=["GET"])
 def vis_brugere():
+    if 'brugernavn' not in session:
+        return redirect('/login')
+
     conn = get_db_connection(); cur = conn.cursor()
+    brugere = []
     try:
         ensure_user_columns(cur); conn.commit()
         cur.execute("""
             SELECT brugernavn, kode, email, sms,
                    COALESCE(notifikation,'ja') AS notifikation,
-                   COALESCE(notif_email,'ja') AS notif_email,
-                   COALESCE(notif_sms,'nej')  AS notif_sms,
-                   COALESCE(godkendt, TRUE)   AS godkendt
+                   COALESCE(notif_email,'ja')  AS notif_email,
+                   COALESCE(notif_sms,'nej')   AS notif_sms,
+                   COALESCE(godkendt, TRUE)    AS godkendt
             FROM brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
-        cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
+        cols = [
+            'brugernavn','adgangskode','email','sms',
+            'notifikation','notif_email','notif_sms','godkendt'
+        ]
         brugere = [dict(zip(cols, r)) for r in rows]
     finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
+        try:
+            cur.close(); conn.close()
+        except Exception:
+            pass
 
-    return render_template("vis_brugere.html", brugere=brugere)
+    # læs evt. ?besked=... / ?fejl=...
+    besked = request.args.get("besked") or ""
+    fejl   = request.args.get("fejl")   or ""
+
+    return render_template(
+        "vis_brugere.html",
+        brugere=brugere,
+        besked=besked,
+        fejl=fejl
+    )
 
 @app.route("/opret_bruger", methods=["POST"])
 def opret_bruger():

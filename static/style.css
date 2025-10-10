@@ -26,140 +26,48 @@
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; margin:0; padding:0; font-family:sans-serif; color:#fff; }
-
-body{
-  background:url('/static/Bg.jpg') no-repeat center center fixed;
-  background-size:cover;
-  background-color:#0b0f14;
-  min-height:100vh; overflow-x:hidden;
-}
-
+body{ background:url('/static/Bg.jpg') no-repeat center center fixed; background-size:cover; background-color:#0b0f14; min-height:100vh; overflow-x:hidden; }
 /* ---------- TOPPANEL (fastlåst) ---------- */
-.toppanel{
-  position:fixed; top:0; left:0; right:0;
-  display:flex !important;
-  align-items:center !important;
-  padding:10px 16px;
-  overflow: visible !important;
-  background:var(--frost-bg);
-  border-bottom:1px solid var(--frost-brd);
-  color:var(--frost-txt);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  z-index:5000 !important;
-}
+.toppanel{ position:fixed; top:0; left:0; right:0; display:flex !important; align-items:center !important; padding:10px 16px; overflow: visible !important; background:var(--frost-bg); border-bottom:1px solid var(--frost-brd); color:var(--frost-txt); backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%); z-index:5000 !important; }
 .toppanel .brand{ margin-right:12px; order: 0; }
 .toppanel .brand a{ color:inherit; text-decoration:none; }
-
-.toppanel-knap,.button,.btn,.glass-btn{
-  appearance:none;
-  border:1px solid var(--glass-brd);
-  background:var(--glass-bg);
-  color:#fff;
-  padding:9px 14px;
-  border-radius:12px;
-  cursor:pointer;
-  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
-  text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-weight:600;
-}
-.toppanel-knap:hover,.button:hover,.btn:hover,.glass-btn:hover{
-  background:var(--glass-bg-hover); color:var(--danger);
-  border-color: rgba(255,255,255,0.55); transform: translateY(-1px);
-}
+.toppanel-knap,.button,.btn,.glass-btn{ appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg); color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+.toppanel-knap:hover,.button:hover,.btn:hover,.glass-btn:hover{ background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px); }
 .toppanel-knap:active,.button:active,.btn:active,.glass-btn:active{ transform: translateY(0) scale(0.98); }
-.toppanel-select{
-  height:38px; padding:6px 12px; border-radius:10px;
-  border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.10); color:#fff;
-}
+.toppanel-select{ height:38px; padding:6px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.10); color:#fff; }
 /* Vaskemaskine status */
-.toppanel .status.status-center{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(5, 5, 5, 0.95);
-  color:#fff;
-}
-
+.toppanel .status.status-center{ position:absolute; left:50%; transform:translateX(-50%); background:rgba(5, 5, 5, 0.95); color:#fff; }
 /* Topbar dropdown-menu (venstre) */
-.topmenu{
-  position:absolute !important;
-  left:12px !important;          /* venstre side */
-  top:56px !important;
-  display:none;
-  z-index:6500 !important;
-  min-width:220px;
-  flex-direction:column;
-  gap:8px;
-  padding:10px;
-  background:rgba(255,255,255,0.95);
-  color:#111;
-  border-radius:10px;
-  border:1px solid rgba(0,0,0,0.12);
-  box-shadow:0 10px 30px rgba(0,0,0,0.25);
-}
+.topmenu{ position:absolute !important; left:12px !important; top:56px !important; display:none; z-index:6500 !important; min-width:220px; flex-direction:column; gap:8px; padding:10px; background:rgba(255,255,255,0.95); color:#111; border-radius:10px; border:1px solid rgba(0,0,0,0.12); box-shadow:0 10px 30px rgba(0,0,0,0.25); }
 .topmenu.show{ display:flex !important; }
 .topmenu .toppanel-knap{ width:100%; justify-content:center; background:rgba(255,255,255,0.6); color:#000; }
 .topmenu .toppanel-knap:hover{ color: var(--danger); background: rgba(255,255,255,0.85); }
-
 /* ---------- WRAPPER ---------- */
 .wrapper{ width:100%; max-width:var(--page-max); margin:90px auto 24px; padding:22px; background:rgba(255,255,255,0.05); border-radius:12px; }
 .main{ width:100%; max-width: calc(var(--page-max) - 60px); margin:0 auto; }
-
 /* ---------- INPUTS (global) ---------- */
-input,select,textarea{
-  margin:5px 8px 5px 0; padding:12px 14px;
-  border-radius:14px; border:1px solid rgba(255,255,255,0.35);
-  background: rgba(255,255,255,0.12);
-  color:#fff;
-}
+input,select,textarea{ margin:5px 8px 5px 0; padding:12px 14px; border-radius:14px; border:1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color:#fff; }
 input::placeholder,textarea::placeholder{ color: rgba(255,255,255,0.8); }
-input:focus,select:focus,textarea:focus{
-  outline:none;
-  background: rgba(255,255,255,0.85); color:#111;   /* omvendt kontrast ved fokus */
-  box-shadow: 0 0 8px rgba(255,255,255,0.6);
-}
+input:focus,select:focus,textarea:focus{ outline:none; background: rgba(255,255,255,0.85); color:#111; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
 input:focus::placeholder,textarea:focus::placeholder{ color: rgba(0,0,0,0.45); }
 label,.remember-line,.muted{ color:#fff !important; }
-
 button{ font:inherit; }
 button.slot-btn,button.hamburger{ all:unset; }
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){
-  appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg);
-  color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600;
-}
-button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
-  background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px);
-}
-
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn){ appearance:none; border:1px solid var(--glass-brd); background:var(--glass-bg); color:#fff; padding:9px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600; }
+button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{ background:var(--glass-bg-hover); color:var(--danger); border-color: rgba(255,255,255,0.55); transform: translateY(-1px); }
 /* ---------- LOGIN / AUTH (krystalklar) ---------- */
-.auth-wrap{
-  min-height: calc(100vh - 70px);
-  display:flex; align-items:center; justify-content:center; padding:40px 16px;
-}
-.auth-box{
-  /* mere klar glas – lav alpha + høj blur, lavere saturate for at undgå brun tone */
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.22);
-  border-radius: 22px;
-  padding: 36px 40px; width:100%; max-width:420px;
-  backdrop-filter: blur(18px) saturate(120%) contrast(115%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%) contrast(115%);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.40);
-  color:#fff;
-}
+.auth-wrap{ min-height: calc(100vh - 70px); display:flex; align-items:center; justify-content:center; padding:40px 16px; }
+/* mere klar glas – lav alpha + høj blur, lavere saturate for at undgå brun tone */
+.auth-box{ background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.22); border-radius: 22px; padding: 36px 40px; width:100%; max-width:420px; backdrop-filter: blur(18px) saturate(120%) contrast(115%); -webkit-backdrop-filter: blur(18px) saturate(120%) contrast(115%); box-shadow: 0 8px 30px rgba(0,0,0,0.40); color:#fff; }
 .auth-box h2{ text-align:center; margin:0 0 18px; font-size:1.6rem; letter-spacing:.5px; }
 .auth-form{ display:flex; flex-direction:column; gap:12px; }
-
+.alert-ok { margin: 80px auto -70px; max-width: 1180px; background: rgba(0,200,0,.15); border:1px solid rgba(0,200,0,.35); color:#c8ffd0; padding:8px 12px; border-radius:8px; }
+.alert-err { margin: 80px auto -70px; max-width: 1180px; background: rgba(200,0,0,.15); border:1px solid rgba(200,0,0,.35); color:#ffd0d0; padding:8px 12px; border-radius:8px; }
 /* Felter i auth arver global; vi sikrer blot fuld bredde */
 .auth-form input[type="text"], .auth-form input[type="password"]{ width:100%; }
-
 /* Husk mig – CENTRERET, 100% bredde */
-.remember-line{
-  display:flex; justify-content:center; align-items:center; gap:10px;
-  width:100%; margin:10px 0; text-align:center;
-}
+.remember-line{ display:flex; justify-content:center; align-items:center; gap:10px; width:100%; margin:10px 0; text-align:center; }
 .remember-text{ display:inline-block; }
-
 /* switch */
 .switch{ position:relative; display:inline-block; width:46px; height:26px; }
 .switch input{ display:none; }
@@ -167,7 +75,6 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .slider:before{ content:""; position:absolute; height:20px; width:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.3s; }
 input:checked + .slider{ background:var(--ok); }
 input:checked + .slider:before{ transform:translateX(20px); }
-
 /* Log ind knap */
 .glass-btn{
   display:inline-flex; justify-content:center; align-items:center;
