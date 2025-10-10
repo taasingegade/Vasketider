@@ -2046,56 +2046,78 @@ def admin_godkend_bruger():
 
 @app.route("/admin/brugere/book", methods=["POST"])
 def admin_book_for_user():
-    # kun admin
+    # --- 1) Kun admin ---
     if session.get('brugernavn','').lower() != 'admin':
         return redirect('/login')
 
+    # --- 2) Formularfelter ---
     bnavn = (request.form.get("brugernavn") or "").strip()
-    dato  = (request.form.get("dato") or "").strip()
-    slot  = request.form.get("slot")
-    btype = (request.form.get("type") or "full").strip()  # full/early/late
+    dato  = (request.form.get("dato") or "").strip()          # YYYY-MM-DD
+    slot  = request.form.get("slot")                          # "0".."3"
+    btype = (request.form.get("type") or "full").strip()      # full/early/late
 
     if not bnavn or not dato or slot is None:
         return redirect("/vis_brugere?fejl=Udfyld+bruger%2C+dato+og+slot")
 
+    # Debug: se hvad der faktisk bliver postet
+    try:
+        print("➡️  /admin/brugere/book FORM:", dict(request.form), flush=True)
+    except Exception:
+        pass
+
+    # --- 3) DB ---
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # bruger findes og er godkendt
-        cur.execute("SELECT 1 FROM brugere WHERE LOWER(brugernavn)=LOWER(%s) AND COALESCE(godkendt,TRUE)=TRUE", (bnavn,))
+        # Bruger findes + godkendt
+        cur.execute("""
+            SELECT 1
+              FROM brugere
+             WHERE LOWER(brugernavn)=LOWER(%s)
+               AND COALESCE(godkendt,TRUE)=TRUE
+        """, (bnavn,))
         if not cur.fetchone():
             return redirect("/vis_brugere?fejl=Bruger+findes+ikke+eller+ikke+godkendt")
 
-        # max 2 pr. dag
+        # Maks 2 pr. dag (samme logik som øvrige steder)
         cur.execute("""
-            SELECT COUNT(*) FROM bookinger
-            WHERE LOWER(brugernavn)=LOWER(%s)
-              AND dato_rigtig::date = %s::date
-              AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
+            SELECT COUNT(*)
+              FROM bookinger
+             WHERE LOWER(brugernavn)=LOWER(%s)
+               AND dato_rigtig::date=%s::date
+               AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
         """, (bnavn, dato))
         if int(cur.fetchone()[0] or 0) >= 2:
             return redirect(f"/vis_brugere?fejl={bnavn}+har+allerede+2+bookinger+den+dag")
 
-        # indsæt booking (slot_index gemmes som int)
+        # --- 4) Indsæt fuld booking konsekvent ---
+        #  - slot_index gemmes som INT
+        #  - sub_slot sættes eksplicit til 'full'
+        #  - status 'booked' (admin-bookinger kræver ikke aktivering)
         cur.execute("""
-            INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index, booking_type, status, created_at, activation_required)
-            VALUES (%s, %s::date, %s::int, %s, 'booked', NOW(), FALSE)
+            INSERT INTO bookinger (
+                brugernavn, dato_rigtig, slot_index, sub_slot,
+                booking_type, status, activation_required, created_at
+            )
+            VALUES (%s, %s::date, %s::int, 'full',
+                    %s, 'booked', FALSE, NOW())
             RETURNING id
         """, (bnavn, dato, int(slot), btype))
         bid = cur.fetchone()[0]
 
-        # log forsøg (hvis booking_log findes, ellers ignorer fejl)
+        # Log (tåler at booking_log ikke findes)
         try:
             cur.execute("""
                 INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, tidspunkt)
                 VALUES (%s,'admin_book',%s::date,%s::int,%s,'ok',NOW())
             """, (bnavn, dato, int(slot), btype))
-        except Exception:
-            pass
+        except Exception as logerr:
+            print("ℹ️  booking_log springes over:", logerr, flush=True)
 
         conn.commit()
+
     except Exception as e:
         conn.rollback()
-        print("Fejl admin-book:", e)
+        print("❌ admin_book_for_user fejl:", e, flush=True)
         return redirect("/vis_brugere?fejl=Kunne+ikke+booke")
     finally:
         try: cur.close(); conn.close()
