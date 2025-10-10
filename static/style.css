@@ -76,6 +76,7 @@ body{
   left:50%;
   transform:translateX(-50%);
   background:rgba(5, 5, 5, 0.95);
+  color:#fff;
 }
 
 /* Topbar dropdown-menu (venstre) */
@@ -485,20 +486,38 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   z-index: 6000;
 }
 .toppanel:not(.toppanel--login) .top-left .hamburger{
-  width: 44px;
-  height: 44px;
-  padding: 0px;
-  border: none !important;
-  box-shadow:none !important;
-  border-radius: 10px;
-  display:flex; 
-  align-items:center; 
-  justify-content:center;
+  position: relative !important;              /* gør knappen til “containing block” */
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  width: 44px; 
+  height: 44px; 
+  padding: 0;
+  background: transparent !important; 
+  border: none !important; 
+  box-shadow: none !important;
 }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar{
-  position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px;
+  position:relative; 
+  display:block; 
+  width:22px; 
+  height:2px; 
+  background:#fff; 
+  border-radius:2px;
 }
-.toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ 
+  position: relative !important;
+  left: auto !important; top: auto !important; 
+  transform: none !important;
+  display: block; 
+  width: 22px; 
+  height: 2px; 
+  border-radius: 2px; 
+  background: #fff; 
+}
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{
+  margin-top: 5px;
+}
 /* Hvis din index-topbar IKKE har en .top-left wrapper, brug denne fallback: */
 .toppanel:not(.toppanel--login) > .hamburger:first-child{
   position: absolute;
