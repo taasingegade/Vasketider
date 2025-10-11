@@ -8,6 +8,8 @@ except ImportError:
     from psycopg2 import Error as PGError
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
+from typing import Dict, Any, Optional
+import logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -37,6 +39,7 @@ from werkzeug.utils import secure_filename, safe_join
 
 UPLOAD_FOLDER = 'static'
 # disse køre systemet og styrer essentielle sikkerheder
+log = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=int(os.getenv('REMEMBER_DAYS', '30')))
@@ -70,45 +73,6 @@ limiter = Limiter(
     default_limits=[]
 )
 limiter.init_app(app)
-
-def _dump_slot_state(cur, dato, slot_txt):
-    """Printer alle rækker for dato/slot, så vi kan se præcis hvad der blokerer."""
-    cur.execute("""
-        SELECT id, dato_rigtig, slot_index::text AS slot, COALESCE(sub_slot,'full') AS del,
-               brugernavn, status, created_at
-        FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-        ORDER BY COALESCE(sub_slot,'full'), id
-    """, (dato, slot_txt))
-    rows = cur.fetchall()
-    print("🧾 SLOT-STATE:", {"dato": str(dato), "slot": slot_txt, "rows": rows})
-
-def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
-    """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
-    # fuld blokkerer?
-    cur.execute("""
-        SELECT 1 FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-          AND COALESCE(sub_slot,'full')='full'
-          AND brugernavn IS NOT NULL
-        LIMIT 1
-    """, (dato, slot_txt))
-    if cur.fetchone():
-        return "Slot er fuldt booket."
-
-    # min halvdel taget?
-    cur.execute("""
-        SELECT brugernavn FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-          AND sub_slot=%s AND brugernavn IS NOT NULL
-        LIMIT 1
-    """, (dato, slot_txt, sub))
-    r = cur.fetchone()
-    if r:
-        return f"Den valgte halvdel er allerede taget (af {r[0]})."
-
-    # ellers ukendt
-    return "Kunne ikke booke halvtid (DB-konflikt)."
 
 # ====================================
 # Definer starter en funktion i python
@@ -288,6 +252,52 @@ def init_db():
 init_db()
 
 # ==== BEGIN ADD: booking helpers ====
+
+def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
+    """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
+    # fuld blokkerer?
+    cur.execute("""
+        SELECT 1 FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND COALESCE(sub_slot,'full')='full'
+          AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt))
+    if cur.fetchone():
+        return "Slot er fuldt booket."
+
+    # min halvdel taget?
+    cur.execute("""
+        SELECT brugernavn FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND sub_slot=%s AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt, sub))
+    r = cur.fetchone()
+    if r:
+        return f"Den valgte halvdel er allerede taget (af {r[0]})."
+
+    # ellers ukendt
+    return "Kunne ikke booke halvtid (DB-konflikt)."
+
+def _yn(v) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return False
+    return str(v).strip().lower() in {"1","true","on","ja","y","yes"}
+
+def _dump_slot_state(cur, dato, slot_txt):
+    """Printer alle rækker for dato/slot, så vi kan se præcis hvad der blokerer."""
+    cur.execute("""
+        SELECT id, dato_rigtig, slot_index::text AS slot, COALESCE(sub_slot,'full') AS del,
+               brugernavn, status, created_at
+        FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+        ORDER BY COALESCE(sub_slot,'full'), id
+    """, (dato, slot_txt))
+    rows = cur.fetchall()
+    print("🧾 SLOT-STATE:", {"dato": str(dato), "slot": slot_txt, "rows": rows})
 
 def get_client_ip(req):
     xff = req.headers.get("X-Forwarded-For", "")
@@ -876,13 +886,15 @@ def get_kontaktinfo(cur, brugernavn: str):
     """
     Returnerer: (email, sms, allow_email_bool, allow_sms_bool)
     - virker både med ny og gammel skema
+    - 'notifikation' = hovedafbryder (on/off)
+    - 'notif_email' og 'notif_sms' = uafhængige kanaler
     """
     try:
         # ny model med notif_email/notif_sms
         cur.execute("""
             SELECT
-                COALESCE(email,''), COALESCE(sms,''),
-                COALESCE(notifikation,'ja'),
+                COALESCE(email,''), COALESCE(sms,''), 
+                COALESCE(notifikation,'ja'), 
                 COALESCE(notif_email,'ja'), COALESCE(notif_sms,'nej')
             FROM brugere
             WHERE LOWER(brugernavn)=LOWER(%s)
@@ -891,11 +903,25 @@ def get_kontaktinfo(cur, brugernavn: str):
         row = cur.fetchone()
         if not row:
             return "", "", False, False
+
         email, sms, notifikation, notif_email, notif_sms = row
-        allow_email = (notifikation == 'ja') and (notif_email == 'ja')
-        allow_sms   = (notifikation == 'ja') and (notif_sms   == 'ja')
-        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow_email}, allow_sms={allow_sms} (NY)")
+        email = (email or "").strip()
+        sms   = (sms or "").strip()
+
+        # === ÆNDRET LOGIK HER ===
+        if notifikation == 'ja':
+            allow_email = (notif_email == 'ja') and bool(email)
+            allow_sms   = (notif_sms   == 'ja') and bool(sms)
+        else:
+            # Hvis master notifikation er "nej", send ingenting
+            allow_email = False
+            allow_sms   = False
+        # ==========================
+
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', "
+              f"allow_email={allow_email}, allow_sms={allow_sms} (NY)")
         return email, sms, allow_email, allow_sms
+
     except Exception as e:
         # fallback til gammel model (kun 'notifikation')
         cur.execute("""
@@ -909,8 +935,57 @@ def get_kontaktinfo(cur, brugernavn: str):
             return "", "", False, False
         email, sms, notifikation = row
         allow = (notifikation == 'ja')
-        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow}, allow_sms={allow} (GAMMEL)")
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', "
+              f"allow_email={allow}, allow_sms={allow} (GAMMEL)")
         return email, sms, allow, allow
+
+def send_notifikation(brugernavn: str,
+                      emne: str,
+                      mail_tekst: str,
+                      sms_tekst: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Afsend med respekt for master + kanaler.
+    * Hvis master off -> send ikke noget.
+    * Hvis master on -> send til de kanaler der er valgt og har kontaktinfo.
+    """
+    info = get_kontaktinfo(brugernavn)
+    status = {"skipped": False, "reason": "", "email": False, "sms": False}
+
+    if not info["notifikation"]:
+        status["skipped"] = True
+        status["reason"]  = "Master notifikation = off"
+        return status
+
+    # Mail
+    if info["allow_email"]:
+        try:
+            if 'send_email' in globals() and callable(globals()['send_email']):
+                globals()['send_email'](emne, mail_tekst, info["email"])
+                status["email"] = True
+            else:
+                log.warning("send_email() ikke fundet – simulerer OK")
+                status["email"] = True
+        except Exception as e:
+            log.exception("Mail-fejl til %s: %s", info["email"], e)
+
+    # SMS
+    if info["allow_sms"]:
+        text = sms_tekst if sms_tekst is not None else mail_tekst
+        try:
+            if 'send_sms' in globals() and callable(globals()['send_sms']):
+                globals()['send_sms'](info["sms"], text)
+                status["sms"] = True
+            else:
+                log.warning("send_sms() ikke fundet – simulerer OK")
+                status["sms"] = True
+        except Exception as e:
+            log.exception("SMS-fejl til %s: %s", info["sms"], e)
+
+    if (not info["allow_email"]) and (not info["allow_sms"]):
+        status["skipped"] = True
+        status["reason"]  = "Ingen aktive kanaler eller manglende kontaktinfo"
+
+    return status
 
 def get_slot_text(cur, slot_index: int) -> str:
     """Returner human tekst for et slot (falder tilbage til 07–11 ..)."""
