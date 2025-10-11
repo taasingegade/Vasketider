@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Betingelser for brug af Vasketider</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+  </script>
+</head>
+<body>
+  <div class="toppanel">
+    <form method="get" action="{{ next_url }}">
+      <button class="toppanel-knap">Tilbage</button>
+    </form>
+  </div>
+
+  <div class="wrapper">
+    <div class="main glassbox">
+      <h2 style="margin-top:0;">Betingelser</h2>
+
+<ol>
+<li><strong>Betingelser for brug af Vasketidssystemet</strong><br><br>
+
+<strong>1. Formål og anvendelse</strong><br>
+Vasketidssystemet er et digitalt administrations- og bookingsystem udviklet af <strong>Hornsberg Group</strong> til håndtering af fælles vaskefaciliteter. Systemet anvendes til at reservere, aktivere og overvåge vaskemaskiner og tilknyttede IoT-enheder, således at brugen sker retfærdigt, struktureret og med dokumenteret logning af aktivitet.<br><br>
+
+<strong>2. Accept af betingelser</strong><br>
+Ved at oprette en bruger, logge ind eller på anden måde anvende systemet accepterer du automatisk disse betingelser. Brug af systemet forudsætter accept af databehandlingen, som beskrevet herunder. Hvis du ikke ønsker at acceptere betingelserne, kan systemet og tilknyttede funktioner ikke benyttes.<br><br>
+
+<strong>3. Dataindsamling og behandling</strong><br>
+Systemet registrerer og gemmer tekniske og driftsrelaterede oplysninger, herunder:
+<ul>
+  <li>Brugernavn og loginaktivitet</li>
+  <li>IP-adresse, browser, enhedstype og tidspunkt for adgang</li>
+  <li>Bookinger, aflysninger og brug af vaskemaskiner</li>
+  <li>Fejlmeldinger, serviceblokeringer og automatiske systemhændelser</li>
+</ul>
+
+Formålet er at sikre drift, forebygge misbrug, udføre fejlfinding, generere statistik og forbedre brugeroplevelsen.  
+Data opbevares sikkert og krypteret på Hornsberg Groups interne servere.  
+Oplysninger videregives <strong>aldrig til tredjepart</strong>, kommercielle aktører eller eksterne systemer, medmindre dette er påkrævet ved lov.  
+Logdata bevares så længe de har driftsmæssig relevans – typisk op til 12 måneder – hvorefter de slettes automatisk eller anonymiseres.<br><br>
+
+<strong>4. Ret til indsigt og sletning</strong><br>
+Du har til enhver tid ret til at få indsigt i, hvilke oplysninger systemet har registreret om dig. Du kan også anmode om at få din bruger og tilhørende data slettet.  
+Ved sletning fjernes alle oplysninger permanent fra systemet, herunder login, bookinghistorik og adgang til IoT-styrede enheder.  
+Bemærk, at sletning af data medfører, at du ikke længere kan anvende systemet, booke tider eller benytte de tilknyttede maskiner.<br><br>
+
+<strong>5. Brugerens ansvar</strong><br>
+Som registreret bruger forpligter du dig til at:
+<ul>
+  <li>Bruge systemet i overensstemmelse med gældende regler</li>
+  <li>Ikke manipulere, omgå eller misbruge systemets funktioner</li>
+  <li>Ikke aktivere vaskemaskiner uden gyldig booking</li>
+  <li>Ikke dele loginoplysninger med andre eller booke for fremmede lejemål</li>
+</ul>
+Misbrug, forsøg på hacking eller uretmæssig adgang kan medføre spærring af bruger og anmeldelse til administrator eller relevante myndigheder.<br><br>
+
+<strong>6. Drift og ændringer</strong><br>
+Systemet leveres “som det er” og kan midlertidigt være utilgængeligt under opdatering, vedligeholdelse eller tekniske fejl.  
+Hornsberg Group forbeholder sig retten til uden varsel at foretage ændringer, udvidelser, begrænsninger eller midlertidig lukning af systemet, når dette er nødvendigt for sikkerhed eller drift.<br><br>
+
+<strong>7. Ansvarsfraskrivelse</strong><br>
+Hornsberg Group påtager sig intet ansvar for tab, skader, fejl eller ulemper som følge af systemnedbrud, strømafbrydelser, hardwarefejl, serverproblemer, forkert anvendelse eller andre forhold uden for virksomhedens kontrol.  
+Brugeren er selv ansvarlig for korrekt anvendelse af systemet og for at overholde de gældende regler for vaskeriet.<br><br>
+
+<strong>8. Ændringer i betingelserne</strong><br>
+Betingelserne kan løbende blive opdateret for at afspejle tekniske, juridiske eller organisatoriske ændringer.  
+Eventuelle ændringer offentliggøres under menupunktet “Regler” i systemet. Fortsat brug af systemet efter ændringer betragtes som accept af de nye betingelser.<br><br>
+
+<strong>9. Kontakt og forespørgsler</strong><br>
+For spørgsmål, indsigt i data eller anmodning om sletning kan du kontakte systemadministratoren:  
+<em>support@hornsberggroup.dk</em><br><br>
+
+<strong>10. Teknisk integration og sikkerhed</strong><br>
+Systemet kommunikerer med tilknyttede vaskemaskiner og udstyr via sikre <strong>Home Assistant</strong>-integrationer.  
+Al kommunikation foregår internt over krypterede forbindelser og anvendes udelukkende til drift, statusopdatering og fejlfinding.  
+Systemet overholder gældende GDPR-principper for dataminimering, sikkerhed og legitim behandling.<br><br>
+
+<em>Ved fortsat brug af systemet erklærer du dig indforstået med og accepterer samtlige ovenstående betingelser for brug og databehandling.</em><br><br>
+
+© Hornsberg Group – Senest opdateret: Oktober 2025
+</li>
+</ol>
