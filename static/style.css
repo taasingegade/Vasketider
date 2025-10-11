@@ -23,6 +23,122 @@
   --danger:#d93025;
   --page-max:1100px;
   --social-size:28px;
+  /* =========================================================
+   SLOT SIZE SYSTEM — 100% kontrol pr. tilstand
+   Læg denne blok NEDERST i style.css
+   ========================================================= */
+
+/* ---------- KONFIG: justér kun disse værdier ---------- */
+    /* Ledig (brugere kan booke) */
+  --size-ledig-h:        40px;   /* total knaphøjde (fuld slot) */
+  --size-ledig-fs:       14px;   /* font-size */
+  --size-ledig-pad-x:    10px;   /* vandret padding */
+  --size-ledig-radius:    8px;   /* hjørner */
+
+  /* Service (vedligehold/blokeret) */
+  --size-service-h:      40px;
+  --size-service-fs:     14px;
+  --size-service-pad-x:  10px;
+  --size-service-radius:  8px;
+
+  /* Optaget (booket af en bruger) */
+  --size-optaget-h:      40px;
+  --size-optaget-fs:     14px;
+  --size-optaget-pad-x:  10px;
+  --size-optaget-radius:  8px;
+
+  /* Admin (særlige admin-knapper hvis anvendt på index) */
+  --size-admin-h:        40px;
+  --size-admin-fs:       14px;
+  --size-admin-pad-x:    10px;
+  --size-admin-radius:    8px;
+
+  /* Half-slot faktor — hvor meget en halv tid skal fylde i højden
+     (brug 1.0 hvis du vil have samme højde som fuld tid) */
+  --half-factor:         0.85;
+}
+/* ---------- Baseline: alle kalender-slotknapper henter variabler ---------- */
+.calendar .slot-btn,
+.calendar .split-details > summary{
+  /* fallback hvis en state ikke sætter sine egne variabler */
+  --slot-h:       40px;
+  --slot-fs:      14px;
+  --slot-pad-x:   10px;
+  --slot-radius:   8px;
+
+  height: var(--slot-h);
+  font-size: var(--slot-fs);
+  padding: 0 var(--slot-pad-x);
+  border-radius: var(--slot-radius);
+  line-height: 1.1;
+}
+/* Split/half: når en slot gengives i en halv-del, reducer højde en anelse
+   (virker både for <details class="split-details"> og .split-pair layout) */
+.calendar .split-details > summary,
+.calendar .split-pair .slot-btn{
+  height: calc(var(--slot-h) * var(--half-factor));
+}
+
+/* ---------- STATE-BINDINGER ---------- */
+/* LEDIG */
+.calendar .slot-btn.ledig,
+.calendar .split-details.ledig > summary,
+.calendar .split-details[data-state="free"] > summary,
+.calendar form[action$="/book"] .slot-btn{
+  --slot-h:     var(--size-ledig-h);
+  --slot-fs:    var(--size-ledig-fs);
+  --slot-pad-x: var(--size-ledig-pad-x);
+  --slot-radius:var(--size-ledig-radius);
+}
+
+/* SERVICE */
+.calendar .slot-btn.service,
+.calendar .split-details.service > summary{
+  --slot-h:     var(--size-service-h);
+  --slot-fs:    var(--size-service-fs);
+  --slot-pad-x: var(--size-service-pad-x);
+  --slot-radius:var(--size-service-radius);
+}
+
+/* OPTAGET (booket) */
+.calendar .slot-btn.optaget,
+.calendar .optaget-knap,
+.calendar .split-details.booked > summary{
+  --slot-h:     var(--size-optaget-h);
+  --slot-fs:    var(--size-optaget-fs);
+  --slot-pad-x: var(--size-optaget-pad-x);
+  --slot-radius:var(--size-optaget-radius);
+}
+
+/* ADMIN — hvis du markerer admin-tilstand på knappen eller wrapper */
+.calendar .slot-btn.admin,
+.calendar .split-details.admin > summary,
+.calendar [data-role="admin"] .slot-btn,
+.calendar [data-role="admin"] .split-details > summary{
+  --slot-h:     var(--size-admin-h);
+  --slot-fs:    var(--size-admin-fs);
+  --slot-pad-x: var(--size-admin-pad-x);
+  --slot-radius:var(--size-admin-radius);
+}
+
+/* ---------- Responsive finjustering (valgfrit) ---------- */
+/* Gør knapperne en smule højere på mobil uden at røre din eksisterende --slot-h fallback */
+@media (max-width: 768px){
+  :root{
+    --size-ledig-h:   48px;
+    --size-service-h: 48px;
+    --size-optaget-h: 48px;
+    --size-admin-h:   48px;
+  }
+}
+
+/* ---------- Stabilitet ift. eksisterende regler ---------- */
+/* Hvis der findes tidligere højde-/padding-regler, neutraliser dem her */
+.calendar .slot-btn,
+.calendar .split-details > summary{
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  /* width/height styres allerede via grid-cellen; vi fastholder højde via --slot-h */
 }
 @media (max-width:768px){ :root{ --slot-h:95px; } }
 
@@ -106,7 +222,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .calendar > div > *{ width:100%; height:100%; margin:0; box-sizing:border-box; }
 .calendar > div > div{ display:flex; flex-wrap:wrap; gap:14px !important; justify-content:center; }
 .calendar > div:has(.split-details[open]){ z-index:9999; }
-.calendar .slot-btn,.calendar .split-details > summary{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:0 10px; font-size:14px; border:none; border-radius:6px; line-height:1.2; cursor:pointer; gap:8px; box-shadow:0 3px 6px rgba(0,0,0,0.25); transition:transform .1s ease, box-shadow .2s ease; }
+/*.calendar .slot-btn,.calendar .split-details > summary{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:0 10px; font-size:14px; border:none; border-radius:6px; line-height:1.2; cursor:pointer; gap:8px; box-shadow:0 3px 6px rgba(0,0,0,0.25); transition:transform .1s ease, box-shadow .2s ease; } */
 .calendar .slot-btn:hover,.calendar .split-details > summary:hover{ transform:translateY(-1px); box-shadow:0 5px 12px rgba(0,0,0,0.35); }
 .calendar .slot-btn:focus-visible,.calendar .split-details > summary:focus-visible{ outline:none; box-shadow:var(--focus); }
 .calendar .split-details{ position:relative; display:inline-block; overflow:visible; }
@@ -160,26 +276,9 @@ details.ua{ margin-top:6px; } details.ua summary{ cursor:pointer; color:#9fd8ff;
 #dzSubmit.dz-submit{ position: relative; z-index: 4001; pointer-events: auto !important; display: inline-flex; align-items: center; justify-content: center; width: auto; }
 footer, .footer{ z-index: 1000; }
 #dzSubmit.dz-submit:hover { background: var(--glass-bg-hover); color: var(--danger); border-color: rgba(255,255,255,.55); }
-.window.danger .dz-submit{
-  /* INGEN all: unset her! */
-  display: inline-flex;              /* hele knappen er klikbar */
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 100;                      /* over glaslag */
-  pointer-events: auto !important;
-  /* behold din standard glas-størrelse (samme som .glass-btn) */
-  padding: 8px 14px;                 /* samme som dine andre knapper */
-  border-radius: 12px;
-  cursor: pointer;
-}
-
+.window.danger .dz-submit{ display: inline-flex; align-items: center;justify-content: center; position: relative; z-index: 100; pointer-events: auto !important; padding: 8px 14px; border-radius: 12px; cursor: pointer; }
 /* valgfri hover (matcher dine glas-knapper) */
-.window.danger .dz-submit:hover{
-  background: var(--glass-bg-hover);
-  color: var(--danger);
-  border-color: rgba(255,255,255,.55);
-}
+.window.danger .dz-submit:hover{ background: var(--glass-bg-hover); color: var(--danger); border-color: rgba(255,255,255,.55); }
 /* ---------- Status & footer ---------- */
 .status{ margin-left:12px; background:rgba(255,255,255,0.18); color:#111; padding:8px 10px; border-radius:10px; display:flex; flex-wrap:wrap; gap:6px; align-content:center; font-size:14px; border:1px solid rgba(0,0,0,0.15); }
 .status-label{font-weight:bold;} .status-eta{ color:#b36b00; font-weight:700; } .status-sep{ opacity:.6; padding:0 6px; }
@@ -218,7 +317,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 /* === ADDED: Split-pair to render two half-slot buttons side-by-side without overlap === */
 .split-pair{ display:flex; flex-wrap: nowrap !important; gap:8px; align-items:center; justify-content:center; width:100%; min-height: var(--slot-h); }
 .split-pair form{ flex:1 1 0; min-width:0; }
-.split-pair .slot-btn{ height: calc(var(--slot-h) - 8px); font-size: 13px; line-height: 1; padding: 0 8px; width:100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/*.split-pair .slot-btn{ height: calc(var(--slot-h) - 8px); font-size: 13px; line-height: 1; padding: 0 8px; width:100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } */
 .split-pair:has(> :only-child) .slot-btn{ height: var(--slot-h); }
 .week-switch{ margin-left:auto; display:flex; gap:10px; align-items:center; }
 .toppanel{ position:fixed; left:0; right:0; top:0; z-index:5000; display:flex; align-items:center; gap:10px; }
@@ -256,32 +355,9 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   .container    { display: block !important; }
   body          { overflow: auto !important; }
 }
-
 .toppanel:not(.toppanel--login){ min-height: 56px; position: fixed; }
-.toppanel:not(.toppanel--login) .top-left{
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content:center;
-  gap: 10px;
-  z-index: 6000;
-}
-.toppanel:not(.toppanel--login) .top-left .hamburger{
-  position: relative !important;              /* gør knappen til “containing block” */
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center; 
-  justify-content: center;
-  width: 44px; 
-  height: 44px; 
-  padding: 0;
-  background: transparent !important; 
-  border: none !important; 
-  box-shadow: none !important;
-}
+.toppanel:not(.toppanel--login) .top-left{ position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content:center; gap: 10px; z-index: 6000; }
+.toppanel:not(.toppanel--login) .top-left .hamburger{ position: relative !important; display: flex !important; flex-direction: column !important; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; background: transparent !important; border: none !important; box-shadow: none !important; }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar{ position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ position: relative !important; left: auto !important; top: auto !important; transform: none !important; display: block; margin: 3px 0 0 0; width: 22px; height: 2px; border-radius: 2px; background: #fff; }
 .toppanel--login .hamburger::before{ content:""; display:block; width:22px; height:22px;
