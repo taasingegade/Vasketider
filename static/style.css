@@ -467,11 +467,20 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   font-weight: 600;
 }
 
-/* Split/half: reducer højde i halvdelen */
-.calendar .split-details > summary,
+/* KUN split/halv-knapper er lavere */
 .calendar .split-pair .slot-btn{
   height: calc(var(--slot-h) * var(--half-factor));
-  font-size: var(--slot-fs);
+}
+
+/* Summary (ledig) skal være fuld højde */
+.calendar .split-details > summary{
+  height: var(--slot-h);
+}
+
+/* Hvis du en dag EXPPLICIT vil have en “halv” summary, så giv den en klasse/attr: */
+.calendar .split-details.half > summary,
+.calendar .split-details[data-half="1"] > summary{
+  height: calc(var(--slot-h) * var(--half-factor));
 }
 
 /* ---------- STATE-BINDINGER (EKSAKTE NAVNE SOM I DIN CSS) ---------- */
