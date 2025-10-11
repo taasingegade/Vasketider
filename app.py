@@ -81,6 +81,39 @@ limiter.init_app(app)
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
 
+def migrate_booking_log(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='booking_log' AND column_name='resultat'
+          ) THEN
+            ALTER TABLE booking_log ADD COLUMN resultat TEXT;
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='booking_log' AND column_name='meta'
+          ) THEN
+            ALTER TABLE booking_log ADD COLUMN meta JSONB DEFAULT '{}'::jsonb;
+          END IF;
+        END $$;
+        """)
+    conn.commit()
+
+def migrate_all():
+    conn = get_db_connection()
+    try:
+        migrate_booking_log(conn)
+        # ... (evt. andre migreringer du har)
+    finally:
+        conn.close()
+
+# KALD migrering TIDLIGT i app-boot (før schedulers/auto_release)
+migrate_all()
+
 def init_db():
     def run(cur, conn, sql, params=None, label=""):
         try:
@@ -250,6 +283,26 @@ def init_db():
         print("❌ DB-init fatalt:", e)
 
 init_db()
+
+def log_booking(conn, brugernavn, handling, slot_index=None,
+                booking_type=None, resultat=None, meta=None):
+    """
+    Skriver en linje i booking_log. 'meta' kan være dict -> JSONB.
+    """
+    if isinstance(meta, dict):
+        meta_json = json.dumps(meta, ensure_ascii=False)
+    else:
+        meta_json = None  # lader DEFAULT '{}'::jsonb tage over
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO booking_log (
+                brugernavn, handling, dato, slot_index, booking_type, resultat, meta
+            )
+            VALUES (%s, %s, NOW(), %s, %s, %s,
+                    COALESCE(%s::jsonb, '{}'::jsonb))
+        """, (brugernavn, handling, slot_index, booking_type, resultat, meta_json))
+    conn.commit()
 
 # ==== BEGIN ADD: booking helpers ====
 
