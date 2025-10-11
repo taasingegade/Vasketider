@@ -2966,41 +2966,121 @@ def godkend_bruger():
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
-    brugernavn   = (request.form.get("brugernavn") or "").strip()
-    adgangskode  = (request.form.get("adgangskode") or "").strip()
-    email        = (request.form.get("email") or "").strip() or None
-    sms          = (request.form.get("sms") or "").strip() or None
+    if 'brugernavn' not in session:
+        return redirect("/login")
+
+    brugernavn  = (request.form.get("brugernavn") or "").strip()
+    adgangskode = (request.form.get("adgangskode") or "").strip()
+    email       = (request.form.get("email") or "").strip()
+    sms         = (request.form.get("sms") or "").strip()
+
+    if not brugernavn:
+        return redirect("/admin/brugere?fejl=Mangler+brugernavn")
+
+    # Normalisér tomme felter til None
+    email = email or None
+    sms   = sms or None
     if sms and not sms.startswith("+"):
         sms = "+45" + sms
 
-    # checkbox linjen i HTML sender altid et skjult 'nej' + et 'ja' hvis kryds
-    notifikation = _ja_nej(_truthy(request.form.get("notifikation")))
-    notif_email  = _ja_nej(_truthy(request.form.get("notif_email")))
-    notif_sms    = _ja_nej(_truthy(request.form.get("notif_sms")))
-    godkendt     = _truthy(request.form.get("godkendt"))
+    # --- VIGTIGT: Brug getlist så hidden "nej" + checkbox "ja" virker korrekt ---
+    def truthy(v) -> bool:
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return False
+        return str(v).strip().lower() in {"1", "true", "on", "ja", "y", "yes"}
 
-    if not brugernavn:
-        return redirect("/vis_brugere?fejl=Mangler+brugernavn")
+    def ja_nej_from_form(name: str) -> str:
+        vals = request.form.getlist(name)
+        if not vals:
+            # fallback til .get hvis kun én værdi findes
+            one = request.form.get(name)
+            vals = [one] if one is not None else []
+        # hvis nogen af værdierne er "sand", bliver det 'ja', ellers 'nej'
+        return "ja" if any(truthy(v) for v in vals) else "nej"
 
-    conn = get_db_connection(); cur = conn.cursor()
+    notifikation = ja_nej_from_form("notifikation")
+    notif_email  = ja_nej_from_form("notif_email")  # vis_brugere.html bruger dette navn
+    notif_sms    = ja_nej_from_form("notif_sms")
+
+    # Checkbox 'godkendt' (kan komme som hidden 0 + ev. 1)
+    godkendt_vals = request.form.getlist("godkendt")
+    godkendt = any(truthy(v) for v in godkendt_vals) if godkendt_vals else truthy(request.form.get("godkendt"))
+
+    conn = get_db_connection()
+    cur  = conn.cursor()
     try:
-        ensure_user_columns(cur)
+        # Find hvilke kolonner der findes og deres typer
         cur.execute("""
-            UPDATE brugere
-               SET kode=%s,
-                   email=%s,
-                   sms=%s,
-                   notifikation=%s,
-                   notif_email=%s,
-                   notif_sms=%s,
-                   godkendt=%s
-             WHERE brugernavn=%s
-        """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name='brugere'
+        """)
+        cols = {name: dtype for (name, dtype) in cur.fetchall()}
+
+        set_parts = []
+        values    = []
+
+        # Hjælpere
+        def set_text_col(col: str, val):
+            if col in cols:
+                set_parts.append(f"{col} = %s")
+                values.append(val)
+
+        def set_bool_or_text(col: str, val_bool: bool, val_text: str):
+            dtype = cols.get(col)
+            if not dtype:
+                return
+            set_parts.append(f"{col} = %s")
+            # hvis kolonnen er boolean, skriv bool; ellers skriv "ja"/"nej"
+            if dtype == "boolean":
+                values.append(val_bool)
+            else:
+                values.append(val_text)
+
+        # kode – kun hvis udfyldt, ellers bevar eksisterende
+        if adgangskode:
+            set_text_col("kode", adgangskode)
+
+        # email/sms
+        set_text_col("email", email)
+        set_text_col("sms", sms)
+
+        # godkendt
+        set_bool_or_text("godkendt", bool(godkendt), "ja" if godkendt else "nej")
+
+        # master on/off
+        set_bool_or_text("notifikation", notifikation == "ja", notifikation)
+
+        # kanaler – understøt både notif_email og notif_mail hvis de findes
+        set_bool_or_text("notif_email", notif_email == "ja", notif_email)
+        set_bool_or_text("notif_mail",  notif_email == "ja", notif_email)  # ældre skema
+
+        set_bool_or_text("notif_sms",   notif_sms   == "ja", notif_sms)
+
+        if not set_parts:
+            cur.close(); conn.close()
+            return redirect("/admin/brugere?fejl=Ingen+felter+at+opdatere")
+
+        sql = f"UPDATE brugere SET {', '.join(set_parts)} WHERE LOWER(brugernavn)=LOWER(%s)"
+        values.append(brugernavn)
+
+        cur.execute(sql, values)
         conn.commit()
-    finally:
-        try: cur.close(); conn.close()
-        except Exception: pass
-    return redirect("/vis_brugere?besked=Gemt")
+        cur.close(); conn.close()
+        return redirect("/admin/brugere?besked=Bruger+opdateret")
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        try:
+            cur.close(); conn.close()
+        except Exception:
+            pass
+        # valgfrit: log exception
+        return redirect("/admin/brugere?fejl=Opdatering+fejlede:+{}".format(type(e).__name__))
 
 @app.route("/godkend/<brugernavn>")
 def godkend_via_link(brugernavn):
