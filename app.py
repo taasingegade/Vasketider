@@ -82,6 +82,31 @@ limiter.init_app(app)
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
 
+def migrate_enforcement(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS enforcement_log(
+          id BIGSERIAL PRIMARY KEY,
+          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+          event TEXT NOT NULL,
+          slot_index INT,
+          slot_text TEXT,
+          booked_by TEXT,
+          reason TEXT,
+          note TEXT
+        );
+        CREATE TABLE IF NOT EXISTS recent_deletions(
+          id BIGSERIAL PRIMARY KEY,
+          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+          dato DATE NOT NULL,
+          slot_index INT NOT NULL,
+          brugernavn TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato,slot_index);
+        CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
+        """)
+    conn.commit()
+
 def migrate_booking_log(conn):
     with conn.cursor() as cur:
         cur.execute("""
@@ -114,7 +139,6 @@ def migrate_all():
         # ... evt. flere migreringer her ...
     finally:
         conn.close()
-
 
 # --- KALD migrering TIDLIGT i app-boot ---
 migrate_all()
@@ -774,31 +798,6 @@ def uge_for(dato_iso, valgt_uge):
 def _dbg(msg: str):
     if DEBUG_NOTIF:
         print(msg, flush=True)
-
-def migrate_enforcement(conn):
-    with conn.cursor() as cur:
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS enforcement_log(
-          id BIGSERIAL PRIMARY KEY,
-          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-          event TEXT NOT NULL,
-          slot_index INT,
-          slot_text TEXT,
-          booked_by TEXT,
-          reason TEXT,
-          note TEXT
-        );
-        CREATE TABLE IF NOT EXISTS recent_deletions(
-          id BIGSERIAL PRIMARY KEY,
-          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-          dato DATE NOT NULL,
-          slot_index INT NOT NULL,
-          brugernavn TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato,slot_index);
-        CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
-        """)
-    conn.commit()
 
 def send_email(modtager: str, emne: str, besked: str) -> bool:
     """
