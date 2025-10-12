@@ -886,6 +886,10 @@ def _truthy(v):
         return False
     return str(v).strip().lower() in ("1","true","on","yes","ja","t","y","checked")
 
+def truthy(v):
+    """Alias til _truthy() så ældre funktioner som admin_ryd_logs ikke fejler."""
+    return _truthy(v)
+
 def ensure_stat_support_tables(cur):
     # Kun små hjælpe-tabeller; vi ændrer ikke dine primære tabeller.
     cur.execute("""
