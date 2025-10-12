@@ -1342,6 +1342,17 @@ def ryd_gamle_bookinger_job():
             print("❌ Fejl i ryd_gamle_bookinger_job:", e)
             time.sleep(60)
 
+def _log_recent_deletion(cur, dato_iso, slot_index, brugernavn):
+    """Log en nylig sletning til recent_deletions til brug for korrelation i statistik."""
+    try:
+        cur.execute(
+            """INSERT INTO recent_deletions (ts, dato, slot_index, brugernavn)
+               VALUES (NOW(), %s, %s, %s)""",
+            (str(dato_iso), int(slot_index), str(brugernavn))
+        )
+    except Exception as e:
+        print("⚠️ recent_deletions insert fejlede:", e)
+
 def db_exec(cur, sql, params=None, label=""):
     """Kør SQL og log præcist hvor det fejler, hvis noget går galt."""
     try:
@@ -2547,7 +2558,6 @@ def bookinger_json():
         })
 
     return jsonify(result)
-
 
 def _safe_int(x):
     try:

@@ -322,7 +322,7 @@
         </div>
       </div>
 
-      <!-- ===== AUDIT / HÅNDHÆVELSER (NY SEktion) ===== -->
+      <!-- ===== AUDIT / HÅNDHÆVELSER (eksisterende) ===== -->
       <div class="window" style="margin-top:16px;">
         <h3>Håndhævelser (seneste 50)</h3>
         <div class="muted">Log over stop og uautoriseret brug fra Home Assistant</div>
@@ -356,6 +356,66 @@
         </table>
       </div>
       <!-- ===== /AUDIT ===== -->
+
+      <!-- === NY VISNING: Start uden booking === -->
+      <div class="window" style="margin-top:16px;">
+        <h3>Start uden booking</h3>
+        <div class="muted">
+          Viser hændelser hvor vaskemaskinen blev startet uden aktiv booking
+          (<code>running_without_booking</code> eller <code>no_booking_stop</code>).
+        </div>
+        <table>
+          <thead><tr><th>Tidspunkt</th><th>Event</th><th>Slot</th><th>Detalje</th></tr></thead>
+        <tbody>
+          {% set any_rb = false %}
+          {% for e in enforcement %}
+            {% if e.event in ('running_without_booking','no_booking_stop') %}
+              {% set any_rb = true %}
+              <tr>
+                <td>{{ e.ts }}</td>
+                <td><span class="badge-fail">{{ e.event }}</span></td>
+                <td>{{ e.slot_text or e.slot_index }}</td>
+                <td>{{ e.note or '—' }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+          {% if not any_rb %}
+            <tr><td colspan="4" class="muted">Ingen start uden booking registreret.</td></tr>
+          {% endif %}
+        </tbody>
+        </table>
+      </div>
+
+      <!-- === NY VISNING: Booking fjernet mens maskinen kørte === -->
+      <div class="window" style="margin-top:16px;">
+        <h3>Booking fjernet mens maskinen kørte</h3>
+        <div class="muted">
+          Viser hændelser hvor en booking blev slettet mens maskinen stadig kørte
+          (<code>revoked_booking_stop</code>).
+        </div>
+        <table>
+          <thead><tr><th>Tidspunkt</th><th>Event</th><th>Slot</th><th>Bruger</th><th>Detalje</th></tr></thead>
+          <tbody>
+            {% set any_rev = false %}
+            {% for e in enforcement %}
+              {% if e.event == 'revoked_booking_stop' %}
+                {% set any_rev = true %}
+                <tr>
+                  <td>{{ e.ts }}</td>
+                  <td><span class="badge-fail">revoked_booking_stop</span></td>
+                  <td>{{ e.slot_text or e.slot_index }}</td>
+                  <td>{{ e.booked_by or '—' }}</td>
+                  <td>{{ e.note or '—' }}</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+            {% if not any_rev %}
+              <tr><td colspan="5" class="muted">Ingen tilfælde registreret.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      <!-- === /NY VISNINGER === -->
 
       <!-- DANGER ZONE: Slet logninger -->
       <section class="window danger" aria-label="Danger Zone">
@@ -487,7 +547,7 @@
         catch(_){ form.submit(); }
       }, 0);
     }, true);
-  });
+  })();
   </script>
   <script>
 document.addEventListener('DOMContentLoaded', function(){
