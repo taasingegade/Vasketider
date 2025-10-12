@@ -366,23 +366,23 @@
         </div>
         <table>
           <thead><tr><th>Tidspunkt</th><th>Event</th><th>Slot</th><th>Detalje</th></tr></thead>
-        <tbody>
-          {% set any_rb = false %}
-          {% for e in enforcement %}
-            {% if e.event in ('running_without_booking','no_booking_stop') %}
-              {% set any_rb = true %}
-              <tr>
-                <td>{{ e.ts }}</td>
-                <td><span class="badge-fail">{{ e.event }}</span></td>
-                <td>{{ e.slot_text or e.slot_index }}</td>
-                <td>{{ e.note or '—' }}</td>
-              </tr>
+          <tbody>
+            {% set any_rb = false %}
+            {% for e in enforcement %}
+              {% if e.event in ('running_without_booking','no_booking_stop') %}
+                {% set any_rb = true %}
+                <tr>
+                  <td>{{ e.ts }}</td>
+                  <td><span class="badge-fail">{{ e.event }}</span></td>
+                  <td>{{ e.slot_text or e.slot_index }}</td>
+                  <td>{{ e.note or '—' }}</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+            {% if not any_rb %}
+              <tr><td colspan="4" class="muted">Ingen start uden booking registreret.</td></tr>
             {% endif %}
-          {% endfor %}
-          {% if not any_rb %}
-            <tr><td colspan="4" class="muted">Ingen start uden booking registreret.</td></tr>
-          {% endif %}
-        </tbody>
+          </tbody>
         </table>
       </div>
 
@@ -411,6 +411,63 @@
             {% endfor %}
             {% if not any_rev %}
               <tr><td colspan="5" class="muted">Ingen tilfælde registreret.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- === NY VISNING: Brugerhandlinger (book / sletning / ændring) === -->
+      <div class="window" style="margin-top:16px;">
+        <h3>Brugerhandlinger (seneste 50)</h3>
+        <div class="muted">Data fra booking_log (book / ændring / sletning)</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tid</th>
+              <th>Bruger</th>
+              <th>Handling</th>
+              <th>Dato</th>
+              <th>Slot</th>
+              <th>Type</th>
+              <th>Detaljer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if booking_log and booking_log|length > 0 %}
+              {% for r in booking_log %}
+                {% if r.handling in ('book','sletning','ændring') %}
+                  <tr>
+                    <td>{{ r.tidspunkt }}</td>
+                    <td>{{ r.brugernavn }}</td>
+                    <td>
+                      {% if r.handling == 'book' %}
+                        <span class="badge-ok">book</span>
+                      {% elif r.handling == 'sletning' %}
+                        <span class="badge-fail">sletning</span>
+                      {% else %}
+                        <span class="badge">ændring</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ r.dato }}</td>
+                    <td>{{ r.slot_index }}</td>
+                    <td>{{ r.booking_type }}</td>
+                    <td>
+                      {% if r.meta %}
+                        {% if r.meta.from_slot is defined or r.meta.to_slot is defined %}
+                          flyt: {{ r.meta.from_slot }}→{{ r.meta.to_slot }}
+                          {% if r.meta.from_sub or r.meta.to_sub %}
+                            ({{ r.meta.from_sub|default('full') }}→{{ r.meta.to_sub|default('full') }})
+                          {% endif %}
+                        {% else %}
+                          —
+                        {% endif %}
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="7" class="muted">Ingen brugerhandlinger logget endnu.</td></tr>
             {% endif %}
           </tbody>
         </table>

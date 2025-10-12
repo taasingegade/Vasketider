@@ -82,6 +82,28 @@ limiter.init_app(app)
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
 
+def migrate_booking_log(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='booking_log' AND column_name='resultat'
+          ) THEN
+            ALTER TABLE booking_log ADD COLUMN resultat TEXT;
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='booking_log' AND column_name='meta'
+          ) THEN
+            ALTER TABLE booking_log ADD COLUMN meta JSONB DEFAULT '{}'::jsonb;
+          END IF;
+        END $$;
+        """)
+    conn.commit()
+
 def migrate_enforcement(conn):
     with conn.cursor() as cur:
         cur.execute("""
@@ -107,26 +129,89 @@ def migrate_enforcement(conn):
         """)
     conn.commit()
 
-def migrate_booking_log(conn):
+def migrate_booking_triggers(conn):
+    """
+    Opret/erstat en DB-trigger, der automatisk logger alle ændringer i `bookinger`
+    til `booking_log` – uden at ændre Flask-ruter.
+    """
     with conn.cursor() as cur:
+        # 1) Funktion der laver loglinje ved INSERT/UPDATE/DELETE
         cur.execute("""
-        DO $$
+        CREATE OR REPLACE FUNCTION trg_log_booking() RETURNS trigger AS $$
+        DECLARE
+          v_handling TEXT;
+          v_resultat TEXT;
+          v_user TEXT;
+          v_slot INT;
+          v_type TEXT;
+          v_meta JSONB := '{}'::jsonb;
+          v_dato DATE;
         BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name='booking_log' AND column_name='resultat'
-          ) THEN
-            ALTER TABLE booking_log ADD COLUMN resultat TEXT;
+          IF (TG_OP = 'INSERT') THEN
+            v_handling := 'book';
+            v_resultat := 'ok';
+            v_user := NEW.brugernavn;
+            v_slot := NEW.slot_index::int;
+            v_type := COALESCE(NEW.sub_slot,'full');
+            v_dato := NEW.dato_rigtig::date;
+            v_meta := jsonb_build_object(
+              'status', COALESCE(NEW.status,''), 
+              'activation_required', COALESCE(NEW.activation_required,false)
+            );
+            INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
+              VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
+            RETURN NEW;
+
+          ELSIF (TG_OP = 'DELETE') THEN
+            v_handling := 'sletning';
+            v_resultat := 'ok';
+            v_user := COALESCE(OLD.brugernavn,'—');
+            v_slot := OLD.slot_index::int;
+            v_type := COALESCE(OLD.sub_slot,'full');
+            v_dato := OLD.dato_rigtig::date;
+            v_meta := jsonb_build_object('status', COALESCE(OLD.status,''));            
+            INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
+              VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
+            RETURN OLD;
+
+          ELSIF (TG_OP = 'UPDATE') THEN
+            -- Kun log "ændring", hvis slot eller halvdel skifter (eller bruger skifter)
+            IF COALESCE(OLD.slot_index::text,'') <> COALESCE(NEW.slot_index::text,'')
+               OR COALESCE(OLD.sub_slot,'full') <> COALESCE(NEW.sub_slot,'full')
+               OR COALESCE(LOWER(OLD.brugernavn),'') <> COALESCE(LOWER(NEW.brugernavn),'') THEN
+              v_handling := 'ændring';
+              v_resultat := 'ok';
+              v_user := COALESCE(NEW.brugernavn, OLD.brugernavn);
+              v_slot := NEW.slot_index::int;
+              v_type := COALESCE(NEW.sub_slot,'full');
+              v_dato := NEW.dato_rigtig::date;
+              v_meta := jsonb_build_object(
+                'from_slot', OLD.slot_index,
+                'to_slot', NEW.slot_index,
+                'from_sub', COALESCE(OLD.sub_slot,'full'),
+                'to_sub', COALESCE(NEW.sub_slot,'full'),
+                'from_user', COALESCE(OLD.brugernavn,''),
+                'to_user', COALESCE(NEW.brugernavn,'')
+              );
+              INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
+                VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
+            END IF;
+            RETURN NEW;
           END IF;
 
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name='booking_log' AND column_name='meta'
-          ) THEN
-            ALTER TABLE booking_log ADD COLUMN meta JSONB DEFAULT '{}'::jsonb;
-          END IF;
-        END $$;
+          RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql;
         """)
+
+        # 2) Opret (eller genskab) triggere for alle tre operationer
+        cur.execute("DROP TRIGGER IF EXISTS trg_log_booking_iud ON bookinger;")
+        cur.execute("""
+          CREATE TRIGGER trg_log_booking_iud
+          AFTER INSERT OR UPDATE OR DELETE ON bookinger
+          FOR EACH ROW EXECUTE FUNCTION trg_log_booking();
+        """)
+
     conn.commit()
 
 def migrate_all():
@@ -136,7 +221,9 @@ def migrate_all():
         migrate_booking_log(conn)
         # Nye håndhævelses-tabeller
         migrate_enforcement(conn)
-        # ... evt. flere migreringer her ...
+        # >>> NYT: booking-triggers til log af book/slet/ændring <<<
+        migrate_booking_triggers(conn)
+        # ... evt. flere migreringer ...
     finally:
         conn.close()
 
