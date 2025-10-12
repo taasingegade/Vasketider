@@ -322,6 +322,41 @@
         </div>
       </div>
 
+      <!-- ===== AUDIT / HÅNDHÆVELSER (NY SEktion) ===== -->
+      <div class="window" style="margin-top:16px;">
+        <h3>Håndhævelser (seneste 50)</h3>
+        <div class="muted">Log over stop og uautoriseret brug fra Home Assistant</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tidspunkt</th>
+              <th>Event</th>
+              <th>Slot</th>
+              <th>Booked by</th>
+              <th>Årsag</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if enforcement and enforcement|length > 0 %}
+              {% for e in enforcement %}
+                <tr>
+                  <td>{{ e.ts }}</td>
+                  <td>{{ e.event }}</td>
+                  <td>{{ e.slot_text or e.slot_index }}</td>
+                  <td>{{ e.booked_by or '—' }}</td>
+                  <td>{{ e.reason or '—' }}</td>
+                  <td>{{ e.note or '—' }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="6" class="muted">Ingen håndhævelser registreret.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      <!-- ===== /AUDIT ===== -->
+
       <!-- DANGER ZONE: Slet logninger -->
       <section class="window danger" aria-label="Danger Zone">
         <h2>Danger Zone</h2>
