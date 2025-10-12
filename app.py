@@ -8,6 +8,7 @@ except ImportError:
     from psycopg2 import Error as PGError
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
+from datetime import datetime as _dt, date as _date
 from typing import Dict, Any, Optional
 import logging
 from flask_limiter import Limiter
@@ -106,12 +107,16 @@ def migrate_booking_log(conn):
 def migrate_all():
     conn = get_db_connection()
     try:
+        # Booking-log kolonner (resultat/meta)
         migrate_booking_log(conn)
-        # ... (evt. andre migreringer du har)
+        # Nye håndhævelses-tabeller
+        migrate_enforcement(conn)
+        # ... evt. flere migreringer her ...
     finally:
         conn.close()
 
-# KALD migrering TIDLIGT i app-boot (før schedulers/auto_release)
+
+# --- KALD migrering TIDLIGT i app-boot ---
 migrate_all()
 
 def init_db():
@@ -770,6 +775,31 @@ def _dbg(msg: str):
     if DEBUG_NOTIF:
         print(msg, flush=True)
 
+def migrate_enforcement(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS enforcement_log(
+          id BIGSERIAL PRIMARY KEY,
+          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+          event TEXT NOT NULL,
+          slot_index INT,
+          slot_text TEXT,
+          booked_by TEXT,
+          reason TEXT,
+          note TEXT
+        );
+        CREATE TABLE IF NOT EXISTS recent_deletions(
+          id BIGSERIAL PRIMARY KEY,
+          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+          dato DATE NOT NULL,
+          slot_index INT NOT NULL,
+          brugernavn TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato,slot_index);
+        CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
+        """)
+    conn.commit()
+
 def send_email(modtager: str, emne: str, besked: str) -> bool:
     """
     Bruger Gmail SMTP.
@@ -888,6 +918,74 @@ def ensure_stat_support_tables(cur):
             note TEXT,
             created_at TIMESTAMP DEFAULT NOW()
         )
+    """)
+    cur.execute("""
+    -- Audit-tabel: håndhævelser fra HA (stop uden booking, kørsel uden booking m.m.)
+    CREATE TABLE IF NOT EXISTS enforcement_log(
+      id BIGSERIAL PRIMARY KEY,
+      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+      event TEXT NOT NULL,         -- 'no_booking_stop' | 'running_without_booking' | 'deleted_then_used' ...
+      slot_index INT,
+      slot_text TEXT,
+      booked_by TEXT,
+      reason TEXT,
+      note TEXT
+    );
+
+    -- Hjælpetabel til at korrelere sletninger med "kører uden booking"
+    CREATE TABLE IF NOT EXISTS recent_deletions(
+      id BIGSERIAL PRIMARY KEY,
+      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+      dato DATE NOT NULL,
+      slot_index INT NOT NULL,
+      brugernavn TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato, slot_index);
+    CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
+
+    -- Eksisterende/statistiske tabeller der kan mangle i ældre miljøer
+    CREATE TABLE IF NOT EXISTS statistik(
+      dato DATE NOT NULL,
+      type TEXT NOT NULL,
+      antal INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (dato, type)
+    );
+
+    CREATE TABLE IF NOT EXISTS booking_attempts(
+      id BIGSERIAL PRIMARY KEY,
+      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+      brugernavn TEXT NOT NULL
+    );
+
+    -- Fallback for direkte_kæder (hvis den ikke findes)
+    CREATE TABLE IF NOT EXISTS direkte_kæder(
+      id BIGSERIAL PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      direkte_slot TEXT,
+      bruger_slot TEXT,
+      bruger TEXT,
+      score INT,
+      note TEXT
+    );
+
+    -- Fallback for login_log (hvis den ikke findes)
+    CREATE TABLE IF NOT EXISTS login_log(
+      id BIGSERIAL PRIMARY KEY,
+      tidspunkt TIMESTAMPTZ NOT NULL DEFAULT now(),
+      brugernavn TEXT,
+      status TEXT,
+      ip TEXT,
+      enhed TEXT,
+      ip_hash TEXT,
+      ua_browser TEXT,
+      ua_os TEXT,
+      ua_device TEXT,
+      ip_country TEXT,
+      ip_region TEXT,
+      ip_city TEXT,
+      ip_org TEXT,
+      ip_is_datacenter BOOLEAN
+    );
     """)
 
 def ensure_user_columns(cur):
@@ -1865,6 +1963,37 @@ def admin():
         adresser=adresser,
         vis_dropdown=vis_dropdown,
     )
+
+@app.route("/ha_audit", methods=["POST"])
+def ha_audit():
+    # Sikkerhed: samme token som /ha_webhook
+    token = request.headers.get("X-HA-Token", "")
+    if token != (os.environ.get("VASKETID_WEBHOOK_SECRET") or ""):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"ok": False, "error": "Bad JSON"}), 400
+
+    event      = (data.get("event") or "").strip()
+    slot_index = data.get("slot_index")
+    slot_text  = data.get("slot_text")
+    booked_by  = data.get("booked_by")
+    reason     = data.get("reason")
+
+    if not event:
+        return jsonify({"ok": False, "error": "Missing event"}), 400
+
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO enforcement_log(event, slot_index, slot_text, booked_by, reason, note)
+            VALUES (%s,%s,%s,%s,%s,%s)
+        """, (event, slot_index if slot_index is not None else None,
+              slot_text, booked_by, reason, None))
+        conn.commit()
+
+    return jsonify({"ok": True})
 
 @app.route("/opdater_dropdownvisning", methods=["POST"])
 def opdater_dropdownvisning():
@@ -3456,20 +3585,21 @@ def statistik():
     cur = conn.cursor()
 
     try:
-        # Sørg for hjælpe-tabeller (ændrer ikke eksisterende data)
-        ensure_stat_support_tables(cur)
-        conn.commit()
+        # Hjælpetabeller (ændrer ikke eksisterende data)
+        try:
+            ensure_stat_support_tables(cur)
+            conn.commit()
+        except Exception:
+            # Hvis ensure_stat_support_tables ikke findes i ældre builds, ignorer roligt
+            conn.rollback()
 
         # Periode: 30 dage bagud inkl. i dag
         cur.execute("SELECT (CURRENT_DATE - INTERVAL '29 days')::date, CURRENT_DATE::date")
         dfrom, dto = cur.fetchone()
-        # antal kalenderdage i vinduet
         day_count = (dto - dfrom).days + 1
-        # slots per dag i din løsning
         SLOTS_PER_DAY = 4
 
         # ========== KPI (30 dage) ==========
-        # Unikke (dato, slot) der er brugt af rigtige brugere (ikke 'service')
         cur.execute("""
             SELECT COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int)))
             FROM bookinger b
@@ -3478,7 +3608,6 @@ def statistik():
         """, (dfrom, dto))
         used_slots_30d = int(cur.fetchone()[0] or 0)
 
-        # Ikke brugt = auto_remove-hændelser i booking_log
         cur.execute("""
             SELECT COUNT(*)
             FROM booking_log
@@ -3506,7 +3635,6 @@ def statistik():
         """)
         unikke_brugere = int(cur.fetchone()[0] or 0)
 
-        # total_direkte – først statistik, ellers fallback på bookinger
         cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
         total_direkte = int(cur.fetchone()[0] or 0)
         if total_direkte == 0:
@@ -3579,7 +3707,6 @@ def statistik():
             LIMIT 100
         """)
         rows = cur.fetchall() or []
-        from datetime import date as _date, datetime as _dt
         booking_log = []
         for (lid, bnavn, handling, d, slot, ts) in rows:
             d_fmt = d.strftime('%d-%m-%Y') if isinstance(d, (_date, _dt)) else (d or '')
@@ -3615,9 +3742,7 @@ def statistik():
         cur.execute("""
             SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
                 brugernavn, status,
-                -- RÅ IP + FULD UA + HASH
                 COALESCE(ip,''), COALESCE(enhed,''), COALESCE(ip_hash,''),
-                -- Udledte UA/geo felter
                 COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
                 COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
                 CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
@@ -3626,14 +3751,13 @@ def statistik():
             WHERE tidspunkt::date BETWEEN %s AND %s
             ORDER BY tidspunkt DESC
         """, (dfrom, dto))
-
         rows = cur.fetchall() or []
         logins_struct = [{
             "tidspunkt": r[0],
             "brugernavn": r[1],
             "status": r[2],
             "ip": r[3],
-            "enhed": r[4],            # fuld User-Agent
+            "enhed": r[4],
             "ip_hash": r[5],
             "ua_browser": r[6],
             "ua_os": r[7],
@@ -3702,7 +3826,6 @@ def statistik():
         ]
 
         # ========== Brugsmønstre – slots ==========
-        # Hent brugte pr. slot i perioden
         cur.execute("""
             SELECT CAST(b.slot_index AS int) AS s,
                    COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int))) AS cnt
@@ -3717,7 +3840,7 @@ def statistik():
         slot_overblik = []
         for s in range(0, SLOTS_PER_DAY):
             used = used_per_slot.get(s, 0)
-            possible = day_count  # ét slot pr. dag
+            possible = day_count
             not_used = max(0, possible - used)
             pct = round(100.0 * used / max(1, possible), 1)
             slot_overblik.append({
@@ -3728,7 +3851,6 @@ def statistik():
             })
 
         # ========== Brugsmønstre – ugedage ==========
-        # Find antal kalenderdage pr. ugedag i vinduet
         cur.execute("""
             WITH days AS (
               SELECT generate_series(%s::date, %s::date, INTERVAL '1 day')::date AS d
@@ -3740,7 +3862,6 @@ def statistik():
         """, (dfrom, dto))
         ndays_map = {int(dow): int(n) for (dow, n) in (cur.fetchall() or [])}
 
-        # Anvendte (dato,slot) per ugedag (distinct for at undgå dobbelttælling)
         cur.execute("""
             SELECT EXTRACT(DOW FROM b.dato_rigtig)::int AS dow,
                    COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int))) AS cnt
@@ -3752,7 +3873,6 @@ def statistik():
         """, (dfrom, dto))
         used_map = {int(dow): int(cnt) for (dow, cnt) in (cur.fetchall() or [])}
 
-        # Postgres: 0=Sunday..6=Saturday
         dow_labels = {0:"Søndag", 1:"Mandag", 2:"Tirsdag", 3:"Onsdag", 4:"Torsdag", 5:"Fredag", 6:"Lørdag"}
         weekday_overblik = []
         for pg_dow in range(0,7):
@@ -3805,13 +3925,56 @@ def statistik():
             "ikke_brugt_rate": float(r[3] or 0.0)
         } for r in (cur.fetchall() or [])]
 
-        # ========== Retention for login_log (90 dage) ==========
-        cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
-        conn.commit()
+        # ========== HÅNDHÆVELSER (AUDIT) – seneste 50 ==========
+        try:
+            cur.execute("""
+                SELECT to_char(ts,'YYYY-MM-DD HH24:MI:SS') AS ts,
+                       event, slot_index, COALESCE(slot_text,''), COALESCE(booked_by,''), COALESCE(reason,''), COALESCE(note,'')
+                FROM enforcement_log
+                ORDER BY ts DESC
+                LIMIT 50
+            """)
+            enforcement = [{
+                "ts": r[0],
+                "event": r[1],
+                "slot_index": r[2],
+                "slot_text": r[3],
+                "booked_by": r[4],
+                "reason": r[5],
+                "note": r[6],
+            } for r in (cur.fetchall() or [])]
+        except Exception:
+            enforcement = []
+
+        # (Valgfrit) Seneste sletninger til korrelation – seneste 20
+        try:
+            cur.execute("""
+                SELECT to_char(ts,'YYYY-MM-DD HH24:MI:SS') AS ts, dato, slot_index, brugernavn
+                FROM recent_deletions
+                ORDER BY ts DESC
+                LIMIT 20
+            """)
+            recent_deletions = [{
+                "ts": r[0],
+                "dato": (r[1].strftime('%Y-%m-%d') if hasattr(r[1], 'strftime') else str(r[1])),
+                "slot_index": r[2],
+                "brugernavn": r[3],
+            } for r in (cur.fetchall() or [])]
+        except Exception:
+            recent_deletions = []
+
+        # Retention eksempler (lette og sikre)
+        try:
+            cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
+            cur.execute("DELETE FROM enforcement_log WHERE ts       < NOW() - INTERVAL '180 days'")
+            cur.execute("DELETE FROM recent_deletions WHERE ts      < NOW() - INTERVAL '7 days'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     except Exception as e:
         conn.rollback()
-        raise  # lad Flask logge fejlen, så vi kan se linjen i loggen
+        raise
     finally:
         try:
             cur.close()
@@ -3839,7 +4002,10 @@ def statistik():
         logins=logins_struct,
         booking_log=booking_log,
         attempts_by_user_day=attempts_by_user_day,
-        attempts_over_2=attempts_over_2
+        attempts_over_2=attempts_over_2,
+        # Håndhævelser
+        enforcement=enforcement,
+        recent_deletions=recent_deletions
     )
 
 @app.get("/statistik_data")
