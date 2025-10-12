@@ -9,8 +9,9 @@ except ImportError:
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
 from datetime import datetime as _dt, date as _date
-from typing import Dict, Any, Optional
-import logging
+from typing import Dict, Any, Optional, Tuple
+import logging, requests
+from requests.exceptions import RequestException
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -421,6 +422,101 @@ def log_booking(conn, brugernavn, handling, slot_index=None,
     conn.commit()
 
 # ==== BEGIN ADD: booking helpers ====
+
+def _ssl_verify_flag() -> bool:
+        v = (os.environ.get("HA_VERIFY") or "true").strip().lower()
+        return not (v in ("0", "false", "no", "off"))
+
+def call_ha_button_press(entity_id: str) -> tuple[bool, str]:
+    """
+    Tryk på en HA 'button' (fx Miele Stop-knap) via REST:
+      POST /api/services/button/press  { "entity_id": "<button.entity>" }
+
+    Kræver ENV:
+      - HA_URL   (fx "https://192.168.18.28:8123")
+      - HA_TOKEN (long-lived access token)
+      - (valgfrit) HA_VERIFY=true|false  (SSL verify)
+    """
+    ha_url   = (os.environ.get("HA_URL") or "").rstrip("/")
+    ha_token = os.environ.get("HA_TOKEN") or ""
+    if not ha_url or not ha_token:
+        return (False, "Mangler HA_URL/HA_TOKEN i environment")
+
+    url = f"{ha_url}/api/services/button/press"
+    headers = {
+        "Authorization": f"Bearer {ha_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {"entity_id": entity_id}
+    verify = _ssl_verify_flag()
+
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=8)
+        if r.status_code // 100 == 2:
+            return (True, "")
+        return (False, f"HTTP {r.status_code}: {r.text[:200]}")
+    except RequestException as e:
+        return (False, f"RequestException: {e}")
+
+def has_active_or_booked_in_slot(cur, dato_date, slot_index: int) -> bool:
+    cur.execute("""
+        SELECT 1
+          FROM bookinger
+         WHERE dato_rigtig = %s
+           AND (slot_index = %s OR slot_index::int = %s)
+           AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
+         LIMIT 1
+    """, (dato_date, slot_index, slot_index))
+    return cur.fetchone() is not None
+
+def recently_deleted_same_slot(cur, dato_date, slot_index: int, within_minutes: int = 60) -> Optional[str]:
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS recent_deletions(
+            id SERIAL PRIMARY KEY,
+            ts TIMESTAMP NOT NULL DEFAULT NOW(),
+            dato DATE NOT NULL,
+            slot_index INT NOT NULL,
+            brugernavn TEXT
+        )
+    """)
+    cur.execute("""
+        SELECT brugernavn
+          FROM recent_deletions
+         WHERE dato = %s
+           AND slot_index = %s
+           AND ts >= NOW() - INTERVAL %s
+         ORDER BY ts DESC
+         LIMIT 1
+    """, (dato_date, int(slot_index), f"'{within_minutes} minutes'"))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+def log_enforcement(cur, event: str, slot_index: Optional[int], slot_text: Optional[str],
+                    booked_by: Optional[str], reason: Optional[str], note: Optional[str]) -> None:
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS enforcement_log(
+            id SERIAL PRIMARY KEY,
+            ts TIMESTAMP NOT NULL DEFAULT NOW(),
+            event TEXT NOT NULL,
+            slot_index INT,
+            slot_text TEXT,
+            booked_by TEXT,
+            reason TEXT,
+            note TEXT
+        )
+    """)
+    cur.execute("""
+        INSERT INTO enforcement_log(event, slot_index, slot_text, booked_by, reason, note)
+        VALUES (%s,%s,%s,%s,%s,%s)
+    """, (event, slot_index, slot_text, booked_by, reason, note))
+
+def current_slot_index_from_local(dt_local: datetime) -> Optional[int]:
+    h = dt_local.hour
+    if 7  <= h < 11: return 0
+    if 11 <= h < 15: return 1
+    if 15 <= h < 19: return 2
+    if 19 <= h < 23: return 3
+    return None
 
 def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
     """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
@@ -1612,23 +1708,36 @@ def _geo_debug():
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
+    """
+    Modtager status fra HA/Miele og:
+      1) Opdaterer seneste status + historik (miele_status / miele_activity)
+      2) Synker booking-status:
+         - RUNNING → pending_activation/booked => active
+         - FINISHED → active => completed
+      3) Håndhæver regler:
+         - Kører uden booking → tryk Miele 'Stop' (button.press) + log
+         - Aflyst og kører alligevel → tryk 'Stop' + log
+
+    Kræver ENV:
+      HA_URL, HA_TOKEN, HA_STOP_BUTTON
+      (valgfrit) HA_VERIFY=true|false (default true)
+    """
     try:
         data = request.get_json(force=True)
 
         # --- Input parsing ---
-        raw_status = str(data.get("status", "Ukendt")).strip()
-        remaining_time = str(data.get("remaining_time", "")).strip()  # "0:45:00" eller ""
-        opdateret = data.get("opdateret", datetime.now())
+        raw_status     = str(data.get("status", "Ukendt")).strip()
+        remaining_time = str(data.get("remaining_time", "")).strip()
+        opdateret      = data.get("opdateret", datetime.now())
 
-        # Konverter streng til datetime hvis nødvendigt
         if isinstance(opdateret, str):
             try:
                 opdateret = datetime.fromisoformat(opdateret)
             except ValueError:
                 opdateret = datetime.now()
 
-        # Normaliser/oversæt status til dansk (din eksisterende helper)
-        norm_status = set_miele_status(raw_status)  # f.eks. "kørende", "færdig", "standby", ...
+        # Normaliser status
+        norm_status = set_miele_status(raw_status)
 
         # Resttid → "xx min"
         if remaining_time:
@@ -1637,11 +1746,10 @@ def ha_webhook():
                 total_min = h * 60 + m
                 remaining_time = f"{total_min} min"
             except ValueError:
-                pass  # bevar original hvis parsning fejler
+                pass
 
-        # --- Gem seneste status (overstyrer single-row tabel) ---
-        conn = get_db_connection()
-        cur = conn.cursor()
+        # --- Gem seneste status (single-row) ---
+        conn = get_db_connection(); cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
@@ -1655,14 +1763,11 @@ def ha_webhook():
             INSERT INTO miele_status (status, remaining_time, opdateret)
             VALUES (%s, %s, %s)
         """, (norm_status, remaining_time, opdateret))
-        conn.commit()
-        cur.close()
-        conn.close()
+        conn.commit(); cur.close(); conn.close()
 
-        # --- Log aktivitet i historik (append) ---
+        # --- Append historik ---
         try:
-            conn2 = get_db_connection()
-            cur2 = conn2.cursor()
+            conn2 = get_db_connection(); cur2 = conn2.cursor()
             cur2.execute("""
                 CREATE TABLE IF NOT EXISTS miele_activity (
                     id SERIAL PRIMARY KEY,
@@ -1673,88 +1778,88 @@ def ha_webhook():
             cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
             cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdateret, norm_status))
             conn2.commit()
-            cur2.close()
-            conn2.close()
-        except Exception:
-            # historik må ikke vælte webhook – fortsæt stille
+        finally:
             try:
                 cur2.close(); conn2.close()
             except Exception:
                 pass
 
-        # ===================== NYT: Knyt HA-status til booking ======================
-        # Definér slots som i din app: 0:(07-11), 1:(11-15), 2:(15-19), 3:(19-23)
-        def _current_slot_index(dt):
-            h = dt.hour
-            if   7 <= h < 11:  return 0
-            elif 11 <= h < 15: return 1
-            elif 15 <= h < 19: return 2
-            elif 19 <= h < 23: return 3
-            return None
-
-        # Normaliseret status-sæt (lowercase for robust matching)
+        # ===================== HÅNDHÆVELSE ======================
         s = (norm_status or "").strip().lower()
         RUNNING_STATES  = {"kørende", "i brug", "vask", "washing", "running", "main wash", "hovedvask"}
         FINISHED_STATES = {"færdig", "finish", "end", "slut", "program ended", "done"}
+        DK = CPH
 
-        slot_idx = _current_slot_index(opdateret)
+        opdateret_dk = opdateret if getattr(opdateret, "tzinfo", None) else DK.localize(opdateret)
+        opdateret_dk = opdateret_dk.astimezone(DK)
+        slot_idx = current_slot_index_from_local(opdateret_dk)
+        dato_i_dag = opdateret_dk.date()
+
+        stop_entity = (os.environ.get("HA_STOP_BUTTON") or "button.washing_machine_stop").strip()
+
         if slot_idx is not None:
-            conn3 = get_db_connection()
-            cur3 = conn3.cursor()
+            conn3 = get_db_connection(); cur3 = conn3.cursor()
             try:
-                # 1) START/KØRER → pending_activation -> active
+                # 1) RUNNING → pending/booked => active
                 if s in RUNNING_STATES:
                     cur3.execute("""
                         UPDATE bookinger
                            SET status='active',
                                activated_at = NOW(),
                                activation_required = FALSE
-                         WHERE dato_rigtig = CURRENT_DATE
-                           AND slot_index   = %s
-                           AND status       = 'pending_activation'
-                    """, (slot_idx,))
-                    activated_rows = cur3.rowcount
+                         WHERE dato_rigtig = %s
+                           AND (slot_index = %s OR slot_index::int = %s)
+                           AND COALESCE(status,'booked') IN ('pending_activation','booked')
+                    """, (dato_i_dag, slot_idx, slot_idx))
+                    if cur3.rowcount:
+                        print(f"🟢 ha_webhook: aktiverede {cur3.rowcount} booking(er) pga. RUNNING")
 
-                    # (Valgfrit) hvis ingen pending, men der findes en "booked" i den aktuelle slot,
-                    # kan du vælge at aktivere den også. Slå til hvis det giver mening i din model:
-                    if activated_rows == 0:
-                        cur3.execute("""
-                            UPDATE bookinger
-                               SET status='active',
-                                   activated_at = NOW(),
-                                   activation_required = FALSE
-                             WHERE dato_rigtig = CURRENT_DATE
-                               AND slot_index   = %s
-                               AND status       = 'booked'
-                        """, (slot_idx,))
+                    # HÅNDHÆVELSE
+                    booked_now = has_active_or_booked_in_slot(cur3, dato_i_dag, slot_idx)
+                    offender   = recently_deleted_same_slot(cur3, dato_i_dag, slot_idx, within_minutes=60)
 
-                    conn3.commit()
+                    if (not booked_now) or offender:
+                        reason = "Ingen aktiv booking" if not booked_now else "Booking annulleret for nylig"
+                        event  = "running_without_booking" if not booked_now else "deleted_then_used"
+                        note   = f"status='{norm_status}', opdateret={opdateret_dk.isoformat()}"
+                        slot_txt = get_slot_text(cur3, slot_idx)
 
-                # 2) FÆRDIG → active -> completed
+                        # Log + STOP via HA
+                        log_enforcement(cur3, event, slot_idx, slot_txt, offender, reason, note)
+                        conn3.commit()
+
+                        ok, err = call_ha_button_press(stop_entity)
+                        if ok:
+                            print(f"🛑 Miele STOP: button.press({stop_entity}) ({event})")
+                        else:
+                            print(f"❌ Miele STOP FEJL: {err} ({event})")
+
+                # 2) FINISHED → active => completed
                 elif s in FINISHED_STATES:
                     cur3.execute("""
                         UPDATE bookinger
                            SET status='completed'
-                         WHERE dato_rigtig = CURRENT_DATE
-                           AND slot_index   = %s
-                           AND status       = 'active'
-                    """, (slot_idx,))
-                    conn3.commit()
-            finally:
-                cur3.close()
-                conn3.close()
-        # ===========================================================================
+                         WHERE dato_rigtig = %s
+                           AND (slot_index = %s OR slot_index::int = %s)
+                           AND COALESCE(status,'booked') IN ('active')
+                    """, (dato_i_dag, slot_idx, slot_idx))
+                    if cur3.rowcount:
+                        print(f"✅ ha_webhook: markerede {cur3.rowcount} som completed")
 
-        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret})")
+                conn3.commit()
+            finally:
+                cur3.close(); conn3.close()
+
+        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret DK: {opdateret_dk})")
         return jsonify({
             "status": "ok",
             "received": norm_status,
             "remaining_time": remaining_time,
-            "opdateret": opdateret
+            "opdateret": opdateret_dk.isoformat()
         }), 200
 
     except Exception as e:
-        print("❌ Fejl i ha_webhook:", e)
+        print("❌ Fejl i ha_webhook (enforcement):", e, flush=True)
         return jsonify({"error": str(e)}), 500
 
 # ================
