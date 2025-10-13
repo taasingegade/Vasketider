@@ -64,6 +64,7 @@ def _first_existing(paths):
 
 ALLOWED_EXTENSIONS = {'pdf'}
 CPH = timezone("Europe/Copenhagen")
+DK = CPH
 UGEDAGE_DK = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
 DATABASE_URL = os.environ.get("DATABASE_URL") or "din_default_postgres_url"
 DEBUG_NOTIF = True  # sæt til False for mindre logstøj
@@ -1723,93 +1724,96 @@ def _geo_debug():
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    """
-    HA → Flask: status/remaining_time/opdateret.
-    Flask:
-      1) gemmer status (miele_status) + historik (miele_activity)
-      2) synker bookinger:
-         - RUNNING → pending/booked => active
-         - FINISHED → active => completed
-      3) håndhævelse LOGGES (ingen STOP-kald her; det klarer HA-automations)
-
-    Sikkerhed: kræver X-HA-Token == VASKETID_WEBHOOK_SECRET
-    """
     try:
-        if not _incoming_token_strict(request):
-            return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
         data = request.get_json(force=True)
 
-        raw_status     = str(data.get("status", "Ukendt")).strip()
-        remaining_time = str(data.get("remaining_time", "")).strip()
-        opdateret      = data.get("opdateret", datetime.now())
+        # --- Input parsing ---
+        raw_status = str(data.get("status", "Ukendt")).strip()
+        remaining_time = str(data.get("remaining_time", "")).strip()  # "0:45:00" eller ""
+        opdateret = data.get("opdateret", datetime.now())
 
+        # Konverter streng til datetime hvis nødvendigt
         if isinstance(opdateret, str):
             try:
                 opdateret = datetime.fromisoformat(opdateret)
             except ValueError:
                 opdateret = datetime.now()
 
+        # Normaliser/oversæt status til dansk
         norm_status = set_miele_status(raw_status)
 
+        # Resttid → "xx min"
         if remaining_time:
             try:
                 h, m, s = map(int, remaining_time.split(":"))
                 total_min = h * 60 + m
                 remaining_time = f"{total_min} min"
             except ValueError:
+                pass  # bevar original hvis parsning fejler
+
+        # --- Gem seneste status (single-row) ---
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS miele_status (
+                id SERIAL PRIMARY KEY,
+                status TEXT,
+                remaining_time TEXT,
+                opdateret TIMESTAMP
+            )
+        """)
+        cur.execute("DELETE FROM miele_status")
+        cur.execute("""
+            INSERT INTO miele_status (status, remaining_time, opdateret)
+            VALUES (%s, %s, %s)
+        """, (norm_status, remaining_time, opdateret))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        # --- Append til historik ---
+        try:
+            conn2 = get_db_connection()
+            cur2 = conn2.cursor()
+            cur2.execute("""
+                CREATE TABLE IF NOT EXISTS miele_activity (
+                    id SERIAL PRIMARY KEY,
+                    ts TIMESTAMP NOT NULL,
+                    status TEXT NOT NULL
+                )
+            """)
+            cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
+            cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdateret, norm_status))
+            conn2.commit()
+            cur2.close()
+            conn2.close()
+        except Exception:
+            try:
+                cur2.close(); conn2.close()
+            except Exception:
                 pass
 
-        # Gem single-row status
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS miele_status (
-                        id SERIAL PRIMARY KEY,
-                        status TEXT,
-                        remaining_time TEXT,
-                        opdateret TIMESTAMP
-                    )
-                """)
-                cur.execute("DELETE FROM miele_status")
-                cur.execute("""
-                    INSERT INTO miele_status (status, remaining_time, opdateret)
-                    VALUES (%s, %s, %s)
-                """, (norm_status, remaining_time, opdateret))
-                conn.commit()
-
-        # Append historik
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS miele_activity (
-                        id SERIAL PRIMARY KEY,
-                        ts TIMESTAMP NOT NULL,
-                        status TEXT NOT NULL
-                    )
-                """)
-                cur.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
-                cur.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdateret, norm_status))
-                conn.commit()
-
-        # Booking-synk + LOG (ingen STOP)
+        # ===================== Knyt HA-status til booking ======================
         s = (norm_status or "").strip().lower()
         RUNNING_STATES  = {"kørende", "i brug", "vask", "washing", "running", "main wash", "hovedvask"}
         FINISHED_STATES = {"færdig", "finish", "end", "slut", "program ended", "done"}
 
-        opdateret_dk = opdateret if getattr(opdateret, "tzinfo", None) else DK.localize(opdateret)
-        opdateret_dk = opdateret_dk.astimezone(DK)
+        # Sørg for tid i DK-tid
+        opdateret_dk = opdateret if getattr(opdateret, "tzinfo", None) else CPH.localize(opdateret)
+        opdateret_dk = opdateret_dk.astimezone(CPH)
+
+        # Brug korrekt variabelnavn her (FIX: opdateret_CPH -> opdateret_dk)
         slot_idx = current_slot_index_from_local(opdateret_dk)
         dato_i_dag = opdateret_dk.date()
 
         if slot_idx is not None:
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    slot_txt = _slot_text_local(cur, slot_idx)
+            with get_db_connection() as conn3:
+                with conn3.cursor() as cur3:
+                    slot_txt = _slot_text_local(cur3, slot_idx)
 
                     if s in RUNNING_STATES:
                         # pending/booked -> active
-                        cur.execute("""
+                        cur3.execute("""
                             UPDATE bookinger
                                SET status='active',
                                    activated_at = NOW(),
@@ -1818,42 +1822,36 @@ def ha_webhook():
                                AND (slot_index = %s OR slot_index::int = %s)
                                AND COALESCE(status,'booked') IN ('pending_activation','booked')
                         """, (dato_i_dag, slot_idx, slot_idx))
-                        if cur.rowcount:
-                            print(f"🟢 ha_webhook: aktiverede {cur.rowcount} booking(er) pga. RUNNING")
+                        if cur3.rowcount:
+                            print(f"🟢 ha_webhook: aktiverede {cur3.rowcount} booking(er) pga. RUNNING")
 
-                        # LOG hvis der køres uden booking/efter annullering
-                        booked_now = has_active_or_booked_in_slot(cur, dato_i_dag, slot_idx)
-                        offender   = recently_deleted_same_slot(cur, dato_i_dag, slot_idx, within_minutes=60)
+                        # Log hvis der køres uden booking / kort efter sletning
+                        booked_now = has_active_or_booked_in_slot(cur3, dato_i_dag, slot_idx)
+                        offender   = recently_deleted_same_slot(cur3, dato_i_dag, slot_idx, within_minutes=60)
 
                         if (not booked_now) or offender:
                             reason = "Ingen aktiv booking" if not booked_now else "Booking annulleret for nylig"
                             event  = "running_without_booking" if not booked_now else "deleted_then_used"
                             note   = f"status='{norm_status}', opdateret={opdateret_dk.isoformat()}"
-                            log_enforcement(cur, event, slot_idx, slot_txt, offender, reason, note)
-                            conn.commit()
+                            log_enforcement(cur3, event, slot_idx, slot_txt, offender, reason, note)
+                            conn3.commit()
 
                     elif s in FINISHED_STATES:
-                        cur.execute("""
+                        cur3.execute("""
                             UPDATE bookinger
                                SET status='completed'
                              WHERE dato_rigtig = %s
                                AND (slot_index = %s OR slot_index::int = %s)
                                AND COALESCE(status,'booked') IN ('active')
                         """, (dato_i_dag, slot_idx, slot_idx))
-                        if cur.rowcount:
-                            print(f"✅ ha_webhook: markerede {cur.rowcount} som completed")
+                        if cur3.rowcount:
+                            print(f"✅ ha_webhook: markerede {cur3.rowcount} som completed")
 
-        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret_dk})")
-        return jsonify({
-            "status": "ok",
-            "received": norm_status,
-            "remaining_time": remaining_time,
-            "opdateret": opdateret_dk.isoformat()
-        }), 200
+        return jsonify({"ok": True}), 200
 
     except Exception as e:
-        print("❌ Fejl i ha_webhook:", e, flush=True)
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ Fejl i ha_webhook: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # ================
 # Login og Logud
@@ -3071,6 +3069,7 @@ def booking_state():
     if not _incoming_token_strict(request):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
 
+    # Brug den lokale DK-tidszone (DK alias -> CPH)
     now = datetime.now(DK)
     slot_idx = current_slot_index_from_local(now)
 
@@ -3084,6 +3083,7 @@ def booking_state():
         if slot_idx is None:
             reason = "Uden for bookbare tidsrum"
         else:
+            # Tjek om der er en aktiv/påkrævet booking i slot
             cur.execute("""
                 SELECT brugernavn
                   FROM bookinger
@@ -3098,6 +3098,7 @@ def booking_state():
                 allowed = True
                 booked_by = row[0]
             else:
+                # Hvis slettet for nylig → vis årsag
                 cur.execute("""
                     SELECT brugernavn
                       FROM recent_deletions
