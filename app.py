@@ -4603,9 +4603,14 @@ def download_statistik_pdf():
 
     cur.close(); conn.close()
 
-    # Svar med binært PDF-indhold
-    pdf_bytes = pdf.output(dest="S").encode("latin1", "replace")
-    resp = make_response(pdf_bytes)
+    raw = pdf.output(dest="S")
+    if isinstance(raw, (bytes, bytearray)):
+        data = bytes(raw)  # fpdf2 case
+    else:
+        # pyfpdf v1.x case: raw er str med latin-1 tegn
+        data = raw.encode("latin1", "replace")
+
+    resp = make_response(data)
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = "attachment; filename=statistik_logs.pdf"
     return resp
@@ -4626,6 +4631,11 @@ def slet_bookinglog():
     conn.close()
 
     return redirect("/statistik")
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/x-icon')
 
 @app.route("/regler")
 def regler():
