@@ -29,6 +29,7 @@ from flask import current_app
 from functools import wraps
 from flask import abort
 import os
+import io, json
 import secrets
 import pytz
 import smtplib, socket
@@ -715,6 +716,25 @@ def log_booking_attempt(cur, bruger, dato, slot, status):
         "INSERT INTO booking_attempts (brugernavn, dato, slot, status) VALUES (%s,%s,%s,%s)",
         (bruger, dato, slot, status)
     )
+
+def log_booking_event(brugernavn, handling, dato, slot_index, booking_type=None, meta=None):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO booking_log (tidspunkt, brugernavn, handling, dato, slot_index, booking_type, meta)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        brugernavn,
+        handling,
+        dato,
+        slot_index,
+        booking_type,
+        json.dumps(meta or {}, ensure_ascii=False)
+    ))
+    conn.commit()
+    cur.close()
+    conn.close()
 
 def _parse_dato_any(dato_str: str):
     """
@@ -3845,7 +3865,6 @@ def statistik():
             ensure_stat_support_tables(cur)
             conn.commit()
         except Exception:
-            # Hvis ensure_stat_support_tables ikke findes i ældre builds, ignorer roligt
             conn.rollback()
 
         # Periode: 30 dage bagud inkl. i dag
@@ -3954,19 +3973,33 @@ def statistik():
             for r in (cur.fetchall() or [])
         ]
 
-        # ========== Ændringslog (seneste 100) ==========
+        # ========== Ændringslog (seneste 100) — FIX ==========
+        # Hent ALLE felter som templaten bruger, og returnér dicts:
         cur.execute("""
-            SELECT id, brugernavn, handling, dato, slot_index, tidspunkt
+            SELECT id, brugernavn, handling, dato, slot_index, booking_type, meta, tidspunkt
             FROM booking_log
             ORDER BY tidspunkt DESC
             LIMIT 100
         """)
         rows = cur.fetchall() or []
         booking_log = []
-        for (lid, bnavn, handling, d, slot, ts) in rows:
-            d_fmt = d.strftime('%d-%m-%Y') if isinstance(d, (_date, _dt)) else (d or '')
-            ts_fmt = ts.strftime('%d-%m-%Y %H:%M:%S') if isinstance(ts, _dt) else (ts or '')
-            booking_log.append((lid, bnavn, handling, d_fmt, slot, ts_fmt))
+        for (lid, bnavn, handling, d, slot, btype, meta, ts) in rows:
+            # meta kan være JSONB (dict) eller tekst; parse til dict
+            if meta and not isinstance(meta, dict):
+                try:
+                    meta = json.loads(meta)
+                except Exception:
+                    meta = None
+            booking_log.append({
+                "id": lid,
+                "brugernavn": bnavn,
+                "handling": handling,
+                "dato": d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else (str(d) if d is not None else ''),
+                "slot_index": int(slot) if slot is not None else None,
+                "booking_type": btype,
+                "meta": meta,
+                "tidspunkt": ts.strftime('%Y-%m-%d %H:%M:%S') if hasattr(ts, 'strftime') else (str(ts) if ts is not None else '')
+            })
 
         # ========== Systemstatus (Miele) ==========
         miele_status, miele_opdateret, miele_logs = 'Ukendt', '—', 0
@@ -4218,7 +4251,7 @@ def statistik():
         except Exception:
             recent_deletions = []
 
-        # Retention eksempler (lette og sikre)
+        # Let retention (sikre deletes)
         try:
             cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
             cur.execute("DELETE FROM enforcement_log WHERE ts       < NOW() - INTERVAL '180 days'")
@@ -4227,7 +4260,7 @@ def statistik():
         except Exception:
             conn.rollback()
 
-    except Exception as e:
+    except Exception:
         conn.rollback()
         raise
     finally:
@@ -4255,7 +4288,7 @@ def statistik():
         bruger_moenstre=bruger_moenstre,
         # Side 3
         logins=logins_struct,
-        booking_log=booking_log,
+        booking_log=booking_log,              # ← nu i det rigtige format
         attempts_by_user_day=attempts_by_user_day,
         attempts_over_2=attempts_over_2,
         # Håndhævelser
@@ -4273,9 +4306,12 @@ def statistik_data():
         days = 30
     days = max(1, min(days, 90))
 
-    conn = get_db_connection(); cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
 
-    # Totals
+    # ---------- Totals ----------
+    # NB: "cancellations" = bruger initieret sletning/ændring. Du brugte 'cancel/aflys',
+    # men dine logs bruger 'sletning' / 'ændring'. Vi matcher begge for fremtidssikring.
     cur.execute("""
         WITH d AS (
           SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
@@ -4294,12 +4330,18 @@ def statistik_data():
               AND b.brugernavn IS NOT NULL) AS half_cnt,
           (SELECT COUNT(*) FROM booking_log bl, d
             WHERE bl.tidspunkt::date BETWEEN d.start_d AND d.end_d
-              AND (bl.handling ILIKE 'cancel%%' OR bl.handling ILIKE 'aflys%%')) AS cancel_cnt,
+              AND (
+                    LOWER(bl.handling) IN ('sletning','ændring','aflys','aflysning')
+                 OR bl.handling ILIKE 'cancel%%'
+                 OR bl.handling ILIKE 'aflys%%'
+              )) AS cancel_cnt,
           (SELECT COUNT(*) FROM booking_log bl, d
             WHERE bl.tidspunkt::date BETWEEN d.start_d AND d.end_d
-              AND (bl.handling ILIKE 'auto_remove%%'
-                   OR bl.handling ILIKE 'auto_release%%'
-                   OR bl.handling ILIKE 'expired%%')) AS auto_removed_cnt
+              AND (
+                   bl.handling ILIKE 'auto_remove%%'
+                OR bl.handling ILIKE 'auto_release%%'
+                OR bl.handling ILIKE 'expired%%'
+              )) AS auto_removed_cnt
     """, (days,))
     row = cur.fetchone() or (0,0,0,0,0)
     totals = {
@@ -4310,7 +4352,7 @@ def statistik_data():
         "auto_removed":   int(row[4] or 0),
     }
 
-    # Per slot (samlet/early/late)
+    # ---------- Per slot (samlet/early/late) ----------
     cur.execute("""
         WITH d AS (
           SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
@@ -4337,7 +4379,7 @@ def statistik_data():
         "count_late": int(r[4] or 0),
     } for r in (cur.fetchall() or [])]
 
-    # Top brugere (ekskl. service/direkte)
+    # ---------- Top brugere (ekskl. service/direkte) ----------
     cur.execute("""
         WITH d AS (
           SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
@@ -4354,7 +4396,7 @@ def statistik_data():
     """, (days,))
     by_user_top = [{"brugernavn": r[0], "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
 
-    # Pr dag (line chart)
+    # ---------- Pr dag ----------
     cur.execute("""
         WITH d AS (
           SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
@@ -4368,26 +4410,26 @@ def statistik_data():
     """, (days,))
     by_day = [{"dato": r[0].strftime("%Y-%m-%d"), "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
 
-    # Pr ugedag (bar)
+    # ---------- Pr ugedag ----------
     cur.execute("""
         WITH d AS (
           SELECT (CURRENT_DATE - (%s::int - 1))::date AS start_d,
                  CURRENT_DATE::date AS end_d
         )
-        SELECT
-           EXTRACT(DOW FROM b.dato_rigtig)::int AS dow,
-           COUNT(*) AS c
+        SELECT EXTRACT(DOW FROM b.dato_rigtig)::int AS dow, COUNT(*) AS c
         FROM bookinger b, d
         WHERE b.dato_rigtig BETWEEN d.start_d AND d.end_d
         GROUP BY EXTRACT(DOW FROM b.dato_rigtig)
         ORDER BY dow ASC
     """, (days,))
     wk_map = ["Sø","Ma","Ti","On","To","Fr","Lø"]
-    by_weekday = [{"weekday": int(r[0]),
-                   "weekday_dk": wk_map[int(r[0])%7],
-                   "count": int(r[1] or 0)} for r in (cur.fetchall() or [])]
+    by_weekday = [{
+        "weekday": int(r[0]),
+        "weekday_dk": wk_map[int(r[0]) % 7],
+        "count": int(r[1] or 0)
+    } for r in (cur.fetchall() or [])]
 
-    conn.close()
+    cur.close(); conn.close()
     return jsonify({
         "totals": totals,
         "by_slot": by_slot,
@@ -4411,30 +4453,28 @@ def slet_loginforsøg():
     if not log_id:
         return redirect("/statistik")
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = get_db_connection(); cur = conn.cursor()
     cur.execute("DELETE FROM login_log WHERE id = %s", (log_id,))
     conn.commit()
-    conn.close()
-
+    cur.close(); conn.close()
     return redirect("/statistik")
 
 @app.route("/download_statistik_pdf", methods=["POST"])
 def download_statistik_pdf():
     from fpdf import FPDF
 
-    # Formular-valg (fallback: hent ALT hvis intet er sat)
-    include_login = request.form.get("login_log") == "on"
-    include_booking = request.form.get("booking_log") == "on"
-    include_all = request.form.get("alle") == "on"
-    date_from = request.form.get("fra_dato", "").strip()   # valgfrit, format: YYYY-MM-DD
-    date_to   = request.form.get("til_dato", "").strip()   # valgfrit, format: YYYY-MM-DD
+    # Formular-valg (HTML checkbox uden value sender 'on' ved kryds)
+    include_login   = (request.form.get("login_log")   == "on")
+    include_booking = (request.form.get("booking_log") == "on")
+    include_all     = (request.form.get("alle")        == "on")
+    date_from = (request.form.get("fra_dato") or "").strip()   # YYYY-MM-DD
+    date_to   = (request.form.get("til_dato") or "").strip()   # YYYY-MM-DD
 
     if include_all or (not include_login and not include_booking):
         include_login = True
         include_booking = True
 
-    # Hjælpere
+    # Helpers
     def add_header(pdf, title):
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 10, latin1_sikker_tekst(title), ln=True)
@@ -4444,11 +4484,10 @@ def download_statistik_pdf():
         pdf.multi_cell(0, h, latin1_sikker_tekst(str(text)))
 
     def maybe_new_page(pdf, room=10):
-        # Simpelt “page break” tjek
         if pdf.get_y() > (pdf.h - 20 - room):
             pdf.add_page()
 
-    # Byg simpel WHERE for datointerval
+    # WHERE-klodser for datointerval
     where_login = []
     where_booking = []
     params_login = []
@@ -4465,20 +4504,10 @@ def download_statistik_pdf():
         params_login.append(date_to)
         params_booking.append(date_to)
 
-    if where_login:
-        where_login_sql = "WHERE " + " AND ".join(where_login)
-    else:
-        where_login_sql = ""
-    if where_booking:
-        where_booking_sql = "WHERE " + " AND ".join(where_booking)
-    else:
-        where_booking_sql = ""
+    where_login_sql   = ("WHERE " + " AND ".join(where_login)) if where_login else ""
+    where_booking_sql = ("WHERE " + " AND ".join(where_booking)) if where_booking else ""
 
-    # Hent data
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    # For statuslinje i toppen
+    conn = get_db_connection(); cur = conn.cursor()
     genereret = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # PDF setup
@@ -4487,7 +4516,7 @@ def download_statistik_pdf():
     pdf.set_auto_page_break(auto=False, margin=15)
     pdf.set_font("Arial", size=10)
 
-    # Titel
+    # Titelblok
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, latin1_sikker_tekst("Vasketider – Logudtræk"), ln=True)
     pdf.set_font("Arial", "", 10)
@@ -4498,16 +4527,15 @@ def download_statistik_pdf():
         pdf.cell(0, 8, latin1_sikker_tekst("Filter: Alle datoer"), ln=True)
     pdf.ln(2)
 
-    # ====== BOOKING_LOG (ændringsbookninger) ======
+    # ===== BOOKING_LOG =====
     if include_booking:
         add_header(pdf, "Ændringsbookninger (booking_log)")
-        # Tælling
         cur.execute(f"SELECT COUNT(*) FROM booking_log {where_booking_sql}", params_booking)
         total_booking = cur.fetchone()[0] or 0
         pdf.cell(0, 6, latin1_sikker_tekst(f"Antal poster: {total_booking}"), ln=True)
         pdf.ln(1)
 
-        # Kolonneoverskrift
+        # Kolonneoverskrifter
         pdf.set_font("Arial", "B", 10)
         pdf.cell(35, 6, "Tidspunkt", border=0)
         pdf.cell(25, 6, "Bruger", border=0)
@@ -4517,7 +4545,6 @@ def download_statistik_pdf():
         pdf.ln(6)
         pdf.set_font("Arial", "", 10)
 
-        # Strøm igennem alle rækker (DESC for nyeste først)
         cur.execute(f"""
             SELECT tidspunkt, brugernavn, handling, dato, slot_index
             FROM booking_log
@@ -4528,27 +4555,24 @@ def download_statistik_pdf():
         for (ts, user, handling, d, slot) in cur.fetchall():
             maybe_new_page(pdf, room=20)
             ts_str = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ""
-            d_str = d.strftime('%Y-%m-%d') if d else ""
-            # korte celler (hold det kompakt)
+            d_str  = d.strftime('%Y-%m-%d') if d else ""
             pdf.cell(35, 6, latin1_sikker_tekst(ts_str))
             pdf.cell(25, 6, latin1_sikker_tekst(user or ""))
             pdf.cell(40, 6, latin1_sikker_tekst(handling or ""))
             pdf.cell(30, 6, latin1_sikker_tekst(d_str))
-            pdf.cell(15, 6, latin1_sikker_tekst(str(slot) if slot is not None else ""))
+            pdf.cell(15, 6, latin1_sikker_tekst("" if slot is None else str(slot)))
             pdf.ln(6)
 
         pdf.ln(4)
 
-    # ====== LOGIN_LOG ======
+    # ===== LOGIN_LOG =====
     if include_login:
         add_header(pdf, "Loginforsøg (login_log)")
-        # Tælling
         cur.execute(f"SELECT COUNT(*) FROM login_log {where_login_sql}", params_login)
         total_login = cur.fetchone()[0] or 0
         pdf.cell(0, 6, latin1_sikker_tekst(f"Antal poster: {total_login}"), ln=True)
         pdf.ln(1)
 
-        # Kolonneoverskrift
         pdf.set_font("Arial", "B", 10)
         pdf.cell(35, 6, "Tidspunkt", border=0)
         pdf.cell(25, 6, "Bruger", border=0)
@@ -4558,7 +4582,6 @@ def download_statistik_pdf():
         pdf.ln(6)
         pdf.set_font("Arial", "", 10)
 
-        # Strøm igennem alle rækker (DESC)
         cur.execute(f"""
             SELECT tidspunkt, brugernavn, ip, status, enhed
             FROM login_log
@@ -4569,26 +4592,23 @@ def download_statistik_pdf():
         for (ts, user, ip, status, ua) in cur.fetchall():
             maybe_new_page(pdf, room=24)
             ts_str = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ""
-            # Først faste felter på én linje…
             pdf.cell(35, 6, latin1_sikker_tekst(ts_str))
             pdf.cell(25, 6, latin1_sikker_tekst(user or ""))
             pdf.cell(28, 6, latin1_sikker_tekst(ip or ""))
             pdf.cell(20, 6, latin1_sikker_tekst(status or ""))
             pdf.ln(6)
-            # … så User-Agent på egen linje (multiline), indrykket
-            x = pdf.get_x(); y = pdf.get_y()
-            pdf.set_x(35 + 25 + 28 + 20 + 4)  # lille indrykning
+            pdf.set_x(35 + 25 + 28 + 20 + 4)  # indrykning til UA
             safe_multiline(pdf, ua or "")
-            # lille luft mellem poster
             pdf.ln(1)
 
-    conn.close()
+    cur.close(); conn.close()
 
-    # Svar
-    response = make_response(pdf.output(dest="S").encode("latin1"))
-    response.headers["Content-Type"] = "application/pdf"
-    response.headers["Content-Disposition"] = "attachment; filename=statistik_logs.pdf"
-    return response
+    # Svar med binært PDF-indhold
+    pdf_bytes = pdf.output(dest="S").encode("latin1", "replace")
+    resp = make_response(pdf_bytes)
+    resp.headers["Content-Type"] = "application/pdf"
+    resp.headers["Content-Disposition"] = "attachment; filename=statistik_logs.pdf"
+    return resp
 
 @app.route("/slet_bookinglog", methods=["POST"])
 def slet_bookinglog():
