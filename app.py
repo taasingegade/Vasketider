@@ -8,10 +8,6 @@ except ImportError:
     from psycopg2 import Error as PGError
     HAS_PG3 = False
 from datetime import datetime, timedelta, date
-from datetime import datetime as _dt, date as _date
-from typing import Dict, Any, Optional, Tuple
-import logging, requests
-from requests.exceptions import RequestException
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from fpdf import FPDF
@@ -41,7 +37,6 @@ from werkzeug.utils import secure_filename, safe_join
 
 UPLOAD_FOLDER = 'static'
 # disse køre systemet og styrer essentielle sikkerheder
-log = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'hemmelig_nøgle'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=int(os.getenv('REMEMBER_DAYS', '30')))
@@ -76,160 +71,51 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
+def _dump_slot_state(cur, dato, slot_txt):
+    """Printer alle rækker for dato/slot, så vi kan se præcis hvad der blokerer."""
+    cur.execute("""
+        SELECT id, dato_rigtig, slot_index::text AS slot, COALESCE(sub_slot,'full') AS del,
+               brugernavn, status, created_at
+        FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+        ORDER BY COALESCE(sub_slot,'full'), id
+    """, (dato, slot_txt))
+    rows = cur.fetchall()
+    print("🧾 SLOT-STATE:", {"dato": str(dato), "slot": slot_txt, "rows": rows})
+
+def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
+    """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
+    # fuld blokkerer?
+    cur.execute("""
+        SELECT 1 FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND COALESCE(sub_slot,'full')='full'
+          AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt))
+    if cur.fetchone():
+        return "Slot er fuldt booket."
+
+    # min halvdel taget?
+    cur.execute("""
+        SELECT brugernavn FROM bookinger
+        WHERE dato_rigtig=%s AND slot_index::text=%s
+          AND sub_slot=%s AND brugernavn IS NOT NULL
+        LIMIT 1
+    """, (dato, slot_txt, sub))
+    r = cur.fetchone()
+    if r:
+        return f"Den valgte halvdel er allerede taget (af {r[0]})."
+
+    # ellers ukendt
+    return "Kunne ikke booke halvtid (DB-konflikt)."
+
 # ====================================
 # Definer starter en funktion i python
 # ====================================
 
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, sslmode='require')
-
-def migrate_booking_log(conn):
-    with conn.cursor() as cur:
-        cur.execute("""
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name='booking_log' AND column_name='resultat'
-          ) THEN
-            ALTER TABLE booking_log ADD COLUMN resultat TEXT;
-          END IF;
-
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name='booking_log' AND column_name='meta'
-          ) THEN
-            ALTER TABLE booking_log ADD COLUMN meta JSONB DEFAULT '{}'::jsonb;
-          END IF;
-        END $$;
-        """)
-    conn.commit()
-
-def migrate_enforcement(conn):
-    with conn.cursor() as cur:
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS enforcement_log(
-          id BIGSERIAL PRIMARY KEY,
-          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-          event TEXT NOT NULL,
-          slot_index INT,
-          slot_text TEXT,
-          booked_by TEXT,
-          reason TEXT,
-          note TEXT
-        );
-        CREATE TABLE IF NOT EXISTS recent_deletions(
-          id BIGSERIAL PRIMARY KEY,
-          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-          dato DATE NOT NULL,
-          slot_index INT NOT NULL,
-          brugernavn TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato,slot_index);
-        CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
-        """)
-    conn.commit()
-
-def migrate_booking_triggers(conn):
-    """
-    Opret/erstat en DB-trigger, der automatisk logger alle ændringer i `bookinger`
-    til `booking_log` – uden at ændre Flask-ruter.
-    """
-    with conn.cursor() as cur:
-        # 1) Funktion der laver loglinje ved INSERT/UPDATE/DELETE
-        cur.execute("""
-        CREATE OR REPLACE FUNCTION trg_log_booking() RETURNS trigger AS $$
-        DECLARE
-          v_handling TEXT;
-          v_resultat TEXT;
-          v_user TEXT;
-          v_slot INT;
-          v_type TEXT;
-          v_meta JSONB := '{}'::jsonb;
-          v_dato DATE;
-        BEGIN
-          IF (TG_OP = 'INSERT') THEN
-            v_handling := 'book';
-            v_resultat := 'ok';
-            v_user := NEW.brugernavn;
-            v_slot := NEW.slot_index::int;
-            v_type := COALESCE(NEW.sub_slot,'full');
-            v_dato := NEW.dato_rigtig::date;
-            v_meta := jsonb_build_object(
-              'status', COALESCE(NEW.status,''), 
-              'activation_required', COALESCE(NEW.activation_required,false)
-            );
-            INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
-              VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
-            RETURN NEW;
-
-          ELSIF (TG_OP = 'DELETE') THEN
-            v_handling := 'sletning';
-            v_resultat := 'ok';
-            v_user := COALESCE(OLD.brugernavn,'—');
-            v_slot := OLD.slot_index::int;
-            v_type := COALESCE(OLD.sub_slot,'full');
-            v_dato := OLD.dato_rigtig::date;
-            v_meta := jsonb_build_object('status', COALESCE(OLD.status,''));            
-            INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
-              VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
-            RETURN OLD;
-
-          ELSIF (TG_OP = 'UPDATE') THEN
-            -- Kun log "ændring", hvis slot eller halvdel skifter (eller bruger skifter)
-            IF COALESCE(OLD.slot_index::text,'') <> COALESCE(NEW.slot_index::text,'')
-               OR COALESCE(OLD.sub_slot,'full') <> COALESCE(NEW.sub_slot,'full')
-               OR COALESCE(LOWER(OLD.brugernavn),'') <> COALESCE(LOWER(NEW.brugernavn),'') THEN
-              v_handling := 'ændring';
-              v_resultat := 'ok';
-              v_user := COALESCE(NEW.brugernavn, OLD.brugernavn);
-              v_slot := NEW.slot_index::int;
-              v_type := COALESCE(NEW.sub_slot,'full');
-              v_dato := NEW.dato_rigtig::date;
-              v_meta := jsonb_build_object(
-                'from_slot', OLD.slot_index,
-                'to_slot', NEW.slot_index,
-                'from_sub', COALESCE(OLD.sub_slot,'full'),
-                'to_sub', COALESCE(NEW.sub_slot,'full'),
-                'from_user', COALESCE(OLD.brugernavn,''),
-                'to_user', COALESCE(NEW.brugernavn,'')
-              );
-              INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, meta)
-                VALUES (v_user, v_handling, v_dato, v_slot, v_type, v_resultat, v_meta);
-            END IF;
-            RETURN NEW;
-          END IF;
-
-          RETURN NULL;
-        END;
-        $$ LANGUAGE plpgsql;
-        """)
-
-        # 2) Opret (eller genskab) triggere for alle tre operationer
-        cur.execute("DROP TRIGGER IF EXISTS trg_log_booking_iud ON bookinger;")
-        cur.execute("""
-          CREATE TRIGGER trg_log_booking_iud
-          AFTER INSERT OR UPDATE OR DELETE ON bookinger
-          FOR EACH ROW EXECUTE FUNCTION trg_log_booking();
-        """)
-
-    conn.commit()
-
-def migrate_all():
-    conn = get_db_connection()
-    try:
-        # Booking-log kolonner (resultat/meta)
-        migrate_booking_log(conn)
-        # Nye håndhævelses-tabeller
-        migrate_enforcement(conn)
-        # >>> NYT: booking-triggers til log af book/slet/ændring <<<
-        migrate_booking_triggers(conn)
-        # ... evt. flere migreringer ...
-    finally:
-        conn.close()
-
-# --- KALD migrering TIDLIGT i app-boot ---
-migrate_all()
 
 def init_db():
     def run(cur, conn, sql, params=None, label=""):
@@ -401,168 +287,7 @@ def init_db():
 
 init_db()
 
-def log_booking(conn, brugernavn, handling, slot_index=None,
-                booking_type=None, resultat=None, meta=None):
-    """
-    Skriver en linje i booking_log. 'meta' kan være dict -> JSONB.
-    """
-    if isinstance(meta, dict):
-        meta_json = json.dumps(meta, ensure_ascii=False)
-    else:
-        meta_json = None  # lader DEFAULT '{}'::jsonb tage over
-
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO booking_log (
-                brugernavn, handling, dato, slot_index, booking_type, resultat, meta
-            )
-            VALUES (%s, %s, NOW(), %s, %s, %s,
-                    COALESCE(%s::jsonb, '{}'::jsonb))
-        """, (brugernavn, handling, slot_index, booking_type, resultat, meta_json))
-    conn.commit()
-
 # ==== BEGIN ADD: booking helpers ====
-
-def _ssl_verify_flag() -> bool:
-        v = (os.environ.get("HA_VERIFY") or "true").strip().lower()
-        return not (v in ("0", "false", "no", "off"))
-
-def call_ha_button_press(entity_id: str) -> tuple[bool, str]:
-    """
-    Tryk på en HA 'button' (fx Miele Stop-knap) via REST:
-      POST /api/services/button/press  { "entity_id": "<button.entity>" }
-
-    Kræver ENV:
-      - HA_URL   (fx "https://192.168.18.28:8123")
-      - HA_TOKEN (long-lived access token)
-      - (valgfrit) HA_VERIFY=true|false  (SSL verify)
-    """
-    ha_url   = (os.environ.get("HA_URL") or "").rstrip("/")
-    ha_token = os.environ.get("HA_TOKEN") or ""
-    if not ha_url or not ha_token:
-        return (False, "Mangler HA_URL/HA_TOKEN i environment")
-
-    url = f"{ha_url}/api/services/button/press"
-    headers = {
-        "Authorization": f"Bearer {ha_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {"entity_id": entity_id}
-    verify = _ssl_verify_flag()
-
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=8)
-        if r.status_code // 100 == 2:
-            return (True, "")
-        return (False, f"HTTP {r.status_code}: {r.text[:200]}")
-    except RequestException as e:
-        return (False, f"RequestException: {e}")
-
-def has_active_or_booked_in_slot(cur, dato_date, slot_index: int) -> bool:
-    cur.execute("""
-        SELECT 1
-          FROM bookinger
-         WHERE dato_rigtig = %s
-           AND (slot_index = %s OR slot_index::int = %s)
-           AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
-         LIMIT 1
-    """, (dato_date, slot_index, slot_index))
-    return cur.fetchone() is not None
-
-def recently_deleted_same_slot(cur, dato_date, slot_index: int, within_minutes: int = 60) -> Optional[str]:
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS recent_deletions(
-            id SERIAL PRIMARY KEY,
-            ts TIMESTAMP NOT NULL DEFAULT NOW(),
-            dato DATE NOT NULL,
-            slot_index INT NOT NULL,
-            brugernavn TEXT
-        )
-    """)
-    cur.execute("""
-        SELECT brugernavn
-          FROM recent_deletions
-         WHERE dato = %s
-           AND slot_index = %s
-           AND ts >= NOW() - INTERVAL %s
-         ORDER BY ts DESC
-         LIMIT 1
-    """, (dato_date, int(slot_index), f"'{within_minutes} minutes'"))
-    row = cur.fetchone()
-    return row[0] if row else None
-
-def log_enforcement(cur, event: str, slot_index: Optional[int], slot_text: Optional[str],
-                    booked_by: Optional[str], reason: Optional[str], note: Optional[str]) -> None:
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS enforcement_log(
-            id SERIAL PRIMARY KEY,
-            ts TIMESTAMP NOT NULL DEFAULT NOW(),
-            event TEXT NOT NULL,
-            slot_index INT,
-            slot_text TEXT,
-            booked_by TEXT,
-            reason TEXT,
-            note TEXT
-        )
-    """)
-    cur.execute("""
-        INSERT INTO enforcement_log(event, slot_index, slot_text, booked_by, reason, note)
-        VALUES (%s,%s,%s,%s,%s,%s)
-    """, (event, slot_index, slot_text, booked_by, reason, note))
-
-def current_slot_index_from_local(dt_local: datetime) -> Optional[int]:
-    h = dt_local.hour
-    if 7  <= h < 11: return 0
-    if 11 <= h < 15: return 1
-    if 15 <= h < 19: return 2
-    if 19 <= h < 23: return 3
-    return None
-
-def _friendly_half_conflict_reason(cur, dato, slot_txt, sub):
-    """Returnér en menneskelig forklaring til UI efter en UniqueViolation."""
-    # fuld blokkerer?
-    cur.execute("""
-        SELECT 1 FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-          AND COALESCE(sub_slot,'full')='full'
-          AND brugernavn IS NOT NULL
-        LIMIT 1
-    """, (dato, slot_txt))
-    if cur.fetchone():
-        return "Slot er fuldt booket."
-
-    # min halvdel taget?
-    cur.execute("""
-        SELECT brugernavn FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-          AND sub_slot=%s AND brugernavn IS NOT NULL
-        LIMIT 1
-    """, (dato, slot_txt, sub))
-    r = cur.fetchone()
-    if r:
-        return f"Den valgte halvdel er allerede taget (af {r[0]})."
-
-    # ellers ukendt
-    return "Kunne ikke booke halvtid (DB-konflikt)."
-
-def _yn(v) -> bool:
-    if isinstance(v, bool):
-        return v
-    if v is None:
-        return False
-    return str(v).strip().lower() in {"1","true","on","ja","y","yes"}
-
-def _dump_slot_state(cur, dato, slot_txt):
-    """Printer alle rækker for dato/slot, så vi kan se præcis hvad der blokerer."""
-    cur.execute("""
-        SELECT id, dato_rigtig, slot_index::text AS slot, COALESCE(sub_slot,'full') AS del,
-               brugernavn, status, created_at
-        FROM bookinger
-        WHERE dato_rigtig=%s AND slot_index::text=%s
-        ORDER BY COALESCE(sub_slot,'full'), id
-    """, (dato, slot_txt))
-    rows = cur.fetchall()
-    print("🧾 SLOT-STATE:", {"dato": str(dato), "slot": slot_txt, "rows": rows})
 
 def get_client_ip(req):
     xff = req.headers.get("X-Forwarded-For", "")
@@ -1069,10 +794,6 @@ def _truthy(v):
         return False
     return str(v).strip().lower() in ("1","true","on","yes","ja","t","y","checked")
 
-def truthy(v):
-    """Alias til _truthy() så ældre funktioner som admin_ryd_logs ikke fejler."""
-    return _truthy(v)
-
 def ensure_stat_support_tables(cur):
     # Kun små hjælpe-tabeller; vi ændrer ikke dine primære tabeller.
     cur.execute("""
@@ -1104,74 +825,6 @@ def ensure_stat_support_tables(cur):
             note TEXT,
             created_at TIMESTAMP DEFAULT NOW()
         )
-    """)
-    cur.execute("""
-    -- Audit-tabel: håndhævelser fra HA (stop uden booking, kørsel uden booking m.m.)
-    CREATE TABLE IF NOT EXISTS enforcement_log(
-      id BIGSERIAL PRIMARY KEY,
-      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-      event TEXT NOT NULL,         -- 'no_booking_stop' | 'running_without_booking' | 'deleted_then_used' ...
-      slot_index INT,
-      slot_text TEXT,
-      booked_by TEXT,
-      reason TEXT,
-      note TEXT
-    );
-
-    -- Hjælpetabel til at korrelere sletninger med "kører uden booking"
-    CREATE TABLE IF NOT EXISTS recent_deletions(
-      id BIGSERIAL PRIMARY KEY,
-      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-      dato DATE NOT NULL,
-      slot_index INT NOT NULL,
-      brugernavn TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_recent_del_key ON recent_deletions(dato, slot_index);
-    CREATE INDEX IF NOT EXISTS idx_recent_del_ts  ON recent_deletions(ts DESC);
-
-    -- Eksisterende/statistiske tabeller der kan mangle i ældre miljøer
-    CREATE TABLE IF NOT EXISTS statistik(
-      dato DATE NOT NULL,
-      type TEXT NOT NULL,
-      antal INT NOT NULL DEFAULT 0,
-      PRIMARY KEY (dato, type)
-    );
-
-    CREATE TABLE IF NOT EXISTS booking_attempts(
-      id BIGSERIAL PRIMARY KEY,
-      ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-      brugernavn TEXT NOT NULL
-    );
-
-    -- Fallback for direkte_kæder (hvis den ikke findes)
-    CREATE TABLE IF NOT EXISTS direkte_kæder(
-      id BIGSERIAL PRIMARY KEY,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      direkte_slot TEXT,
-      bruger_slot TEXT,
-      bruger TEXT,
-      score INT,
-      note TEXT
-    );
-
-    -- Fallback for login_log (hvis den ikke findes)
-    CREATE TABLE IF NOT EXISTS login_log(
-      id BIGSERIAL PRIMARY KEY,
-      tidspunkt TIMESTAMPTZ NOT NULL DEFAULT now(),
-      brugernavn TEXT,
-      status TEXT,
-      ip TEXT,
-      enhed TEXT,
-      ip_hash TEXT,
-      ua_browser TEXT,
-      ua_os TEXT,
-      ua_device TEXT,
-      ip_country TEXT,
-      ip_region TEXT,
-      ip_city TEXT,
-      ip_org TEXT,
-      ip_is_datacenter BOOLEAN
-    );
     """)
 
 def ensure_user_columns(cur):
@@ -1223,15 +876,13 @@ def get_kontaktinfo(cur, brugernavn: str):
     """
     Returnerer: (email, sms, allow_email_bool, allow_sms_bool)
     - virker både med ny og gammel skema
-    - 'notifikation' = hovedafbryder (on/off)
-    - 'notif_email' og 'notif_sms' = uafhængige kanaler
     """
     try:
         # ny model med notif_email/notif_sms
         cur.execute("""
             SELECT
-                COALESCE(email,''), COALESCE(sms,''), 
-                COALESCE(notifikation,'ja'), 
+                COALESCE(email,''), COALESCE(sms,''),
+                COALESCE(notifikation,'ja'),
                 COALESCE(notif_email,'ja'), COALESCE(notif_sms,'nej')
             FROM brugere
             WHERE LOWER(brugernavn)=LOWER(%s)
@@ -1240,25 +891,11 @@ def get_kontaktinfo(cur, brugernavn: str):
         row = cur.fetchone()
         if not row:
             return "", "", False, False
-
         email, sms, notifikation, notif_email, notif_sms = row
-        email = (email or "").strip()
-        sms   = (sms or "").strip()
-
-        # === ÆNDRET LOGIK HER ===
-        if notifikation == 'ja':
-            allow_email = (notif_email == 'ja') and bool(email)
-            allow_sms   = (notif_sms   == 'ja') and bool(sms)
-        else:
-            # Hvis master notifikation er "nej", send ingenting
-            allow_email = False
-            allow_sms   = False
-        # ==========================
-
-        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', "
-              f"allow_email={allow_email}, allow_sms={allow_sms} (NY)")
+        allow_email = (notifikation == 'ja') and (notif_email == 'ja')
+        allow_sms   = (notifikation == 'ja') and (notif_sms   == 'ja')
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow_email}, allow_sms={allow_sms} (NY)")
         return email, sms, allow_email, allow_sms
-
     except Exception as e:
         # fallback til gammel model (kun 'notifikation')
         cur.execute("""
@@ -1272,57 +909,8 @@ def get_kontaktinfo(cur, brugernavn: str):
             return "", "", False, False
         email, sms, notifikation = row
         allow = (notifikation == 'ja')
-        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', "
-              f"allow_email={allow}, allow_sms={allow} (GAMMEL)")
+        print(f"[get_kontaktinfo] {brugernavn} -> email='{email}', sms='{sms}', allow_email={allow}, allow_sms={allow} (GAMMEL)")
         return email, sms, allow, allow
-
-def send_notifikation(brugernavn: str,
-                      emne: str,
-                      mail_tekst: str,
-                      sms_tekst: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Afsend med respekt for master + kanaler.
-    * Hvis master off -> send ikke noget.
-    * Hvis master on -> send til de kanaler der er valgt og har kontaktinfo.
-    """
-    info = get_kontaktinfo(brugernavn)
-    status = {"skipped": False, "reason": "", "email": False, "sms": False}
-
-    if not info["notifikation"]:
-        status["skipped"] = True
-        status["reason"]  = "Master notifikation = off"
-        return status
-
-    # Mail
-    if info["allow_email"]:
-        try:
-            if 'send_email' in globals() and callable(globals()['send_email']):
-                globals()['send_email'](emne, mail_tekst, info["email"])
-                status["email"] = True
-            else:
-                log.warning("send_email() ikke fundet – simulerer OK")
-                status["email"] = True
-        except Exception as e:
-            log.exception("Mail-fejl til %s: %s", info["email"], e)
-
-    # SMS
-    if info["allow_sms"]:
-        text = sms_tekst if sms_tekst is not None else mail_tekst
-        try:
-            if 'send_sms' in globals() and callable(globals()['send_sms']):
-                globals()['send_sms'](info["sms"], text)
-                status["sms"] = True
-            else:
-                log.warning("send_sms() ikke fundet – simulerer OK")
-                status["sms"] = True
-        except Exception as e:
-            log.exception("SMS-fejl til %s: %s", info["sms"], e)
-
-    if (not info["allow_email"]) and (not info["allow_sms"]):
-        status["skipped"] = True
-        status["reason"]  = "Ingen aktive kanaler eller manglende kontaktinfo"
-
-    return status
 
 def get_slot_text(cur, slot_index: int) -> str:
     """Returner human tekst for et slot (falder tilbage til 07–11 ..)."""
@@ -1525,17 +1113,6 @@ def ryd_gamle_bookinger_job():
             print("❌ Fejl i ryd_gamle_bookinger_job:", e)
             time.sleep(60)
 
-def _log_recent_deletion(cur, dato_iso, slot_index, brugernavn):
-    """Log en nylig sletning til recent_deletions til brug for korrelation i statistik."""
-    try:
-        cur.execute(
-            """INSERT INTO recent_deletions (ts, dato, slot_index, brugernavn)
-               VALUES (NOW(), %s, %s, %s)""",
-            (str(dato_iso), int(slot_index), str(brugernavn))
-        )
-    except Exception as e:
-        print("⚠️ recent_deletions insert fejlede:", e)
-
 def db_exec(cur, sql, params=None, label=""):
     """Kør SQL og log præcist hvor det fejler, hvis noget går galt."""
     try:
@@ -1708,36 +1285,23 @@ def _geo_debug():
 
 @app.route('/ha_webhook', methods=['POST'])
 def ha_webhook():
-    """
-    Modtager status fra HA/Miele og:
-      1) Opdaterer seneste status + historik (miele_status / miele_activity)
-      2) Synker booking-status:
-         - RUNNING → pending_activation/booked => active
-         - FINISHED → active => completed
-      3) Håndhæver regler:
-         - Kører uden booking → tryk Miele 'Stop' (button.press) + log
-         - Aflyst og kører alligevel → tryk 'Stop' + log
-
-    Kræver ENV:
-      HA_URL, HA_TOKEN, HA_STOP_BUTTON
-      (valgfrit) HA_VERIFY=true|false (default true)
-    """
     try:
         data = request.get_json(force=True)
 
         # --- Input parsing ---
-        raw_status     = str(data.get("status", "Ukendt")).strip()
-        remaining_time = str(data.get("remaining_time", "")).strip()
-        opdateret      = data.get("opdateret", datetime.now())
+        raw_status = str(data.get("status", "Ukendt")).strip()
+        remaining_time = str(data.get("remaining_time", "")).strip()  # "0:45:00" eller ""
+        opdateret = data.get("opdateret", datetime.now())
 
+        # Konverter streng til datetime hvis nødvendigt
         if isinstance(opdateret, str):
             try:
                 opdateret = datetime.fromisoformat(opdateret)
             except ValueError:
                 opdateret = datetime.now()
 
-        # Normaliser status
-        norm_status = set_miele_status(raw_status)
+        # Normaliser/oversæt status til dansk (din eksisterende helper)
+        norm_status = set_miele_status(raw_status)  # f.eks. "kørende", "færdig", "standby", ...
 
         # Resttid → "xx min"
         if remaining_time:
@@ -1746,10 +1310,11 @@ def ha_webhook():
                 total_min = h * 60 + m
                 remaining_time = f"{total_min} min"
             except ValueError:
-                pass
+                pass  # bevar original hvis parsning fejler
 
-        # --- Gem seneste status (single-row) ---
-        conn = get_db_connection(); cur = conn.cursor()
+        # --- Gem seneste status (overstyrer single-row tabel) ---
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS miele_status (
                 id SERIAL PRIMARY KEY,
@@ -1763,11 +1328,14 @@ def ha_webhook():
             INSERT INTO miele_status (status, remaining_time, opdateret)
             VALUES (%s, %s, %s)
         """, (norm_status, remaining_time, opdateret))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
-        # --- Append historik ---
+        # --- Log aktivitet i historik (append) ---
         try:
-            conn2 = get_db_connection(); cur2 = conn2.cursor()
+            conn2 = get_db_connection()
+            cur2 = conn2.cursor()
             cur2.execute("""
                 CREATE TABLE IF NOT EXISTS miele_activity (
                     id SERIAL PRIMARY KEY,
@@ -1778,88 +1346,88 @@ def ha_webhook():
             cur2.execute("CREATE INDEX IF NOT EXISTS idx_miele_activity_ts ON miele_activity(ts)")
             cur2.execute("INSERT INTO miele_activity (ts, status) VALUES (%s, %s)", (opdateret, norm_status))
             conn2.commit()
-        finally:
+            cur2.close()
+            conn2.close()
+        except Exception:
+            # historik må ikke vælte webhook – fortsæt stille
             try:
                 cur2.close(); conn2.close()
             except Exception:
                 pass
 
-        # ===================== HÅNDHÆVELSE ======================
+        # ===================== NYT: Knyt HA-status til booking ======================
+        # Definér slots som i din app: 0:(07-11), 1:(11-15), 2:(15-19), 3:(19-23)
+        def _current_slot_index(dt):
+            h = dt.hour
+            if   7 <= h < 11:  return 0
+            elif 11 <= h < 15: return 1
+            elif 15 <= h < 19: return 2
+            elif 19 <= h < 23: return 3
+            return None
+
+        # Normaliseret status-sæt (lowercase for robust matching)
         s = (norm_status or "").strip().lower()
         RUNNING_STATES  = {"kørende", "i brug", "vask", "washing", "running", "main wash", "hovedvask"}
         FINISHED_STATES = {"færdig", "finish", "end", "slut", "program ended", "done"}
-        DK = CPH
 
-        opdateret_dk = opdateret if getattr(opdateret, "tzinfo", None) else DK.localize(opdateret)
-        opdateret_dk = opdateret_dk.astimezone(DK)
-        slot_idx = current_slot_index_from_local(opdateret_dk)
-        dato_i_dag = opdateret_dk.date()
-
-        stop_entity = (os.environ.get("HA_STOP_BUTTON") or "button.washing_machine_stop").strip()
-
+        slot_idx = _current_slot_index(opdateret)
         if slot_idx is not None:
-            conn3 = get_db_connection(); cur3 = conn3.cursor()
+            conn3 = get_db_connection()
+            cur3 = conn3.cursor()
             try:
-                # 1) RUNNING → pending/booked => active
+                # 1) START/KØRER → pending_activation -> active
                 if s in RUNNING_STATES:
                     cur3.execute("""
                         UPDATE bookinger
                            SET status='active',
                                activated_at = NOW(),
                                activation_required = FALSE
-                         WHERE dato_rigtig = %s
-                           AND (slot_index = %s OR slot_index::int = %s)
-                           AND COALESCE(status,'booked') IN ('pending_activation','booked')
-                    """, (dato_i_dag, slot_idx, slot_idx))
-                    if cur3.rowcount:
-                        print(f"🟢 ha_webhook: aktiverede {cur3.rowcount} booking(er) pga. RUNNING")
+                         WHERE dato_rigtig = CURRENT_DATE
+                           AND slot_index   = %s
+                           AND status       = 'pending_activation'
+                    """, (slot_idx,))
+                    activated_rows = cur3.rowcount
 
-                    # HÅNDHÆVELSE
-                    booked_now = has_active_or_booked_in_slot(cur3, dato_i_dag, slot_idx)
-                    offender   = recently_deleted_same_slot(cur3, dato_i_dag, slot_idx, within_minutes=60)
+                    # (Valgfrit) hvis ingen pending, men der findes en "booked" i den aktuelle slot,
+                    # kan du vælge at aktivere den også. Slå til hvis det giver mening i din model:
+                    if activated_rows == 0:
+                        cur3.execute("""
+                            UPDATE bookinger
+                               SET status='active',
+                                   activated_at = NOW(),
+                                   activation_required = FALSE
+                             WHERE dato_rigtig = CURRENT_DATE
+                               AND slot_index   = %s
+                               AND status       = 'booked'
+                        """, (slot_idx,))
 
-                    if (not booked_now) or offender:
-                        reason = "Ingen aktiv booking" if not booked_now else "Booking annulleret for nylig"
-                        event  = "running_without_booking" if not booked_now else "deleted_then_used"
-                        note   = f"status='{norm_status}', opdateret={opdateret_dk.isoformat()}"
-                        slot_txt = get_slot_text(cur3, slot_idx)
+                    conn3.commit()
 
-                        # Log + STOP via HA
-                        log_enforcement(cur3, event, slot_idx, slot_txt, offender, reason, note)
-                        conn3.commit()
-
-                        ok, err = call_ha_button_press(stop_entity)
-                        if ok:
-                            print(f"🛑 Miele STOP: button.press({stop_entity}) ({event})")
-                        else:
-                            print(f"❌ Miele STOP FEJL: {err} ({event})")
-
-                # 2) FINISHED → active => completed
+                # 2) FÆRDIG → active -> completed
                 elif s in FINISHED_STATES:
                     cur3.execute("""
                         UPDATE bookinger
                            SET status='completed'
-                         WHERE dato_rigtig = %s
-                           AND (slot_index = %s OR slot_index::int = %s)
-                           AND COALESCE(status,'booked') IN ('active')
-                    """, (dato_i_dag, slot_idx, slot_idx))
-                    if cur3.rowcount:
-                        print(f"✅ ha_webhook: markerede {cur3.rowcount} som completed")
-
-                conn3.commit()
+                         WHERE dato_rigtig = CURRENT_DATE
+                           AND slot_index   = %s
+                           AND status       = 'active'
+                    """, (slot_idx,))
+                    conn3.commit()
             finally:
-                cur3.close(); conn3.close()
+                cur3.close()
+                conn3.close()
+        # ===========================================================================
 
-        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret DK: {opdateret_dk})")
+        print(f"✅ Miele-status gemt: {norm_status} – Resttid: {remaining_time} (Opdateret: {opdateret})")
         return jsonify({
             "status": "ok",
             "received": norm_status,
             "remaining_time": remaining_time,
-            "opdateret": opdateret_dk.isoformat()
+            "opdateret": opdateret
         }), 200
 
     except Exception as e:
-        print("❌ Fejl i ha_webhook (enforcement):", e, flush=True)
+        print("❌ Fejl i ha_webhook:", e)
         return jsonify({"error": str(e)}), 500
 
 # ================
@@ -2170,37 +1738,6 @@ def admin():
         vis_dropdown=vis_dropdown,
     )
 
-@app.route("/ha_audit", methods=["POST"])
-def ha_audit():
-    # Sikkerhed: samme token som /ha_webhook
-    token = request.headers.get("X-HA-Token", "")
-    if token != (os.environ.get("VASKETID_WEBHOOK_SECRET") or ""):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
-    try:
-        data = request.get_json(force=True)
-    except Exception:
-        return jsonify({"ok": False, "error": "Bad JSON"}), 400
-
-    event      = (data.get("event") or "").strip()
-    slot_index = data.get("slot_index")
-    slot_text  = data.get("slot_text")
-    booked_by  = data.get("booked_by")
-    reason     = data.get("reason")
-
-    if not event:
-        return jsonify({"ok": False, "error": "Missing event"}), 400
-
-    with get_db_connection() as conn, conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO enforcement_log(event, slot_index, slot_text, booked_by, reason, note)
-            VALUES (%s,%s,%s,%s,%s,%s)
-        """, (event, slot_index if slot_index is not None else None,
-              slot_text, booked_by, reason, None))
-        conn.commit()
-
-    return jsonify({"ok": True})
-
 @app.route("/opdater_dropdownvisning", methods=["POST"])
 def opdater_dropdownvisning():
     if 'brugernavn' not in session or session['brugernavn'] != 'admin':
@@ -2335,18 +1872,15 @@ def reset_direkte():
     # Vis password til admin via flash/besked (eller redirect med querystring)
     return redirect(f"/vis_brugere?direkte_pw={nyt_pw}")
 
-@app.route("/admin/brugere", methods=["GET"])
+@app.route("/admin/brugere")
 def admin_vis_brugere():
-    # Kun admin
-    if session.get('brugernavn','').lower() != 'admin':
-        return redirect('/login')
+    if not require_admin():
+        return redirect("/login")
 
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # (valgfrit) Behold din nød-migrering for de FELTER du SELV har valgt at understøtte
-        # Jeg lader den være som hos dig, men uden at røre notif_email (tekst-varianten),
-        # så vi ikke laver datatype-konflikter:
+        # Sikr kolonnerne findes (nød-fallback hvis migrering ikke er kørt)
         cur.execute("""
             DO $$
             BEGIN
@@ -2374,89 +1908,20 @@ def admin_vis_brugere():
         """)
         conn.commit()
 
-        # Find hvilke notif-kolonner der faktisk findes
         cur.execute("""
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name='brugere'
-        """)
-        info = cur.fetchall() or []
-        have_notif_mail_bool = any(c[0] == 'notif_mail' and 'bool' in c[1] for c in info)
-        have_notif_sms_bool  = any(c[0] == 'notif_sms'  and 'bool' in c[1] for c in info)
-        have_notif_email_txt = any(c[0] == 'notif_email' for c in info)  # tekst 'ja'/'nej' i nogle skemaer
-        have_notifikation_txt= any(c[0] == 'notifikation' for c in info) # samlet 'ja'/'nej' i nogle skemaer
-
-        # Hent brugere (tag kun de felter vi HAR)
-        cur.execute("""
-            SELECT id, brugernavn, kode, email, sms,
-                   COALESCE(godkendt, TRUE) AS godkendt
+            SELECT id, brugernavn, kode, email, sms, COALESCE(godkendt, TRUE),
+                   COALESCE(notif_mail, TRUE), COALESCE(notif_sms, FALSE)
             FROM brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
-
-        brugere = []
-        for r in rows:
-            u = {
-                "id":          r[0],
-                "brugernavn":  r[1],
-                "adgangskode": r[2],
-                "email":       r[3],
-                "sms":         r[4],
-                "godkendt":    bool(r[5]),
-            }
-
-            # Standard default
-            u["notifikation"] = "ja"
-
-            # Læs notif fra boolean- eller tekstfelter og normalisér til 'ja'/'nej'
-            if have_notif_mail_bool:
-                # ny boolean-kolonne
-                cur.execute("SELECT COALESCE(notif_mail, TRUE) FROM brugere WHERE id=%s", (u["id"],))
-                v = cur.fetchone()[0]
-                u["notif_email"] = "ja" if v else "nej"
-            elif have_notif_email_txt:
-                # gammel tekstkolonne
-                cur.execute("SELECT COALESCE(notif_email, 'ja') FROM brugere WHERE id=%s", (u["id"],))
-                v = (cur.fetchone()[0] or 'ja').strip().lower()
-                u["notif_email"] = "ja" if v == "ja" else "nej"
-            else:
-                # ingen kolonne → default
-                u["notif_email"] = "ja"
-
-            if have_notif_sms_bool:
-                cur.execute("SELECT COALESCE(notif_sms, FALSE) FROM brugere WHERE id=%s", (u["id"],))
-                v = cur.fetchone()[0]
-                u["notif_sms"] = "ja" if v else "nej"
-            else:
-                # tekst-kolonne 'notif_sms' kan også være 'ja'/'nej' i nogle miljøer
-                if any(c[0] == 'notif_sms' for c in info):
-                    cur.execute("SELECT COALESCE(notif_sms, 'nej') FROM brugere WHERE id=%s", (u["id"],))
-                    v = (cur.fetchone()[0] or 'nej').strip().lower()
-                    u["notif_sms"] = "ja" if v == "ja" else "nej"
-                else:
-                    u["notif_sms"] = "nej"
-
-            if have_notifikation_txt:
-                cur.execute("SELECT COALESCE(notifikation, 'ja') FROM brugere WHERE id=%s", (u["id"],))
-                v = (cur.fetchone()[0] or 'ja').strip().lower()
-                u["notifikation"] = "ja" if v == "ja" else "nej"
-
-            brugere.append(u)
-
+        cols = ["id","brugernavn","kode","email","sms","godkendt","notif_mail","notif_sms"]
+        brugere = [user_row_to_dict(r, cols) for r in rows]
     finally:
-        try:
-            cur.close(); conn.close()
-        except Exception:
-            pass
+        try: cur.close(); conn.close()
+        except Exception: pass
 
-    # Sørg for at besked/fejl kan vises i din template (du har allerede blokken i HTML)
-    return render_template(
-        "vis_brugere.html",
-        brugere=brugere,
-        besked=request.args.get("besked") or "",
-        fejl=request.args.get("fejl") or ""
-    )
+    return render_template("vis_brugere.html", brugere=brugere)
 
 @app.route("/admin/brugere/opret", methods=["POST"])
 def admin_opret_bruger():
@@ -2591,67 +2056,52 @@ def admin_book_for_user():
     btype = (request.form.get("type") or "full").strip()  # full/early/late
 
     if not bnavn or not dato or slot is None:
-        return redirect(url_for("admin_vis_brugere",
-                                fejl="Udfyld bruger, dato og slot"))
+        return redirect("/vis_brugere?fejl=Udfyld+bruger%2C+dato+og+slot")
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # tjek at bruger findes og er godkendt
-        cur.execute("""
-            SELECT 1 FROM public.brugere
-            WHERE LOWER(brugernavn)=LOWER(%s)
-              AND COALESCE(godkendt,TRUE)=TRUE
-        """, (bnavn,))
+        # bruger findes og er godkendt
+        cur.execute("SELECT 1 FROM brugere WHERE LOWER(brugernavn)=LOWER(%s) AND COALESCE(godkendt,TRUE)=TRUE", (bnavn,))
         if not cur.fetchone():
-            return redirect(url_for("admin_vis_brugere",
-                                    fejl="Bruger findes ikke eller ikke godkendt"))
+            return redirect("/vis_brugere?fejl=Bruger+findes+ikke+eller+ikke+godkendt")
 
         # max 2 pr. dag
         cur.execute("""
-            SELECT COUNT(*) FROM public.bookinger
+            SELECT COUNT(*) FROM bookinger
             WHERE LOWER(brugernavn)=LOWER(%s)
               AND dato_rigtig::date = %s::date
               AND COALESCE(status,'booked') IN ('booked','active','pending_activation')
         """, (bnavn, dato))
         if int(cur.fetchone()[0] or 0) >= 2:
-            return redirect(url_for("admin_vis_brugere",
-                                    fejl=f"{bnavn} har allerede 2 bookinger den dag"))
+            return redirect(f"/vis_brugere?fejl={bnavn}+har+allerede+2+bookinger+den+dag")
 
-        # indsæt booking
+        # indsæt booking (slot_index gemmes som int)
         cur.execute("""
-            INSERT INTO public.bookinger (
-                brugernavn, dato_rigtig, slot_index, sub_slot,
-                booking_type, status, activation_required, created_at
-            )
-            VALUES (%s, %s::date, %s::int, 'full',
-                    %s, 'booked', FALSE, NOW())
+            INSERT INTO bookinger (brugernavn, dato_rigtig, slot_index, booking_type, status, created_at, activation_required)
+            VALUES (%s, %s::date, %s::int, %s, 'booked', NOW(), FALSE)
             RETURNING id
         """, (bnavn, dato, int(slot), btype))
         bid = cur.fetchone()[0]
 
-        # best-effort log
+        # log forsøg (hvis booking_log findes, ellers ignorer fejl)
         try:
             cur.execute("""
-                INSERT INTO public.booking_log (
-                    brugernavn, handling, dato, slot_index, booking_type, resultat, tidspunkt
-                )
+                INSERT INTO booking_log (brugernavn, handling, dato, slot_index, booking_type, resultat, tidspunkt)
                 VALUES (%s,'admin_book',%s::date,%s::int,%s,'ok',NOW())
             """, (bnavn, dato, int(slot), btype))
-        except Exception as logerr:
-            print("booking_log skip:", logerr)
+        except Exception:
+            pass
 
         conn.commit()
-
     except Exception as e:
         conn.rollback()
-        print("Fejl admin_book_for_user:", e)
-        return redirect(url_for("admin_vis_brugere", fejl="Kunne ikke booke"))
+        print("Fejl admin-book:", e)
+        return redirect("/vis_brugere?fejl=Kunne+ikke+booke")
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
 
-    return redirect(url_for("admin_vis_brugere",
-                            besked=f"Booket for {bnavn} (id {bid})"))
+    return redirect(f"/vis_brugere?besked=Booket+for+{bnavn}+%28id+{bid}%29")
 
 
 # ===============
@@ -2750,6 +2200,7 @@ def bookinger_json():
         })
 
     return jsonify(result)
+
 
 def _safe_int(x):
     try:
@@ -3248,28 +2699,18 @@ def opret():
 
     return render_template("opret bruger.html")
 
-@app.route("/vis_brugere", methods=["GET"])
+@app.route("/vis_brugere")
 def vis_brugere():
-    if 'brugernavn' not in session:
-        return redirect('/login')
-
     conn = get_db_connection(); cur = conn.cursor()
-    brugere = []
     try:
-        # behold dit ensure_user_columns call
-        try:
-            ensure_user_columns(cur)
-            conn.commit()
-        except Exception as e:
-            print("ensure_user_columns:", e)
-
+        ensure_user_columns(cur); conn.commit()
         cur.execute("""
             SELECT brugernavn, kode, email, sms,
                    COALESCE(notifikation,'ja') AS notifikation,
-                   COALESCE(notif_email,'ja')  AS notif_email,
-                   COALESCE(notif_sms,'nej')   AS notif_sms,
-                   COALESCE(godkendt, TRUE)    AS godkendt
-            FROM public.brugere
+                   COALESCE(notif_email,'ja') AS notif_email,
+                   COALESCE(notif_sms,'nej')  AS notif_sms,
+                   COALESCE(godkendt, TRUE)   AS godkendt
+            FROM brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
@@ -3279,13 +2720,7 @@ def vis_brugere():
         try: cur.close(); conn.close()
         except Exception: pass
 
-    # send besked/fejl videre til din HTML (du har allerede alert-ok i toppen)
-    return render_template(
-        "vis_brugere.html",
-        brugere=brugere,
-        besked=request.args.get("besked") or "",
-        fejl=request.args.get("fejl") or ""
-    )
+    return render_template("vis_brugere.html", brugere=brugere)
 
 @app.route("/opret_bruger", methods=["POST"])
 def opret_bruger():
@@ -3353,121 +2788,41 @@ def godkend_bruger():
 
 @app.route("/opdater_bruger", methods=["POST"])
 def opdater_bruger():
-    if 'brugernavn' not in session:
-        return redirect("/login")
-
-    brugernavn  = (request.form.get("brugernavn") or "").strip()
-    adgangskode = (request.form.get("adgangskode") or "").strip()
-    email       = (request.form.get("email") or "").strip()
-    sms         = (request.form.get("sms") or "").strip()
-
-    if not brugernavn:
-        return redirect("/admin/brugere?fejl=Mangler+brugernavn")
-
-    # Normalisér tomme felter til None
-    email = email or None
-    sms   = sms or None
+    brugernavn   = (request.form.get("brugernavn") or "").strip()
+    adgangskode  = (request.form.get("adgangskode") or "").strip()
+    email        = (request.form.get("email") or "").strip() or None
+    sms          = (request.form.get("sms") or "").strip() or None
     if sms and not sms.startswith("+"):
         sms = "+45" + sms
 
-    # --- VIGTIGT: Brug getlist så hidden "nej" + checkbox "ja" virker korrekt ---
-    def truthy(v) -> bool:
-        if isinstance(v, bool):
-            return v
-        if v is None:
-            return False
-        return str(v).strip().lower() in {"1", "true", "on", "ja", "y", "yes"}
+    # checkbox linjen i HTML sender altid et skjult 'nej' + et 'ja' hvis kryds
+    notifikation = _ja_nej(_truthy(request.form.get("notifikation")))
+    notif_email  = _ja_nej(_truthy(request.form.get("notif_email")))
+    notif_sms    = _ja_nej(_truthy(request.form.get("notif_sms")))
+    godkendt     = _truthy(request.form.get("godkendt"))
 
-    def ja_nej_from_form(name: str) -> str:
-        vals = request.form.getlist(name)
-        if not vals:
-            # fallback til .get hvis kun én værdi findes
-            one = request.form.get(name)
-            vals = [one] if one is not None else []
-        # hvis nogen af værdierne er "sand", bliver det 'ja', ellers 'nej'
-        return "ja" if any(truthy(v) for v in vals) else "nej"
+    if not brugernavn:
+        return redirect("/vis_brugere?fejl=Mangler+brugernavn")
 
-    notifikation = ja_nej_from_form("notifikation")
-    notif_email  = ja_nej_from_form("notif_email")  # vis_brugere.html bruger dette navn
-    notif_sms    = ja_nej_from_form("notif_sms")
-
-    # Checkbox 'godkendt' (kan komme som hidden 0 + ev. 1)
-    godkendt_vals = request.form.getlist("godkendt")
-    godkendt = any(truthy(v) for v in godkendt_vals) if godkendt_vals else truthy(request.form.get("godkendt"))
-
-    conn = get_db_connection()
-    cur  = conn.cursor()
+    conn = get_db_connection(); cur = conn.cursor()
     try:
-        # Find hvilke kolonner der findes og deres typer
+        ensure_user_columns(cur)
         cur.execute("""
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name='brugere'
-        """)
-        cols = {name: dtype for (name, dtype) in cur.fetchall()}
-
-        set_parts = []
-        values    = []
-
-        # Hjælpere
-        def set_text_col(col: str, val):
-            if col in cols:
-                set_parts.append(f"{col} = %s")
-                values.append(val)
-
-        def set_bool_or_text(col: str, val_bool: bool, val_text: str):
-            dtype = cols.get(col)
-            if not dtype:
-                return
-            set_parts.append(f"{col} = %s")
-            # hvis kolonnen er boolean, skriv bool; ellers skriv "ja"/"nej"
-            if dtype == "boolean":
-                values.append(val_bool)
-            else:
-                values.append(val_text)
-
-        # kode – kun hvis udfyldt, ellers bevar eksisterende
-        if adgangskode:
-            set_text_col("kode", adgangskode)
-
-        # email/sms
-        set_text_col("email", email)
-        set_text_col("sms", sms)
-
-        # godkendt
-        set_bool_or_text("godkendt", bool(godkendt), "ja" if godkendt else "nej")
-
-        # master on/off
-        set_bool_or_text("notifikation", notifikation == "ja", notifikation)
-
-        # kanaler – understøt både notif_email og notif_mail hvis de findes
-        set_bool_or_text("notif_email", notif_email == "ja", notif_email)
-        set_bool_or_text("notif_mail",  notif_email == "ja", notif_email)  # ældre skema
-
-        set_bool_or_text("notif_sms",   notif_sms   == "ja", notif_sms)
-
-        if not set_parts:
-            cur.close(); conn.close()
-            return redirect("/admin/brugere?fejl=Ingen+felter+at+opdatere")
-
-        sql = f"UPDATE brugere SET {', '.join(set_parts)} WHERE LOWER(brugernavn)=LOWER(%s)"
-        values.append(brugernavn)
-
-        cur.execute(sql, values)
+            UPDATE brugere
+               SET kode=%s,
+                   email=%s,
+                   sms=%s,
+                   notifikation=%s,
+                   notif_email=%s,
+                   notif_sms=%s,
+                   godkendt=%s
+             WHERE brugernavn=%s
+        """, (adgangskode, email, sms, notifikation, notif_email, notif_sms, godkendt, brugernavn))
         conn.commit()
-        cur.close(); conn.close()
-        return redirect("/admin/brugere?besked=Bruger+opdateret")
-    except Exception as e:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        try:
-            cur.close(); conn.close()
-        except Exception:
-            pass
-        # valgfrit: log exception
-        return redirect("/admin/brugere?fejl=Opdatering+fejlede:+{}".format(type(e).__name__))
+    finally:
+        try: cur.close(); conn.close()
+        except Exception: pass
+    return redirect("/vis_brugere?besked=Gemt")
 
 @app.route("/godkend/<brugernavn>")
 def godkend_via_link(brugernavn):
@@ -3790,21 +3145,20 @@ def statistik():
     cur = conn.cursor()
 
     try:
-        # Hjælpetabeller (ændrer ikke eksisterende data)
-        try:
-            ensure_stat_support_tables(cur)
-            conn.commit()
-        except Exception:
-            # Hvis ensure_stat_support_tables ikke findes i ældre builds, ignorer roligt
-            conn.rollback()
+        # Sørg for hjælpe-tabeller (ændrer ikke eksisterende data)
+        ensure_stat_support_tables(cur)
+        conn.commit()
 
         # Periode: 30 dage bagud inkl. i dag
         cur.execute("SELECT (CURRENT_DATE - INTERVAL '29 days')::date, CURRENT_DATE::date")
         dfrom, dto = cur.fetchone()
+        # antal kalenderdage i vinduet
         day_count = (dto - dfrom).days + 1
+        # slots per dag i din løsning
         SLOTS_PER_DAY = 4
 
         # ========== KPI (30 dage) ==========
+        # Unikke (dato, slot) der er brugt af rigtige brugere (ikke 'service')
         cur.execute("""
             SELECT COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int)))
             FROM bookinger b
@@ -3813,6 +3167,7 @@ def statistik():
         """, (dfrom, dto))
         used_slots_30d = int(cur.fetchone()[0] or 0)
 
+        # Ikke brugt = auto_remove-hændelser i booking_log
         cur.execute("""
             SELECT COUNT(*)
             FROM booking_log
@@ -3840,6 +3195,7 @@ def statistik():
         """)
         unikke_brugere = int(cur.fetchone()[0] or 0)
 
+        # total_direkte – først statistik, ellers fallback på bookinger
         cur.execute("SELECT COALESCE(SUM(antal),0) FROM statistik WHERE type='direktetid'")
         total_direkte = int(cur.fetchone()[0] or 0)
         if total_direkte == 0:
@@ -3912,6 +3268,7 @@ def statistik():
             LIMIT 100
         """)
         rows = cur.fetchall() or []
+        from datetime import date as _date, datetime as _dt
         booking_log = []
         for (lid, bnavn, handling, d, slot, ts) in rows:
             d_fmt = d.strftime('%d-%m-%Y') if isinstance(d, (_date, _dt)) else (d or '')
@@ -3947,7 +3304,9 @@ def statistik():
         cur.execute("""
             SELECT to_char(tidspunkt,'YYYY-MM-DD HH24:MI') AS ts,
                 brugernavn, status,
+                -- RÅ IP + FULD UA + HASH
                 COALESCE(ip,''), COALESCE(enhed,''), COALESCE(ip_hash,''),
+                -- Udledte UA/geo felter
                 COALESCE(ua_browser,''), COALESCE(ua_os,''), COALESCE(ua_device,''),
                 COALESCE(ip_country,''), COALESCE(ip_region,''), COALESCE(ip_city,''), COALESCE(ip_org,''), COALESCE(ip_is_datacenter,false),
                 CASE WHEN LOWER(status) = 'ok' THEN 'OK' ELSE 'Afvist' END AS indikator_label,
@@ -3956,13 +3315,14 @@ def statistik():
             WHERE tidspunkt::date BETWEEN %s AND %s
             ORDER BY tidspunkt DESC
         """, (dfrom, dto))
+
         rows = cur.fetchall() or []
         logins_struct = [{
             "tidspunkt": r[0],
             "brugernavn": r[1],
             "status": r[2],
             "ip": r[3],
-            "enhed": r[4],
+            "enhed": r[4],            # fuld User-Agent
             "ip_hash": r[5],
             "ua_browser": r[6],
             "ua_os": r[7],
@@ -4031,6 +3391,7 @@ def statistik():
         ]
 
         # ========== Brugsmønstre – slots ==========
+        # Hent brugte pr. slot i perioden
         cur.execute("""
             SELECT CAST(b.slot_index AS int) AS s,
                    COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int))) AS cnt
@@ -4045,7 +3406,7 @@ def statistik():
         slot_overblik = []
         for s in range(0, SLOTS_PER_DAY):
             used = used_per_slot.get(s, 0)
-            possible = day_count
+            possible = day_count  # ét slot pr. dag
             not_used = max(0, possible - used)
             pct = round(100.0 * used / max(1, possible), 1)
             slot_overblik.append({
@@ -4056,6 +3417,7 @@ def statistik():
             })
 
         # ========== Brugsmønstre – ugedage ==========
+        # Find antal kalenderdage pr. ugedag i vinduet
         cur.execute("""
             WITH days AS (
               SELECT generate_series(%s::date, %s::date, INTERVAL '1 day')::date AS d
@@ -4067,6 +3429,7 @@ def statistik():
         """, (dfrom, dto))
         ndays_map = {int(dow): int(n) for (dow, n) in (cur.fetchall() or [])}
 
+        # Anvendte (dato,slot) per ugedag (distinct for at undgå dobbelttælling)
         cur.execute("""
             SELECT EXTRACT(DOW FROM b.dato_rigtig)::int AS dow,
                    COUNT(DISTINCT (b.dato_rigtig::date, CAST(b.slot_index AS int))) AS cnt
@@ -4078,6 +3441,7 @@ def statistik():
         """, (dfrom, dto))
         used_map = {int(dow): int(cnt) for (dow, cnt) in (cur.fetchall() or [])}
 
+        # Postgres: 0=Sunday..6=Saturday
         dow_labels = {0:"Søndag", 1:"Mandag", 2:"Tirsdag", 3:"Onsdag", 4:"Torsdag", 5:"Fredag", 6:"Lørdag"}
         weekday_overblik = []
         for pg_dow in range(0,7):
@@ -4130,56 +3494,13 @@ def statistik():
             "ikke_brugt_rate": float(r[3] or 0.0)
         } for r in (cur.fetchall() or [])]
 
-        # ========== HÅNDHÆVELSER (AUDIT) – seneste 50 ==========
-        try:
-            cur.execute("""
-                SELECT to_char(ts,'YYYY-MM-DD HH24:MI:SS') AS ts,
-                       event, slot_index, COALESCE(slot_text,''), COALESCE(booked_by,''), COALESCE(reason,''), COALESCE(note,'')
-                FROM enforcement_log
-                ORDER BY ts DESC
-                LIMIT 50
-            """)
-            enforcement = [{
-                "ts": r[0],
-                "event": r[1],
-                "slot_index": r[2],
-                "slot_text": r[3],
-                "booked_by": r[4],
-                "reason": r[5],
-                "note": r[6],
-            } for r in (cur.fetchall() or [])]
-        except Exception:
-            enforcement = []
-
-        # (Valgfrit) Seneste sletninger til korrelation – seneste 20
-        try:
-            cur.execute("""
-                SELECT to_char(ts,'YYYY-MM-DD HH24:MI:SS') AS ts, dato, slot_index, brugernavn
-                FROM recent_deletions
-                ORDER BY ts DESC
-                LIMIT 20
-            """)
-            recent_deletions = [{
-                "ts": r[0],
-                "dato": (r[1].strftime('%Y-%m-%d') if hasattr(r[1], 'strftime') else str(r[1])),
-                "slot_index": r[2],
-                "brugernavn": r[3],
-            } for r in (cur.fetchall() or [])]
-        except Exception:
-            recent_deletions = []
-
-        # Retention eksempler (lette og sikre)
-        try:
-            cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
-            cur.execute("DELETE FROM enforcement_log WHERE ts       < NOW() - INTERVAL '180 days'")
-            cur.execute("DELETE FROM recent_deletions WHERE ts      < NOW() - INTERVAL '7 days'")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        # ========== Retention for login_log (90 dage) ==========
+        cur.execute("DELETE FROM login_log WHERE tidspunkt < NOW() - INTERVAL '90 days'")
+        conn.commit()
 
     except Exception as e:
         conn.rollback()
-        raise
+        raise  # lad Flask logge fejlen, så vi kan se linjen i loggen
     finally:
         try:
             cur.close()
@@ -4207,10 +3528,7 @@ def statistik():
         logins=logins_struct,
         booking_log=booking_log,
         attempts_by_user_day=attempts_by_user_day,
-        attempts_over_2=attempts_over_2,
-        # Håndhævelser
-        enforcement=enforcement,
-        recent_deletions=recent_deletions
+        attempts_over_2=attempts_over_2
     )
 
 @app.get("/statistik_data")
@@ -4561,11 +3879,6 @@ def slet_bookinglog():
 def regler():
     next_url = request.args.get("next", "/index")
     return render_template("regler.html", next_url=next_url)
-
-@app.route("/betingelser")
-def betingelser():
-    next_url = request.args.get("next", "/login")
-    return render_template("betingelser.html", next_url=next_url)
 
 @app.route("/regler/direkte")
 def regler_direkte():
