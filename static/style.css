@@ -395,8 +395,6 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel:not(.toppanel--login){ min-height: 56px; position: fixed; }
 .toppanel:not(.toppanel--login) .top-left{ position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content:center; gap: 10px; z-index: 6000; }
 .toppanel:not(.toppanel--login) .top-left .hamburger{ position: relative !important; display: flex !important; flex-direction: column !important; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; background: transparent !important; border: none !important; box-shadow: none !important; }
-.toppanel:not(.toppanel--login) .top-left .hamburger-bar{ position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px; }
-.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ position: relative !important; left: auto !important; top: auto !important; transform: none !important; display: block; margin: 3px 0 0 0; width: 22px; height: 2px; border-radius: 2px; background: #fff; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{ margin-top: 5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar:first-child{ margin-top:0; }
@@ -617,4 +615,46 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 }
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(3){
   transform: translateX(-50%) translateY(-8px) rotate(-45deg) !important;
+}
+
+/* ================= INDEX FIX ================ */
+
+/* 1) Gør bars ABSOLUTE på index, så X-animationen virker */
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar,
+.toppanel:not(.toppanel--login) .hamburger .hamburger-bar{
+  position: absolute !important;
+  margin: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 22px !important;
+  height: 2px !important;
+  background: #fff !important;   /* hvide streger på index */
+  border-radius: 2px !important;
+  transition: transform .3s ease, opacity .3s ease !important;
+}
+
+/* Tre streger med faste top-placeringer */
+.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(1){ top: 12px !important; }
+.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(2){ top: 18px !important; }
+.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(3){ top: 24px !important; }
+
+/* X-animation (samme logik som global) */
+.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(1){
+  transform: translateX(-50%) translateY(6px) rotate(45deg) !important;
+}
+.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(2){
+  opacity: 0 !important;
+}
+.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(3){
+  transform: translateX(-50%) translateY(-6px) rotate(-45deg) !important;
+}
+
+/* 2) Sørg for at week-switch kan klikkes (status i midten skal ikke fange klik) */
+.toppanel .status.status-center{
+  pointer-events: none !important;   /* klik “går igennem” til knapperne */
+  z-index: 0 !important;             /* under week-switch */
+}
+.week-switch{
+  position: relative !important;
+  z-index: 6001 !important;
 }
