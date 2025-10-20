@@ -558,9 +558,9 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   height:3px !important; border-radius:3px !important;
   background:#000 !important;                               /* login-farve */
 }
-.toppanel--login .hamburger .hamburger-bar:nth-child(1){ top:14px !important; }
+.toppanel--login .hamburger .hamburger-bar:nth-child(1){ top:16px !important; }
 .toppanel--login .hamburger .hamburger-bar:nth-child(2){ top:22px !important; }
-.toppanel--login .hamburger .hamburger-bar:nth-child(3){ top:30px !important; }
+.toppanel--login .hamburger .hamburger-bar:nth-child(3){ top:28px !important; }
 
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(1){
   transform:translateX(-50%) translateY(8px) rotate(45deg) !important;
