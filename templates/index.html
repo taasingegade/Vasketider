@@ -196,10 +196,47 @@
   </main>
 
   <!-- FÆLLES menu-script -->
-  {{ '' }}
-  <!-- put this inline or serve it as /static/js/menu.js -->
-  (se filen ovenfor) 
-  {{ '' }}
+  <script>
+(function () {
+  function attach(opts) {
+    const sel = typeof opts === 'object' ? opts : {};
+    const buttonSel = sel.button || '#hamburger';
+    const drawerSel = sel.drawer || '#topMenu';
+    const activeClass = sel.activeClass || 'active';
+    const showClass   = sel.showClass   || 'show';
+
+    const btn   = document.querySelector(buttonSel);
+    const menu  = document.querySelector(drawerSel);
+    if (!btn || !menu) return;
+
+    const setOpen = (open) => {
+      btn.classList.toggle(activeClass, open);
+      menu.classList.toggle(showClass, open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(!menu.classList.contains(showClass));
+    });
+
+    // Luk ved klik udenfor
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+    }, true);
+
+    // Luk med Escape
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+
+    // Eksponér setOpen hvis du vil styre det andre steder
+    return { setOpen };
+  }
+
+  window.VasketiderMenu = { attach };
+})();
+</script>
 
   <!-- Brug det fælles attach-kald -->
   <script>
