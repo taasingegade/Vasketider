@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <title>Vasketider</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=fix1">
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
@@ -15,36 +17,20 @@
 </head>
 <body>
 
+  <!-- TOP -->
   <header class="toppanel" role="banner">
-  <div class="top-left">
-    <button class="hamburger"
-            id="indexHamburger"
-            type="button"
-            aria-label="Åbn menu"
-            aria-controls="indexTopMenu"
-            aria-expanded="false">
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-    </button>
-    <div class="brand"><a href="/index">Vasketider</a></div>
-  </div>
-
-    <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
-      <span class="status-label">🧺 Status:</span>
-      <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
-      <span class="status-sep">•</span>
-      <span class="status-eta" id="status-eta" style="display:none;"></span>
+    <div class="top-left">
+      <button class="hamburger" id="indexHamburger" type="button"
+              aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+      <div class="brand"><a href="/index">Vasketider</a></div>
     </div>
 
-      <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
-        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
-        <span class="week-label">Uge {{ valgt_uge }}</span>
-        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">Næste ▶</button>
-      </form>
-    
-
-    <nav class="topmenu" id="indexTopMenu" role="menu" aria-label="Hovedmenu">
+    <!-- Kun ét indexTopMenu pr. side -->
+    <nav id="indexTopMenu" class="topmenu" aria-hidden="true" aria-label="Hovedmenu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
       <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
       <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
@@ -53,6 +39,21 @@
     </nav>
   </header>
 
+  <!-- Status + uge-vælger udenfor header (klikbar) -->
+  <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
+    <span class="status-label">🧺 Status:</span>
+    <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
+    <span class="status-sep">•</span>
+    <span class="status-eta" id="status-eta" style="display:none;"></span>
+  </div>
+
+  <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
+    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
+    <span class="week-label">Uge {{ valgt_uge }}</span>
+    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">Næste ▶</button>
+  </form>
+
+  <!-- INDHOLD -->
   <main class="wrapper" role="main">
     <div class="main">
       <h2 class="page-title">Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
@@ -195,55 +196,56 @@
     </div>
   </main>
 
-  <!-- FÆLLES menu-script -->
+  <!-- FÆLLES menu-script: kun én attach -->
   <script>
-(function () {
-  function attach(opts) {
-    const btn  = document.querySelector(opts.button);
-    const menu = document.querySelector(opts.drawer);
-    if (!btn || !menu) return false;
+  (function () {
+    function attach(buttonSel, drawerSel) {
+      const btn  = document.querySelector(buttonSel);
+      const menu = document.querySelector(drawerSel);
+      if (!btn || !menu) return;
 
-    const activeClass = opts.activeClass || 'active';
-    const showClass   = opts.showClass   || 'show';
+      const setOpen = (open) => {
+        btn.classList.toggle('active', open);
+        menu.classList.toggle('show', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+      };
 
-    const setOpen = (open) => {
-      btn.classList.toggle(activeClass, open);
-      menu.classList.toggle(showClass, open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    };
+      if (btn.dataset.bound === '1') return; // undgå dobbelt-binding
+      btn.dataset.bound = '1';
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setOpen(!menu.classList.contains(showClass));
-    });
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(!menu.classList.contains('show'));
+      }, { passive:true });
 
-    document.addEventListener('click', (e) => {
-      if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
-    }, true);
+      document.addEventListener('click', (e) => {
+        const inside = btn.contains(e.target) || menu.contains(e.target);
+        if (!inside) setOpen(false);
+      });
 
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
-    return true;
-  }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setOpen(false);
+      });
 
-  // INITIALISÉR når DOM er klar – og prøv igen hvis scriptet lå øverst
-  function boot() {
-    attach({ button:'#indexHamburger', drawer:'#indexTopMenu' });
-    attach({ button:'#loginHamburger', drawer:'#loginMenu' });
-  }
+      setOpen(false);
+    }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-    // sikkerhedsnet: prøv igen efter et kort øjeblik hvis markuppen kommer senere
-    setTimeout(boot, 50);
-  }
+    function boot(){
+      attach('#indexHamburger', '#indexTopMenu');
+      // (login init er ikke nødvendig på index-siden)
+    }
 
-  // Eksponér hvis du vil kalde manuelt: window.VasketiderMenuAttach?.()
-  window.VasketiderMenuAttach = boot;
-})();
-</script>
-  <!-- Øvrig side-JS (uændret funktionelt) -->
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+      setTimeout(boot, 50);
+    }
+  })();
+  </script>
+
+  <!-- Øvrig side-JS (uændret) -->
   <script>
     function hentBookinger() {
       fetch('/bookinger_json')
@@ -270,10 +272,11 @@
       if (popupOK) setTimeout(() => { popupOK.style.display = 'none'; }, 3000);
       const popupErr = document.getElementById('popup-fejl');
       if (popupErr) setTimeout(() => { popupErr.style.display = 'none'; }, 4000);
-      renderETA();
-      setInterval(tickETA, 60000);
+      renderETA && renderETA();
+      setInterval(() => tickETA && tickETA(), 60000);
     };
   </script>
+
   <footer>© Hornsberg Group</footer>
 </body>
 </html>

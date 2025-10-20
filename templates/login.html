@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Login</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=fix1">
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
@@ -15,31 +17,30 @@
 </head>
 <body>
 
-<header class="toppanel toppanel--login" role="banner">
-  <div class="top-left">
-    <button class="hamburger"
-            id="loginHamburger"
-            type="button"
-            aria-label="Åbn menu"
-            aria-controls="loginMenu"
-            aria-expanded="false">
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-    </button>
-    <div class="brand"><a href="/">Vasketider</a></div>
-  </div>
+  <!-- TOP -->
+  <header class="toppanel toppanel--login" role="banner">
+    <div class="top-left">
+      <button class="hamburger" id="loginHamburger" type="button"
+              aria-label="Åbn menu" aria-controls="loginMenu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+      <div class="brand"><a href="/">Vasketider</a></div>
+    </div>
 
-    <nav class="login-menu" id="loginMenu" role="menu" aria-hidden="true">
-    <a href="/login"     class="toppanel-knap" role="menuitem">Log ind</a>
-    <a href="/opret"     class="toppanel-knap" role="menuitem">Opret ny bruger</a>
-    <a href="/skiftkode" class="toppanel-knap" role="menuitem">Skift adgangskode</a>
-    <a href="/regler"    class="toppanel-knap" role="menuitem">Regler</a>
-    <a href="/vilkaar"   class="toppanel-knap" role="menuitem">Brugervilkår</a>
-  </nav>
-</header>
+    <!-- Kun ét loginMenu pr. side -->
+    <nav id="loginMenu" class="login-menu" aria-hidden="true" aria-label="Loginmenu">
+      <a href="/login"     class="toppanel-knap">Log ind</a>
+      <a href="/opret"     class="toppanel-knap">Opret ny bruger</a>
+      <a href="/skiftkode" class="toppanel-knap">Skift adgangskode</a>
+      <a href="/regler"    class="toppanel-knap">Regler</a>
+      <a href="/vilkaar"   class="toppanel-knap">Brugervilkår</a>
+    </nav>
+  </header>
 
-  <div class="auth-wrap" role="main">
+  <!-- INDHOLD -->
+  <main class="auth-wrap" role="main">
     <div class="auth-box">
       <h2>Log ind</h2>
 
@@ -61,8 +62,9 @@
         <button type="submit" class="glass-btn">Log ind</button>
       </form>
     </div>
-  </div>
+  </main>
 
+  <!-- FOOTER -->
   <footer class="footer">
     <span class="footer-left">Powered by © Hornsberg Group</span>
     <ul class="socials">
@@ -90,53 +92,53 @@
     </ul>
   </footer>
 
-  <!-- FÆLLES menu-script -->
-<script>
-(function () {
-  function attach(opts) {
-    const btn  = document.querySelector(opts.button);
-    const menu = document.querySelector(opts.drawer);
-    if (!btn || !menu) return false;
+  <!-- FÆLLES menu-script: kun én attach -->
+  <script>
+  (function () {
+    function attach(buttonSel, drawerSel) {
+      const btn  = document.querySelector(buttonSel);
+      const menu = document.querySelector(drawerSel);
+      if (!btn || !menu) return;
 
-    const activeClass = opts.activeClass || 'active';
-    const showClass   = opts.showClass   || 'show';
+      const setOpen = (open) => {
+        btn.classList.toggle('active', open);
+        menu.classList.toggle('show', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+      };
 
-    const setOpen = (open) => {
-      btn.classList.toggle(activeClass, open);
-      menu.classList.toggle(showClass, open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    };
+      if (btn.dataset.bound === '1') return; // undgå dobbelt-binding
+      btn.dataset.bound = '1';
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setOpen(!menu.classList.contains(showClass));
-    });
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(!menu.classList.contains('show'));
+      }, { passive:true });
 
-    document.addEventListener('click', (e) => {
-      if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
-    }, true);
+      document.addEventListener('click', (e) => {
+        const inside = btn.contains(e.target) || menu.contains(e.target);
+        if (!inside) setOpen(false);
+      });
 
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
-    return true;
-  }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setOpen(false);
+      });
 
-  // INITIALISÉR når DOM er klar – og prøv igen hvis scriptet lå øverst
-  function boot() {
-    attach({ button:'#indexHamburger', drawer:'#indexTopMenu' });
-    attach({ button:'#loginHamburger', drawer:'#loginMenu' });
-  }
+      setOpen(false);
+    }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-    // sikkerhedsnet: prøv igen efter et kort øjeblik hvis markuppen kommer senere
-    setTimeout(boot, 50);
-  }
+    function boot(){
+      attach('#loginHamburger', '#loginMenu');
+      // (index init er ikke nødvendig på login-siden)
+    }
 
-  // Eksponér hvis du vil kalde manuelt: window.VasketiderMenuAttach?.()
-  window.VasketiderMenuAttach = boot;
-})();
-</script>
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+      setTimeout(boot, 50);
+    }
+  })();
+  </script>
 </body>
 </html>
