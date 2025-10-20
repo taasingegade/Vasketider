@@ -101,7 +101,7 @@ a{ color:inherit; }
 .top-right .week-label{ font-weight:600; }
 
 /* Hvis du allerede har en .week-switch, genbrug stilen */
-.week-switch{ margin:0; z-index: 6001; }
+.week-switch{ margin:0; z-index: 6501; }
 .toppanel-select{
   height:38px; padding:6px 12px; border-radius:10px;
   border:1px solid rgba(255,255,255,0.35);
@@ -361,8 +361,8 @@ button.hamburger{
 /* Venstre side (INDEX): menu starter ved venstre kant af wrapperen/knappen */
 .top-left .topmenu{ left: 0 !important; right: auto !important; }
 
-/* Højre side (LOGIN): menu starter ved højre kant */
-.top-right .login-menu{ right: 0 !important; left: auto !important; }
+/* Venstre side (LOGIN): menu starter ved højre kant */
+.top-right .login-menu{ left: 0 !important; right: auto !important; }
 
 .topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.9); }
 
