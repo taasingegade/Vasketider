@@ -91,100 +91,69 @@
   </footer>
 
   <!-- FÆLLES menu-script -->
-  <script>
+<script>
 (function () {
-  function attach(opts) {
-    const sel = typeof opts === 'object' ? opts : {};
-    const buttonSel = sel.button || '#hamburger';
-    const drawerSel = sel.drawer || '#topMenu';
-    const activeClass = sel.activeClass || 'active';
-    const showClass   = sel.showClass   || 'show';
-
-    const btn   = document.querySelector(buttonSel);
-    const menu  = document.querySelector(drawerSel);
+  function attachOne(btn, menu, activeClass = 'active', showClass = 'show') {
     if (!btn || !menu) return;
+    if (btn.dataset.bound === '1') return;     // undgå dobbelte handlers
+    btn.dataset.bound = '1';
 
     const setOpen = (open) => {
       btn.classList.toggle(activeClass, open);
       menu.classList.toggle(showClass, open);
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menu.setAttribute('aria-hidden', open ? 'false' : 'true');
     };
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       setOpen(!menu.classList.contains(showClass));
-    });
+    }, { passive: true });
 
-    // Luk ved klik udenfor
+    // klik udenfor => luk
     document.addEventListener('click', (e) => {
       if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
-    }, true);
+    });
 
-    // Luk med Escape
-    window.addEventListener('keydown', (e) => {
+    // Esc => luk
+    document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') setOpen(false);
     });
 
-    // Eksponér setOpen hvis du vil styre det andre steder
-    return { setOpen };
+    // initial ARIA
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  }
+
+  // Offentlig API (hvis du vil binde specifikt)
+  function attach(opts = {}) {
+    const buttonSel = opts.button || '#hamburger';
+    const drawerSel = opts.drawer || '#topMenu';
+    const active    = opts.activeClass || 'active';
+    const show      = opts.showClass   || 'show';
+    const btn  = document.querySelector(buttonSel);
+    const menu = document.querySelector(drawerSel);
+    attachOne(btn, menu, active, show);
+    return { setOpen: (open) => attachOne(btn, menu, active, show) };
+  }
+
+  // Auto-bind ALLE hamburgere på siden, når DOM er klar
+  function autoBindAll() {
+    document.querySelectorAll('.hamburger[aria-controls]').forEach((btn) => {
+      const id = btn.getAttribute('aria-controls');
+      const menu = document.getElementById(id);
+      attachOne(btn, menu);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoBindAll);
+  } else {
+    autoBindAll();
   }
 
   window.VasketiderMenu = { attach };
 })();
 </script>
-
-  <!-- Slå toggling til for login -->
-  <script>
-    window.VasketiderMenu?.attach({
-      button: '#loginHamburger',
-      drawer: '#loginMenu'
-    });
-
-    // Husk-mig logik (som før), men uden at blande sig i menuen:
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const form = document.getElementById('loginForm');
-      const u = document.getElementById('brugernavn');
-      const p = document.getElementById('kode');
-      const chk = document.getElementById('huskMig');
-
-      if (!form) return;
-
-      form.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
-      });
-
-      const su = localStorage.getItem('vasketid_user');
-      const sp = localStorage.getItem('vasketid_pass');
-      if (su) {
-        u.value = su;
-        if (su.toLowerCase() !== 'admin' && sp) {
-          p.value = sp;
-          chk.checked = true;
-        }
-      }
-
-      form.addEventListener('submit', ()=>{
-        const userLower = (u.value || '').toLowerCase();
-        if (chk.checked) {
-          localStorage.setItem('vasketid_user', u.value);
-          if (userLower !== 'admin') {
-            localStorage.setItem('vasketid_pass', p.value);
-          } else {
-            localStorage.removeItem('vasketid_pass');
-          }
-        } else {
-          localStorage.removeItem('vasketid_user');
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
-
-      u.addEventListener('input', ()=>{
-        if ((u.value || '').toLowerCase() === 'admin') {
-          chk.checked = false;
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
-    });
-  </script>
 </body>
 </html>
