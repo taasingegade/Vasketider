@@ -153,7 +153,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
 .toppanel--login .login-menu{ position: absolute !important; right: 12px !important; top: 56px !important; display: none; z-index: 6500 !important; min-width: 220px; flex-direction: column; gap: 8px; padding: 10px; background: rgba(255,255,255,0.95); color: #111; border-radius: 10px; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .toppanel--login .hamburger:hover{ filter:brightness(.85) !important; }
-.toppanel--login .hamburger-bar{ position: relative !important; display: block; margin: 3px 0 0 0; width: 22px !important; height: 3px !important; background: #000 !important; border-radius: 3px !important; box-shadow: none !important; }
+
 .login-menu.show{ display:flex !important; flex-direction:column; gap:8px; }
 .login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
 .login-menu .toppanel-knap:hover { color: #000; background: rgba(255,255,255,0.85); }
@@ -395,16 +395,6 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel:not(.toppanel--login){ min-height: 56px; position: fixed; }
 .toppanel:not(.toppanel--login) .top-left{ position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content:center; gap: 10px; z-index: 6000; }
 .toppanel:not(.toppanel--login) .top-left .hamburger{ position: relative !important; display: flex !important; flex-direction: column !important; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; background: transparent !important; border: none !important; box-shadow: none !important; }
-.toppanel:not(.toppanel--login) .top-left .hamburger-bar{ position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px; }
-.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ position: relative !important; left: auto !important; top: auto !important; transform: none !important; display: block; margin: 3px 0 0 0; width: 22px; height: 2px; border-radius: 2px; background: #fff; }
-.toppanel--login .hamburger::before{ content:""; display:block; width:22px; height:22px;
-  background:
-    linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 6.7px) / 22px 3px, /* top */
-    linear-gradient(currentColor,currentColor) no-repeat center / 22px 3px,                   /* midt */
-    linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 6.5px) / 22px 3px; /* bund */
-  border-radius:2px; }
-.toppanel--login .hamburger .hamburger-bar{ display:none !important; }
-.toppanel--login .hamburger > span{ display:none !important; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{ margin-top: 5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar:first-child{ margin-top:0; }
@@ -522,3 +512,58 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
     --size-optaget-h: 48px;
   }
 }
+
+/* ================= FINAL HAMBURGER + INDEX MENU PATCH ================= */
+
+/* Fælles knap + bars */
+.hamburger{
+  position:relative; width:44px; height:44px; border-radius:10px;
+  background:transparent; border:1px solid var(--glass-brd, rgba(255,255,255,.35));
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:transform .15s, background .15s, border-color .15s;
+}
+.hamburger:hover{ background:var(--glass-bg-hover, rgba(255,255,255,.18)); transform:translateY(-1px); }
+.hamburger:focus-visible{ outline:none; box-shadow:var(--focus); }
+
+/* Bars: ALTID absolut + centreret vandret */
+.hamburger .hamburger-bar{
+  position:absolute !important;
+  left:50% !important;
+  transform:translateX(-50%) !important;
+  width:22px; height:2px; border-radius:2px;
+  transition:transform .30s ease, opacity .30s ease !important;
+  opacity:1 !important;
+}
+/* Placeringer (samme begge steder) */
+.hamburger .hamburger-bar:nth-child(1){ top:12px !important; }
+.hamburger .hamburger-bar:nth-child(2){ top:18px !important; }
+.hamburger .hamburger-bar:nth-child(3){ top:24px !important; }
+
+/* Aktiv/X – bevar altid translateX(-50%) */
+.hamburger.active .hamburger-bar:nth-child(1){
+  transform:translateX(-50%) translateY(6px) rotate(45deg) !important;
+}
+.hamburger.active .hamburger-bar:nth-child(2){
+  opacity:0 !important; transform:translateX(-50%) scaleX(.6) !important;
+}
+.hamburger.active .hamburger-bar:nth-child(3){
+  transform:translateX(-50%) translateY(-6px) rotate(-45deg) !important;
+}
+
+/* Farver: login = sort, index = hvid */
+.toppanel--login .hamburger .hamburger-bar{ background:#000 !important; height:3px !important; border-radius:3px !important; }
+.toppanel:not(.toppanel--login) .hamburger .hamburger-bar{ background:#fff !important; height:2px !important; border-radius:2px !important; }
+
+/* Index: sørg for at menu kan ses + høj z-index */
+.toppanel{ overflow:visible !important; }
+#indexTopMenu{
+  position:absolute !important; left:12px !important; top:56px !important;
+  display:none;
+  z-index:9000 !important;
+}
+#indexTopMenu.show{ display:flex !important; }
+
+/* Ugeknapper må ikke blokeres af statusfeltet i midten */
+.toppanel .status.status-center{ pointer-events:none !important; z-index:0 !important; }
+.week-switch{ position:relative !important; z-index:9001 !important; }
+.week-switch button{ pointer-events:auto !important; }

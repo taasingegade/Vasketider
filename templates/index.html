@@ -1,49 +1,58 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="utf-8">
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <meta charset="UTF-8">
   <title>Vasketider</title>
-  <link rel="manifest" href="/static/manifest.json">
-  <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/service-worker.js');
+      navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
     }
   </script>
 </head>
 <body>
 
   <header class="toppanel" role="banner">
-    <div class="top-left">
-      <button class="hamburger" type="button" aria-label="Åbn menu"
-          onclick="document.querySelector('.topmenu').classList.toggle('show')">
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-  </button>
-    </div>
-  <div class="topmenu" role="menu" aria-label="Hovedmenu">
-    <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
-    <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
-    <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
-    <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
-    <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
+  <div class="top-left">
+    <button class="hamburger"
+            id="indexHamburger"
+            type="button"
+            aria-label="Åbn menu"
+            aria-controls="indexTopMenu"
+            aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+    <div class="brand"><a href="/index">Vasketider</a></div>
   </div>
-    
-      <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
-        <span class="status-label">🧺 Status:</span>
-        <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
-        <span class="status-sep">•</span>
-        <span class="status-eta" id="status-eta" style="display:none;"></span>
-      </div>
 
-  <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
-    <span class="week-label">Uge {{ valgt_uge }}</span>
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
-  </form>
-</header>
+    <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
+      <span class="status-label">🧺 Status:</span>
+      <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
+      <span class="status-sep">•</span>
+      <span class="status-eta" id="status-eta" style="display:none;"></span>
+    </div>
+
+    <div class="week-switch">
+      <form method="get" action="/index">
+        <button class="toppanel-knap" type="submit" name="week" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
+        <span class="week-label">Uge {{ valgt_uge }}</span>
+        <button class="toppanel-knap" type="submit" name="week" value="{{ valgt_uge + 1 }}">Næste ▶</button>
+      </form>
+    </div>
+
+    <nav class="topmenu" id="indexTopMenu" role="menu" aria-label="Hovedmenu">
+      <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
+      <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
+      <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
+      <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
+      <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
+    </nav>
+  </header>
 
   <main class="wrapper" role="main">
     <div class="main">
@@ -80,7 +89,6 @@
             {% set cell = bookinger.get((dato, i)) %}
 
             <div class="cell-inner">
-              {# 1) Fuldt booket #}
               {% if cell and cell.full %}
                 {% set f = cell.full %}
                 {% if f and f.navn == 'service' %}
@@ -95,14 +103,11 @@
                 {% else %}
                   <button class="slot-btn optaget" disabled>{{ f.navn }}</button>
                 {% endif %}
-
               {% else %}
-                {# 2) Halvt booket? #}
                 {% set has_early = cell and (cell.early is not none) %}
                 {% set has_late  = cell and (cell.late  is not none) %}
-                {% set both_taken = has_early and has_late %}
 
-                {% if not both_taken %}
+                {% if not (has_early and has_late) %}
                   <details class="split-details {% if (cell and cell.early and cell.early.navn=='service') or (cell and cell.late and cell.late.navn=='service') %}service{% else %}ledig{% endif %}">
                     <summary>Ledig</summary>
                     <div class="split-panel">
@@ -191,24 +196,59 @@
     </div>
   </main>
 
+  <!-- FÆLLES menu-script -->
   <script>
-    const burger = document.getElementById('hamburger');
-    const drawer = document.getElementById('navDrawer');
-    const scrim  = document.getElementById('navScrim');
-    if (burger && drawer && scrim){
-      const toggle = () => {
-        const open = !drawer.classList.contains('open');
-        drawer.classList.toggle('open', open);
-        scrim.classList.toggle('show', open);
-        scrim.hidden = !open;
-        burger.classList.toggle('is-open', open);
-        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
-      };
-      burger.addEventListener('click', toggle);
-      scrim.addEventListener('click', toggle);
-    }
+(function () {
+  function attach(opts) {
+    const sel = typeof opts === 'object' ? opts : {};
+    const buttonSel = sel.button || '#hamburger';
+    const drawerSel = sel.drawer || '#topMenu';
+    const activeClass = sel.activeClass || 'active';
+    const showClass   = sel.showClass   || 'show';
 
+    const btn   = document.querySelector(buttonSel);
+    const menu  = document.querySelector(drawerSel);
+    if (!btn || !menu) return;
+
+    const setOpen = (open) => {
+      btn.classList.toggle(activeClass, open);
+      menu.classList.toggle(showClass, open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(!menu.classList.contains(showClass));
+    });
+
+    // Luk ved klik udenfor
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+    }, true);
+
+    // Luk med Escape
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+
+    // Eksponér setOpen hvis du vil styre det andre steder
+    return { setOpen };
+  }
+
+  window.VasketiderMenu = { attach };
+})();
+</script>
+
+  <!-- Brug det fælles attach-kald -->
+  <script>
+    window.VasketiderMenu?.attach({
+      button: '#indexHamburger',
+      drawer: '#indexTopMenu'
+    });
+  </script>
+
+  <!-- Øvrig side-JS (uændret funktionelt) -->
+  <script>
     function hentBookinger() {
       fetch('/bookinger_json')
         .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
@@ -265,12 +305,58 @@
     };
   </script>
 <script>
-  document.addEventListener('click', (e)=>{
-    const menu = document.querySelector('.topmenu');
-    const btn  = document.querySelector('.hamburger');
-    if (!menu || !btn) return;
-    if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.remove('show');
+(function(){
+  const btn  = document.getElementById('indexHamburger');
+  const menu = document.getElementById('indexTopMenu');
+  if (!btn || !menu) return;
+
+  function setOpen(open){
+    btn.classList.toggle('active', open);
+    menu.classList.toggle('show', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  btn.addEventListener('click', (e)=>{ e.stopPropagation(); setOpen(!menu.classList.contains('show')); });
+  document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false); }, true);
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  const btn  = document.getElementById('indexHamburger');
+  const menu = document.getElementById('indexTopMenu');
+  if (!btn || !menu) return;
+
+  // Nulstil evt. gamle handlers
+  btn.onclick = null;
+
+  function setOpen(open){
+    btn.classList.toggle('active', open);
+    menu.classList.toggle('show', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  // Toggle
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    setOpen(!menu.classList.contains('show'));
   });
+
+  // Luk ved klik udenfor
+  document.addEventListener('click', (e)=>{
+    if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+  }, true);
+
+  // Luk ved Escape
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setOpen(false); });
+
+  // Sikr at ugeknapper sender formen (nogle globale lyttere kan stoppe det)
+  document.querySelectorAll('.week-switch button[type="submit"]').forEach(b=>{
+    b.addEventListener('click', (ev)=>{
+      ev.stopPropagation(); // så klik-udenfor-lytteren ikke lukker noget ned
+      // Lad default form-submit ske (IKKE preventDefault)
+    });
+  });
+})();
 </script>
   <footer>© Hornsberg Group</footer>
 </body>
