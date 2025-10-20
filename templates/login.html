@@ -15,23 +15,29 @@
 </head>
 <body>
 
-  <header class="toppanel toppanel--login" role="banner">
-    <div class="brand">Velkommen til Vasketider</div>
+<header class="toppanel toppanel--login" role="banner">
+  <div class="top-left">
+    <button class="hamburger"
+            id="loginHamburger"
+            type="button"
+            aria-label="Åbn menu"
+            aria-controls="loginMenu"
+            aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+    <div class="brand"><a href="/">Vasketider</a></div>
+  </div>
 
-  <button class="hamburger right" id="loginHamburger" type="button">
-  <span class="hamburger-bar"></span>
-  <span class="hamburger-bar"></span>
-  <span class="hamburger-bar"></span>
-  </button>
-
-    <nav class="login-menu" id="loginMenu" role="navigation" aria-label="Login menu">
-      <a class="toppanel-knap" href="/login">Log ind</a>
-      <a class="toppanel-knap" href="/opret">Opret ny bruger</a>
-      <a class="toppanel-knap" href="/skiftkode">Skift adgangskode</a>
-      <a class="toppanel-knap" href="/regler">Regler</a>
-      <a class="toppanel-knap" href="/betingelser">Brugervilkår</a>
-    </nav>
-  </header>
+    <nav class="login-menu" id="loginMenu" role="menu" aria-hidden="true">
+    <a href="/login"     class="toppanel-knap" role="menuitem">Log ind</a>
+    <a href="/opret"     class="toppanel-knap" role="menuitem">Opret ny bruger</a>
+    <a href="/skiftkode" class="toppanel-knap" role="menuitem">Skift adgangskode</a>
+    <a href="/regler"    class="toppanel-knap" role="menuitem">Regler</a>
+    <a href="/vilkaar"   class="toppanel-knap" role="menuitem">Brugervilkår</a>
+  </nav>
+</header>
 
   <div class="auth-wrap" role="main">
     <div class="auth-box">
