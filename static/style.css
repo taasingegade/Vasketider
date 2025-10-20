@@ -513,57 +513,67 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   }
 }
 
-/* ================= FINAL HAMBURGER + INDEX MENU PATCH ================= */
-
-/* Fælles knap + bars */
-.hamburger{
-  position:relative; width:44px; height:44px; border-radius:10px;
-  background:transparent; border:1px solid var(--glass-brd, rgba(255,255,255,.35));
-  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
-  transition:transform .15s, background .15s, border-color .15s;
+/* ===================== HAMBURGER – ENHEDLIG IMPLEMENTERING ===================== */
+/* 0) Sluk ALT pseudo-element/eksperimentelt fusk der laver streger/X */
+.hamburger::before,
+.hamburger::after,
+.toppanel--login .hamburger::before,
+.toppanel--login .hamburger::after {
+  content: none !important;
 }
-.hamburger:hover{ background:var(--glass-bg-hover, rgba(255,255,255,.18)); transform:translateY(-1px); }
-.hamburger:focus-visible{ outline:none; box-shadow:var(--focus); }
 
-/* Bars: ALTID absolut + centreret vandret */
+/* 1) Grundknap (lad dit eksisterende look blive) */
+.hamburger{
+  position:relative;
+  width:44px; height:44px;
+  border-radius:10px;
+  background:transparent;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  border: none; /* undgå dobbeltkanter forskellige steder */
+}
+
+/* 2) ALLE tre streger er <span class="hamburger-bar"> – vis dem altid */
 .hamburger .hamburger-bar{
+  display:block !important;
   position:absolute !important;
   left:50% !important;
   transform:translateX(-50%) !important;
-  width:22px; height:2px; border-radius:2px;
+  width:22px !important;
+  height:2px !important;
+  background:#fff !important;     /* hvid på index */
+  border-radius:2px !important;
   transition:transform .30s ease, opacity .30s ease !important;
-  opacity:1 !important;
+  box-shadow:none !important;
+  margin:0 !important;
 }
-/* Placeringer (samme begge steder) */
+
+/* 3) Placering af de tre linjer */
 .hamburger .hamburger-bar:nth-child(1){ top:12px !important; }
 .hamburger .hamburger-bar:nth-child(2){ top:18px !important; }
 .hamburger .hamburger-bar:nth-child(3){ top:24px !important; }
 
-/* Aktiv/X – bevar altid translateX(-50%) */
+/* 4) X-animation (fælles) */
 .hamburger.active .hamburger-bar:nth-child(1){
-  transform:translateX(-50%) translateY(6px) rotate(45deg) !important;
+  transform: translateX(-50%) translateY(6px) rotate(45deg) !important;
 }
 .hamburger.active .hamburger-bar:nth-child(2){
-  opacity:0 !important; transform:translateX(-50%) scaleX(.6) !important;
+  opacity: 0 !important;
 }
 .hamburger.active .hamburger-bar:nth-child(3){
-  transform:translateX(-50%) translateY(-6px) rotate(-45deg) !important;
+  transform: translateX(-50%) translateY(-6px) rotate(-45deg) !important;
 }
 
-/* Farver: login = sort, index = hvid */
-.toppanel--login .hamburger .hamburger-bar{ background:#000 !important; height:3px !important; border-radius:3px !important; }
-.toppanel:not(.toppanel--login) .hamburger .hamburger-bar{ background:#fff !important; height:2px !important; border-radius:2px !important; }
-
-/* Index: sørg for at menu kan ses + høj z-index */
-.toppanel{ overflow:visible !important; }
-#indexTopMenu{
-  position:absolute !important; left:12px !important; top:56px !important;
-  display:none;
-  z-index:9000 !important;
+/* 5) Login-variant: sorte, lidt tykkere streger – ellers samme geometri */
+.toppanel--login .hamburger .hamburger-bar{
+  background:#000 !important;
+  height:3px !important;
+  border-radius:3px !important;
 }
-#indexTopMenu.show{ display:flex !important; }
 
-/* Ugeknapper må ikke blokeres af statusfeltet i midten */
-.toppanel .status.status-center{ pointer-events:none !important; z-index:0 !important; }
-.week-switch{ position:relative !important; z-index:9001 !important; }
-.week-switch button{ pointer-events:auto !important; }
+/* 6) Sørg for at topbaren ikke klipper dropdown, og at menuen ligger over */
+.toppanel{ overflow: visible !important; }
+.topmenu, .login-menu{ z-index: 9000 !important; }
+
+/* 7) Klik udenfor skal kunne lukke (menuer må kunne modtage klik) */
+.topmenu.show, .login-menu.show { display:flex !important; }

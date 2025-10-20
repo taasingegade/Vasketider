@@ -37,13 +37,12 @@
       <span class="status-eta" id="status-eta" style="display:none;"></span>
     </div>
 
-    <div class="week-switch">
-      <form method="get" action="/index">
-        <button class="toppanel-knap" type="submit" name="week" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
+      <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
+        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
         <span class="week-label">Uge {{ valgt_uge }}</span>
-        <button class="toppanel-knap" type="submit" name="week" value="{{ valgt_uge + 1 }}">Næste ▶</button>
+        <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">Næste ▶</button>
       </form>
-    </div>
+    
 
     <nav class="topmenu" id="indexTopMenu" role="menu" aria-label="Hovedmenu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
