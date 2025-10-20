@@ -153,7 +153,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
 .toppanel--login .login-menu{ position: absolute !important; right: 12px !important; top: 56px !important; display: none; z-index: 6500 !important; min-width: 220px; flex-direction: column; gap: 8px; padding: 10px; background: rgba(255,255,255,0.95); color: #111; border-radius: 10px; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .toppanel--login .hamburger:hover{ filter:brightness(.85) !important; }
-.toppanel--login .hamburger-bar{ position: relative !important; display: block; margin: 3px 0 0 0; width: 22px !important; height: 3px !important; background: #000 !important; border-radius: 3px !important; box-shadow: none !important; }
+
 .login-menu.show{ display:flex !important; flex-direction:column; gap:8px; }
 .login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
 .login-menu .toppanel-knap:hover { color: #000; background: rgba(255,255,255,0.85); }
@@ -543,7 +543,6 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 
 /* Login: sorte streger (bevar glaslook, ingen ::before) */
 .toppanel--login .hamburger{ border:none; box-shadow:none; }
-.toppanel--login .hamburger .hamburger-bar{ background:#000 !important; height:3px !important; border-radius:3px !important; }
 
 /* Index: placering venstre */
 .toppanel:not(.toppanel--login){ min-height:56px; position:fixed; left:0; right:0; top:0; z-index:5000; }
