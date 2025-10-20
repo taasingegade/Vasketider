@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="utf-8">
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <meta charset="UTF-8">
   <title>Vasketider</title>
-  <link rel="manifest" href="/static/manifest.json">
-  <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/service-worker.js');
+      navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
     }
   </script>
 </head>
@@ -16,20 +17,13 @@
 
   <header class="toppanel" role="banner">
     <div class="top-left">
-      <button class="hamburger" type="button" aria-label="Åbn menu"
-          onclick="document.querySelector('.topmenu').classList.toggle('show')">
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-  </button>
+      <button class="hamburger" id="indexHamburger" type="button" aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+      <div class="brand"><a href="/index">Vasketider</a></div>
     </div>
-  <div class="topmenu" role="menu" aria-label="Hovedmenu">
-    <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
-    <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
-    <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
-    <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
-    <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
-  </div>
     
       <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
         <span class="status-label">🧺 Status:</span>
@@ -38,12 +32,21 @@
         <span class="status-eta" id="status-eta" style="display:none;"></span>
       </div>
 
-  <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
-    <span class="week-label">Uge {{ valgt_uge }}</span>
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}" aria-label="Næste uge">▶</button>
-  </form>
-</header>
+    <div class="week-switch">
+      <form method="get" action="/index">
+        <button class="toppanel-knap" name="week" value="{{ prev_week }}">◀ Forrige</button>
+        <button class="toppanel-knap" name="week" value="{{ next_week }}">Næste ▶</button>
+      </form>
+    </div>
+
+    <nav class="topmenu" id="indexTopMenu" role="menu" aria-label="Hovedmenu">
+      <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
+      <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
+      <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
+      <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
+      <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
+    </nav>
+  </header>
 
   <main class="wrapper" role="main">
     <div class="main">
@@ -270,6 +273,14 @@
     const btn  = document.querySelector('.hamburger');
     if (!menu || !btn) return;
     if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.remove('show');
+  });
+</script>
+<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+<script>
+  window.VasketiderMenu?.attach({
+    button:  '#indexHamburger',
+    drawer:  '#indexTopMenu',
+    closeOnRouteChange: true
   });
 </script>
   <footer>© Hornsberg Group</footer>

@@ -522,3 +522,90 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
     --size-optaget-h: 48px;
   }
 }
+
+/* =========================================================
+   HAMBURGER & TOPMENU — APPEND-ONLY (ikke-destruktiv)
+   ========================================================= */
+
+/* Gør knappen let at style og klikke på (uden at ændre eksisterende tema) */
+.hamburger{
+  position:relative;
+  width:44px; height:44px;
+  border-radius:10px;
+  background:transparent;
+  border:1px solid var(--glass-brd, rgba(255,255,255,0.35));
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.hamburger:hover{ background:var(--glass-bg-hover, rgba(255,255,255,0.18)); transform:translateY(-1px); }
+.hamburger:focus-visible{
+  outline:none;
+  box-shadow: var(--focus, 0 0 0 2px #fff,0 0 0 4px rgba(106,160,255,.95));
+}
+
+/* De tre streger */
+.hamburger-bar{
+  position:absolute; left:50%; transform:translateX(-50%);
+  width:22px; height:2px; background:#fff; border-radius:2px;
+  transition:transform .3s ease, opacity .3s ease;
+}
+.hamburger-bar:nth-child(1){ top:12px; }
+.hamburger-bar:nth-child(2){ top:18px; }
+.hamburger-bar:nth-child(3){ top:24px; }
+
+/* X-animation når menu er åben */
+.hamburger.active .hamburger-bar:nth-child(1){ transform:translateX(-50%) translateY(6px) rotate(45deg); }
+.hamburger.active .hamburger-bar:nth-child(2){ opacity:0; }
+.hamburger.active .hamburger-bar:nth-child(3){ transform:translateX(-50%) translateY(-6px) rotate(-45deg); }
+
+/* INDEX: venstre-placeret hamburger i .top-left (bevarer dit tema) */
+.toppanel:not(.toppanel--login) .top-left .hamburger{
+  border:none; /* din topbar er glas – lad knappen være ren */
+  box-shadow:none;
+}
+
+/* Topmenuen under baren ved åbning (hvis din eksisterende regel er der, er denne blot sikring) */
+.topmenu{
+  position:absolute;
+  left:12px; top:56px;
+  display:none;
+  flex-direction:column; gap:8px;
+  min-width:220px; padding:10px;
+  background:rgba(255,255,255,0.95); color:#111;
+  border-radius:10px; border:1px solid rgba(0,0,0,0.12);
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  z-index:6500;
+}
+.topmenu.show{ display:flex; }
+
+/* Knapper inde i topmenu – samme look som dine toppanel-knapper */
+.topmenu .toppanel-knap{
+  width:100%; justify-content:center;
+  background:rgba(255,255,255,0.7); color:#000;
+}
+.topmenu .toppanel-knap:hover{
+  background:rgba(255,255,255,0.9); color:#000;
+}
+
+/* LOGIN: højre drawer (lader dine eksisterende regler køre, dette er kun en sikring) */
+.toppanel--login .hamburger{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  border:none; box-shadow:none; color:#000;
+}
+.toppanel--login .login-menu{
+  position:absolute; right:12px; top:68px;
+  display:none;
+  min-width:220px; padding:10px; gap:8px;
+  background:rgba(255,255,255,0.95); color:#111;
+  border-radius:10px; border:1px solid rgba(0,0,0,0.12);
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  z-index:6500;
+}
+.login-menu.show{ display:flex; }
+
+/* Responsiv sikring */
+@media (max-width:768px){
+  .topmenu{ left:12px; right:auto; top:56px; }
+  .toppanel--login .login-menu{ right:12px; left:auto; top:68px; }
+}

@@ -7,104 +7,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
   <script>
-    // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
     }
 
-    // UI helpers
-    function submitLoginForm(){
-      const f = document.getElementById('loginForm');
-      if (f) f.submit();
-    }
-    function toggleMenu(){
-      const m = document.querySelector('.login-menu');
-      if (m) m.classList.toggle('show');
-    }
-
-    // Luk menu ved klik udenfor
-    document.addEventListener('click', (e)=>{
-      const menu = document.querySelector('.login-menu');
-      const btn  = document.querySelector('.hamburger');
-      if (!menu || !btn) return;
-      const outside = !menu.contains(e.target) && !btn.contains(e.target);
-      if (outside) menu.classList.remove('show');
-    });
-
-    // Remember me + Enter-submit
     document.addEventListener('DOMContentLoaded', ()=>{
       const form = document.getElementById('loginForm');
       const u = document.getElementById('brugernavn');
       const p = document.getElementById('kode');
       const chk = document.getElementById('huskMig');
 
-      // Enter tryk sender formularen
-      form.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
-      });
+      if (form){
+        form.addEventListener('keydown', (ev)=>{
+          if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
+        });
 
-      // Indlæs fra localStorage
-      const su = localStorage.getItem('vasketid_user');
-      const sp = localStorage.getItem('vasketid_pass');
-      if (su) {
-        u.value = su;
-        if (su.toLowerCase() !== 'admin' && sp) {
-          p.value = sp;
-          chk.checked = true;
+        const su = localStorage.getItem('vasketid_user');
+        const sp = localStorage.getItem('vasketid_pass');
+        if (su) {
+          u.value = su;
+          if (su.toLowerCase() !== 'admin' && sp) {
+            p.value = sp;
+            chk.checked = true;
+          }
         }
-      }
 
-      // Gem ved submit
-      form.addEventListener('submit', ()=>{
-        const userLower = (u.value || '').toLowerCase();
-        if (chk.checked) {
-          localStorage.setItem('vasketid_user', u.value);
-          if (userLower !== 'admin') {
-            localStorage.setItem('vasketid_pass', p.value);
+        form.addEventListener('submit', ()=>{
+          const userLower = (u.value || '').toLowerCase();
+          if (chk.checked) {
+            localStorage.setItem('vasketid_user', u.value);
+            if (userLower !== 'admin') {
+              localStorage.setItem('vasketid_pass', p.value);
+            } else {
+              localStorage.removeItem('vasketid_pass');
+            }
           } else {
+            localStorage.removeItem('vasketid_user');
             localStorage.removeItem('vasketid_pass');
           }
-        } else {
-          localStorage.removeItem('vasketid_user');
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
+        });
 
-      // Ryd gemt kode når man skriver "admin"
-      u.addEventListener('input', ()=>{
-        if ((u.value || '').toLowerCase() === 'admin') {
-          chk.checked = false;
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
+        u.addEventListener('input', ()=>{
+          if ((u.value || '').toLowerCase() === 'admin') {
+            chk.checked = false;
+            localStorage.removeItem('vasketid_pass');
+          }
+        });
+      }
     });
   </script>
 </head>
 <body>
 
-  <!-- FROST-HVID FAST TOPPANEL -->
-  <!-- Hamburger (sorte streger) placeret i højre side -->
-  <header class="toppanel toppanel--login">
-  <div class="brand">Velkommen til Vasketider</div>
-  <button class="hamburger right" type="button" aria-label="Menu" onclick="toggleLoginMenu()">
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-    <span class="hamburger-bar"></span>
-  </button>
+  <header class="toppanel toppanel--login" role="banner">
+    <div class="brand">Velkommen til Vasketider</div>
 
-  <div class="login-menu" id="loginMenu">
-    <a class="toppanel-knap" href="/login">Log ind</a>
-    <a class="toppanel-knap" href="/opret">Opret ny bruger</a>
-    <a class="toppanel-knap" href="/skiftkode">Skift adgangskode</a>
-    <a class="toppanel-knap" href="/regler">Regler</a>
-    <a class="toppanel-knap" href="/betingelser">brugervilkår</a>
-  </div>
-</header>
-</div>
+    <button class="hamburger right"
+            id="loginHamburger"
+            type="button"
+            aria-label="Menu"
+            aria-controls="loginMenu"
+            aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
 
-  <!-- AUTH-VINDUE (kun login – opret/skift er flyttet i menuen) -->
-  <div class="auth-wrap">
+    <nav class="login-menu" id="loginMenu" role="navigation" aria-label="Login menu">
+      <a class="toppanel-knap" href="/login">Log ind</a>
+      <a class="toppanel-knap" href="/opret">Opret ny bruger</a>
+      <a class="toppanel-knap" href="/skiftkode">Skift adgangskode</a>
+      <a class="toppanel-knap" href="/regler">Regler</a>
+      <a class="toppanel-knap" href="/betingelser">Brugervilkår</a>
+    </nav>
+  </header>
+
+  <div class="auth-wrap" role="main">
     <div class="auth-box">
       <h2>Log ind</h2>
 
@@ -115,7 +95,6 @@
         <input type="text" id="brugernavn" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
         <input type="password" id="kode" name="kode" placeholder="Adgangskode" required autocomplete="current-password">
 
-        <!-- Husk mig – samlet i én container og centreret -->
         <div class="remember-line">
           <label class="switch" title="Husk brugernavn og (ikke for admin) adgangskode på denne enhed">
             <input type="checkbox" id="huskMig" name="remember" value="1">
@@ -129,7 +108,6 @@
     </div>
   </div>
 
-  <!-- Social footer bevares -->
   <footer class="footer">
     <span class="footer-left">Powered by © Hornsberg Group</span>
     <ul class="socials">
@@ -156,38 +134,13 @@
       </li>
     </ul>
   </footer>
+  <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
   <script>
-  function toggleLoginMenu(){
-    const m = document.getElementById('loginMenu');
-    if (m) m.classList.toggle('show');
-  }
-  // Luk ved klik udenfor
-  document.addEventListener('click', (e)=>{
-    const m = document.getElementById('loginMenu');
-    const b = document.querySelector('.toppanel--login .hamburger');
-    if (!m || !b) return;
-    if (!m.contains(e.target) && !b.contains(e.target)) m.classList.remove('show');
-  });
-</script>
-<script>
-  function toggleMenu(){
-    const m = document.querySelector('.login-menu');
-    const btn = document.querySelector('.hamburger');
-    if (m) m.classList.toggle('show');
-    if (btn) btn.classList.toggle('active'); // ← tilføjer animation
-  }
-
-  // Luk menu ved klik udenfor
-  document.addEventListener('click', (e)=>{
-    const menu = document.querySelector('.login-menu');
-    const btn  = document.querySelector('.hamburger');
-    if (!menu || !btn) return;
-    const outside = !menu.contains(e.target) && !btn.contains(e.target);
-    if (outside) {
-      menu.classList.remove('show');
-      btn.classList.remove('active'); // ← fjern animation når man klikker udenfor
-    }
-  });
-</script>
+    window.VasketiderMenu?.attach({
+      button: '#loginHamburger',
+      drawer:  '#loginMenu',
+      closeOnRouteChange: true
+    });
+  </script>
 </body>
 </html>
