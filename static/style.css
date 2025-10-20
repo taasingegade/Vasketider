@@ -553,9 +553,9 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   transform:translateX(-50%) translateY(-6px) rotate(-45deg) !important;
 }
 
-/* ---------- LOGIN (3 px @ 14/22/30, sort) ---------- */
+/* ---------- LOGIN (2 px @ 16/22/28, sort) ---------- */
 .toppanel--login .hamburger .hamburger-bar{
-  height:3px !important; border-radius:3px !important;
+  height:2px !important; border-radius:2px !important;
   background:#000 !important;                               /* login-farve */
 }
 .toppanel--login .hamburger .hamburger-bar:nth-child(1){ top:16px !important; }
@@ -563,13 +563,13 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel--login .hamburger .hamburger-bar:nth-child(3){ top:28px !important; }
 
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(1){
-  transform:translateX(-50%) translateY(8px) rotate(45deg) !important;
+  transform:translateX(-50%) translateY(6px) rotate(45deg) !important;
 }
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(2){
   opacity:0 !important;
 }
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(3){
-  transform:translateX(-50%) translateY(-8px) rotate(-45deg) !important;
+  transform:translateX(-50%) translateY(-6px) rotate(-45deg) !important;
 }
 
 /* ---------- Menulag + visning ---------- */
