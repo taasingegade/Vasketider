@@ -514,7 +514,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 }
 
 /* ===================== HAMBURGER – ENHEDLIG IMPLEMENTERING ===================== */
-/* 0) Sluk ALT pseudo-element/eksperimentelt fusk der laver streger/X */
+/* 0) Sluk alt pseudo-fusk */
 .hamburger::before,
 .hamburger::after,
 .toppanel--login .hamburger::before,
@@ -533,20 +533,21 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   border:none;
 }
 
-/* 2) Tre bars (INDEX baseline: 2px, hvid) */
+/* 2) Bars – baseline til INDEX (2px, hvid) */
 .hamburger .hamburger-bar{
   display:block !important;
   position:absolute !important;
   left:50% !important;
   transform:translateX(-50%) !important;
-  transform-origin:center !important;           /* <- vigtigt for pænt X */
+  transform-origin:center !important;
   width:22px !important;
   height:2px !important;
-  background:#fff !important;                   /* hvid på index */
+  background:#fff !important;
   border-radius:2px !important;
   transition:transform .30s ease, opacity .30s ease !important;
   box-shadow:none !important;
   margin:0 !important;
+  top:auto !important; /* sikring mod gamle regler */
 }
 
 /* 3) Placering (INDEX) */
@@ -554,7 +555,7 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .hamburger .hamburger-bar:nth-child(2){ top:18px !important; }
 .hamburger .hamburger-bar:nth-child(3){ top:24px !important; }
 
-/* 4) X-animation (INDEX: 2px linjer → ±6px) */
+/* 4) X-animation (INDEX: 2px → ±6px) */
 .hamburger.active .hamburger-bar:nth-child(1){
   transform: translateX(-50%) translateY(6px) rotate(45deg) !important;
 }
@@ -572,12 +573,12 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   border-radius:3px !important;
 }
 
-/* 5a) LOGIN-placering (8px afstand: 12 → 20 → 28) */
+/* 5a) LOGIN-placering (8px spacing) */
 .toppanel--login .hamburger .hamburger-bar:nth-child(1){ top:12px !important; }
 .toppanel--login .hamburger .hamburger-bar:nth-child(2){ top:20px !important; }
 .toppanel--login .hamburger .hamburger-bar:nth-child(3){ top:28px !important; }
 
-/* 5b) LOGIN-X (3px linjer → ±8px) */
+/* 5b) LOGIN-X (3px → ±8px) */
 .toppanel--login .hamburger.active .hamburger-bar:nth-child(1){
   transform: translateX(-50%) translateY(8px) rotate(45deg) !important;
 }
@@ -588,9 +589,27 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
   transform: translateX(-50%) translateY(-8px) rotate(-45deg) !important;
 }
 
-/* 6) Dropdown-lag */
+/* 6) Dropdown-lag og visning */
 .toppanel{ overflow: visible !important; }
 .topmenu, .login-menu{ z-index: 9000 !important; }
-
-/* 7) Visning når .show sættes */
 .topmenu.show, .login-menu.show { display:flex !important; }
+
+/* (valgfrit) Stil selve menuerne kort */
+.topmenu, .login-menu{
+  position:absolute; right:12px; top:56px;
+  display:none; flex-direction:column; gap:8px;
+  min-width:220px; padding:10px;
+  background:rgba(255,255,255,.95); color:#111;
+  border-radius:10px; border:1px solid rgba(0,0,0,.12);
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+.toppanel--login .login-menu{ top:68px; } /* login-bar er lidt højere */
+.topmenu .toppanel-knap, .login-menu .toppanel-knap{
+  width:100%; justify-content:center;
+  background:rgba(255,255,255,.7); color:#000;
+  border:1px solid rgba(0,0,0,.1); border-radius:12px;
+  padding:10px 12px; font-weight:600;
+}
+.topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{
+  background:rgba(255,255,255,.9);
+}
