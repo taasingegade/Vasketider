@@ -1857,15 +1857,32 @@ def ha_webhook():
                             conn3.commit()
 
                     elif s in FINISHED_STATES:
+                        # Marker som completed og få brugernavn(e) tilbage
                         cur3.execute("""
                             UPDATE bookinger
                                SET status='completed'
                              WHERE dato_rigtig = %s
                                AND (slot_index = %s OR slot_index::int = %s)
                                AND COALESCE(status,'booked') IN ('active')
+                            RETURNING brugernavn
                         """, (dato_i_dag, slot_idx, slot_idx))
+                        rows = cur3.fetchall()
                         if cur3.rowcount:
                             print(f"✅ ha_webhook: markerede {cur3.rowcount} som completed")
+
+                        # === NYT: send mail/SMS via eksisterende helper ===
+                        # Respekterer brugerens kanalvalg og master on/off internt.
+                        if rows:
+                            for (navn,) in rows:
+                                try:
+                                    subject = "Din vask er færdig"
+                                    text    = (f"Hej {navn}, din vask er færdig kl. "
+                                               f"{opdateret_dk.strftime('%H:%M')}.\n"
+                                               f"Husk at tømme maskinen snarest (max 10 min).\n— Vasketider")
+                                    send_notifikation(navn, subject, text, sms_tekst=text)
+                                except Exception as e:
+                                    print(f"⚠️ Notifikationsfejl for '{navn}': {e}", flush=True)
+                        # === SLUT NYT ===
 
         return jsonify({"ok": True}), 200
 

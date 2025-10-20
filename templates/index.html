@@ -14,9 +14,7 @@
 </head>
 <body>
 
-  <!-- TOPBAR -->
   <header class="toppanel" role="banner">
-    <!-- Venstre: Hamburger + brand -->
     <div class="top-left">
       <button class="hamburger" type="button" aria-label="Åbn menu"
           onclick="document.querySelector('.topmenu').classList.toggle('show')">
@@ -25,7 +23,6 @@
     <span class="hamburger-bar"></span>
   </button>
     </div>
-<!-- DROPDOWN-MENU (venstre) -->
   <div class="topmenu" role="menu" aria-label="Hovedmenu">
     <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
     <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
@@ -33,7 +30,6 @@
     <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
     <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
   </div>
-    <!-- Center: Status -->
     
       <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
         <span class="status-label">🧺 Status:</span>
@@ -42,7 +38,6 @@
         <span class="status-eta" id="status-eta" style="display:none;"></span>
       </div>
 
-   <!-- Højre: Ugevælger -->
   <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
     <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}" aria-label="Forrige uge">◀</button>
     <span class="week-label">Uge {{ valgt_uge }}</span>
@@ -50,7 +45,6 @@
   </form>
 </header>
 
-  <!-- WRAPPER -->
   <main class="wrapper" role="main">
     <div class="main">
       <h2 class="page-title">Vasketider for Tåsingegade 16 – Uge {{ valgt_uge }}</h2>
@@ -67,12 +61,9 @@
         </div>
       {% endif %}
 
-      <!-- KALENDER -->
       <div class="calendar">
-        <!-- tom celle i hjørnet -->
         <div></div>
 
-        <!-- Ugedage -->
         {% for dag in ugedage_dk %}
           {% set dhead = ugedage_dato[loop.index0] %}
           <div class="cal-head">
@@ -81,7 +72,6 @@
           </div>
         {% endfor %}
 
-        <!-- Rækker for tidsrum -->
         {% for i in range(4) %}
           <div class="time-label"><strong>{{ tider[i] }}</strong></div>
 
@@ -126,7 +116,6 @@
 
                       <hr class="menu-sep">
 
-                      <!-- Tidlig halvdel -->
                       <form method="POST" action="/book_half">
                         <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                         <input type="hidden" name="tid" value="{{ i }}">
@@ -135,7 +124,6 @@
                         <button type="submit" class="menu-btn" {% if has_early %}disabled{% endif %}>Del tid: tidlig</button>
                       </form>
 
-                      <!-- Sen halvdel -->
                       <form method="POST" action="/book_half">
                         <input type="hidden" name="dato" value="{{ dato.isoformat() }}">
                         <input type="hidden" name="tid" value="{{ i }}">
@@ -147,7 +135,6 @@
                   </details>
                 {% endif %}
 
-                <!-- 3) Split-knapper (vandret, lavere, farver) -->
                 <div class="split-pair">
                   {% if has_early %}
                     {% set e = cell.early %}
@@ -204,9 +191,7 @@
     </div>
   </main>
 
-  <!-- SCRIPTS -->
   <script>
-    // Hamburger/drawer
     const burger = document.getElementById('hamburger');
     const drawer = document.getElementById('navDrawer');
     const scrim  = document.getElementById('navScrim');
@@ -224,7 +209,6 @@
       scrim.addEventListener('click', toggle);
     }
 
-    // Liste med bookinger
     function hentBookinger() {
       fetch('/bookinger_json')
         .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
@@ -243,7 +227,6 @@
         .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
     }
 
-    // Miele ETA (simpel client-timer)
     function renderETA() {
       const box = document.getElementById('miele-status');
       const etaSpan = document.getElementById('status-eta');
