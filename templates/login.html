@@ -7,56 +7,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}');
     }
-
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const form = document.getElementById('loginForm');
-      const u = document.getElementById('brugernavn');
-      const p = document.getElementById('kode');
-      const chk = document.getElementById('huskMig');
-
-      if (!form) return;
-
-      form.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
-      });
-
-      const su = localStorage.getItem('vasketid_user');
-      const sp = localStorage.getItem('vasketid_pass');
-      if (su) {
-        u.value = su;
-        if (su.toLowerCase() !== 'admin' && sp) {
-          p.value = sp;
-          chk.checked = true;
-        }
-      }
-
-      form.addEventListener('submit', ()=>{
-        const userLower = (u.value || '').toLowerCase();
-        if (chk.checked) {
-          localStorage.setItem('vasketid_user', u.value);
-          if (userLower !== 'admin') {
-            localStorage.setItem('vasketid_pass', p.value);
-          } else {
-            localStorage.removeItem('vasketid_pass');
-          }
-        } else {
-          localStorage.removeItem('vasketid_user');
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
-
-      u.addEventListener('input', ()=>{
-        if ((u.value || '').toLowerCase() === 'admin') {
-          chk.checked = false;
-          localStorage.removeItem('vasketid_pass');
-        }
-      });
-    });
   </script>
 </head>
 <body>
@@ -134,13 +88,63 @@
       </li>
     </ul>
   </footer>
-  <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+
+  <!-- FÆLLES menu-script -->
+  {{ '' }}
+  (se /static/js/menu.js ovenfor)
+  {{ '' }}
+
+  <!-- Slå toggling til for login -->
   <script>
-    // ÉN ren initialisering – ingen andre toggle-scripts
-    window.VasketiderMenu.attach({
+    window.VasketiderMenu?.attach({
       button: '#loginHamburger',
-      drawer: '#loginMenu',
-      closeOnRouteChange: true
+      drawer: '#loginMenu'
+    });
+
+    // Husk-mig logik (som før), men uden at blande sig i menuen:
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const form = document.getElementById('loginForm');
+      const u = document.getElementById('brugernavn');
+      const p = document.getElementById('kode');
+      const chk = document.getElementById('huskMig');
+
+      if (!form) return;
+
+      form.addEventListener('keydown', (ev)=>{
+        if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
+      });
+
+      const su = localStorage.getItem('vasketid_user');
+      const sp = localStorage.getItem('vasketid_pass');
+      if (su) {
+        u.value = su;
+        if (su.toLowerCase() !== 'admin' && sp) {
+          p.value = sp;
+          chk.checked = true;
+        }
+      }
+
+      form.addEventListener('submit', ()=>{
+        const userLower = (u.value || '').toLowerCase();
+        if (chk.checked) {
+          localStorage.setItem('vasketid_user', u.value);
+          if (userLower !== 'admin') {
+            localStorage.setItem('vasketid_pass', p.value);
+          } else {
+            localStorage.removeItem('vasketid_pass');
+          }
+        } else {
+          localStorage.removeItem('vasketid_user');
+          localStorage.removeItem('vasketid_pass');
+        }
+      });
+
+      u.addEventListener('input', ()=>{
+        if ((u.value || '').toLowerCase() === 'admin') {
+          chk.checked = false;
+          localStorage.removeItem('vasketid_pass');
+        }
+      });
     });
   </script>
 </body>

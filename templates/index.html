@@ -15,23 +15,27 @@
 </head>
 <body>
 
-<header class="toppanel" role="banner">
+  <header class="toppanel" role="banner">
     <div class="top-left">
-      <button class="hamburger" id="indexHamburger" type="button"
-              aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
+      <button class="hamburger"
+              id="indexHamburger"
+              type="button"
+              aria-label="Åbn menu"
+              aria-controls="indexTopMenu"
+              aria-expanded="false">
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
       </button>
       <div class="brand"><a href="/index">Vasketider</a></div>
     </div>
-    
-      <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
-        <span class="status-label">🧺 Status:</span>
-        <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
-        <span class="status-sep">•</span>
-        <span class="status-eta" id="status-eta" style="display:none;"></span>
-      </div>
+
+    <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
+      <span class="status-label">🧺 Status:</span>
+      <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
+      <span class="status-sep">•</span>
+      <span class="status-eta" id="status-eta" style="display:none;"></span>
+    </div>
 
     <div class="week-switch">
       <form method="get" action="/index">
@@ -84,7 +88,6 @@
             {% set cell = bookinger.get((dato, i)) %}
 
             <div class="cell-inner">
-              {# 1) Fuldt booket #}
               {% if cell and cell.full %}
                 {% set f = cell.full %}
                 {% if f and f.navn == 'service' %}
@@ -99,14 +102,11 @@
                 {% else %}
                   <button class="slot-btn optaget" disabled>{{ f.navn }}</button>
                 {% endif %}
-
               {% else %}
-                {# 2) Halvt booket? #}
                 {% set has_early = cell and (cell.early is not none) %}
                 {% set has_late  = cell and (cell.late  is not none) %}
-                {% set both_taken = has_early and has_late %}
 
-                {% if not both_taken %}
+                {% if not (has_early and has_late) %}
                   <details class="split-details {% if (cell and cell.early and cell.early.navn=='service') or (cell and cell.late and cell.late.navn=='service') %}service{% else %}ledig{% endif %}">
                     <summary>Ledig</summary>
                     <div class="split-panel">
@@ -194,6 +194,22 @@
       </ul>
     </div>
   </main>
+
+  <!-- FÆLLES menu-script -->
+  {{ '' }}
+  <!-- put this inline or serve it as /static/js/menu.js -->
+  (se filen ovenfor) 
+  {{ '' }}
+
+  <!-- Brug det fælles attach-kald -->
+  <script>
+    window.VasketiderMenu?.attach({
+      button: '#indexHamburger',
+      drawer: '#indexTopMenu'
+    });
+  </script>
+
+  <!-- Øvrig side-JS (uændret funktionelt) -->
   <script>
     function hentBookinger() {
       fetch('/bookinger_json')
@@ -250,15 +266,7 @@
       setInterval(tickETA, 60000);
     };
   </script>
-<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
-  <script>
-    // ÉN ren initialisering – ingen andre “hamburger”-scripts
-    window.VasketiderMenu.attach({
-      button: '#indexHamburger',
-      drawer: '#indexTopMenu',
-      closeOnRouteChange: true
-    });
-  </script>
+
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
