@@ -19,24 +19,24 @@
 
   <!-- TOP -->
   <header class="toppanel" role="banner">
-    <div class="top-left">
-      <button class="hamburger" id="indexHamburger" type="button"
-              aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
-        <span class="hamburger-bar"></span>
-        <span class="hamburger-bar"></span>
-        <span class="hamburger-bar"></span>
-      </button>
-      <div class="brand"><a href="/index">Vasketider</a></div>
-    </div>
+  <div class="top-left">
+    <button class="hamburger" id="indexHamburger" type="button"
+            aria-controls="indexTopMenu" aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
 
     <!-- Kun ét indexTopMenu pr. side -->
-    <nav id="indexTopMenu" class="topmenu" aria-hidden="true" aria-label="Hovedmenu">
+    <nav id="indexTopMenu" class="topmenu" aria-hidden="true" role="menu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
       <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
       <form method="get" action="/profil"><button class="toppanel-knap" type="submit">Min profil</button></form>
       <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
       <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
     </nav>
+        <div class="brand"><a href="/index">Vasketider</a></div>
+    </div>
   </header>
 
   <!-- Status + uge-vælger udenfor header (klikbar) -->

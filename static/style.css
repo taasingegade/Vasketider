@@ -89,9 +89,19 @@ a{ color:inherit; }
   position:absolute; left:50%; transform:translateX(-50%);
   background:rgba(5,5,5,0.95); color:#fff;
   pointer-events:none; /* klik går igennem til uge-skifter */
+  z-index:6500;
 }
 
-.week-switch{ margin-left:auto; display:flex; gap:10px; align-items:center; position:relative; z-index:6001; }
+/* Højre: uge-skifteren */
+.top-right{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  display:flex; align-items:center; gap:10px; z-index:6001; /* over evt. midtelementer */
+}
+.top-right .toppanel-knap{ padding:6px 10px; }
+.top-right .week-label{ font-weight:600; }
+
+/* Hvis du allerede har en .week-switch, genbrug stilen */
+.week-switch{ margin:0; z-index: 6001; }
 .toppanel-select{
   height:38px; padding:6px 12px; border-radius:10px;
   border:1px solid rgba(255,255,255,0.35);
@@ -348,7 +358,15 @@ button.hamburger{
   border:1px solid rgba(0,0,0,.1); border-radius:12px;
   padding:10px 12px; font-weight:600;
 }
+/* Venstre side (INDEX): menu starter ved venstre kant af wrapperen/knappen */
+.top-left .topmenu{ left: 0 !important; right: auto !important; }
+
+/* Højre side (LOGIN): menu starter ved højre kant */
+.top-right .login-menu{ right: 0 !important; left: auto !important; }
+
 .topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.9); }
+
+
 
 /* =========================================================
    RESPONSIVE
