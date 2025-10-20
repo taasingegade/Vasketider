@@ -153,7 +153,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 .hamburger, .hamburger * { pointer-events: auto !important; opacity: 1 !important; visibility: visible !important; }
 .toppanel--login .login-menu{ position: absolute !important; right: 12px !important; top: 56px !important; display: none; z-index: 6500 !important; min-width: 220px; flex-direction: column; gap: 8px; padding: 10px; background: rgba(255,255,255,0.95); color: #111; border-radius: 10px; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .toppanel--login .hamburger:hover{ filter:brightness(.85) !important; }
-
+.toppanel--login .hamburger-bar{ position: relative !important; display: block; margin: 3px 0 0 0; width: 22px !important; height: 3px !important; background: #000 !important; border-radius: 3px !important; box-shadow: none !important; }
 .login-menu.show{ display:flex !important; flex-direction:column; gap:8px; }
 .login-menu .toppanel-knap { width:100%; justify-content:center; background: rgba(255,255,255,0.6); color: #000; }
 .login-menu .toppanel-knap:hover { color: #000; background: rgba(255,255,255,0.85); }
@@ -395,6 +395,16 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
 .toppanel:not(.toppanel--login){ min-height: 56px; position: fixed; }
 .toppanel:not(.toppanel--login) .top-left{ position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content:center; gap: 10px; z-index: 6000; }
 .toppanel:not(.toppanel--login) .top-left .hamburger{ position: relative !important; display: flex !important; flex-direction: column !important; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; background: transparent !important; border: none !important; box-shadow: none !important; }
+.toppanel:not(.toppanel--login) .top-left .hamburger-bar{ position:relative; display:block; width:22px; height:2px; background:#fff; border-radius:2px; }
+.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar{ position: relative !important; left: auto !important; top: auto !important; transform: none !important; display: block; margin: 3px 0 0 0; width: 22px; height: 2px; border-radius: 2px; background: #fff; }
+.toppanel--login .hamburger::before{ content:""; display:block; width:22px; height:22px;
+  background:
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% - 6.7px) / 22px 3px, /* top */
+    linear-gradient(currentColor,currentColor) no-repeat center / 22px 3px,                   /* midt */
+    linear-gradient(currentColor,currentColor) no-repeat center calc(50% + 6.5px) / 22px 3px; /* bund */
+  border-radius:2px; }
+.toppanel--login .hamburger .hamburger-bar{ display:none !important; }
+.toppanel--login .hamburger > span{ display:none !important; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar + .hamburger-bar{ margin-top: 5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger-bar + .hamburger-bar{ margin-top:5px; }
 .toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar:first-child{ margin-top:0; }
@@ -511,150 +521,4 @@ button:not(.slot-btn):not(.hamburger):not(.toppanel-knap):not(.glass-btn):hover{
     --size-service-h: 48px;
     --size-optaget-h: 48px;
   }
-}
-
-/* =========================================================
-   HAMBURGER & TOPMENU — APPEND-ONLY (ikke-destruktiv)
-   ========================================================= */
-
-/* Gør knappen let at style og klikke på (uden at ændre eksisterende tema) */
-.hamburger{
-  position:relative; width:44px; height:44px; border-radius:10px;
-  background:transparent; border:1px solid var(--glass-brd, rgba(255,255,255,.35));
-  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
-  transition:transform .15s, background .15s, border-color .15s;
-}
-.hamburger:hover{ background:var(--glass-bg-hover, rgba(255,255,255,.18)); transform:translateY(-1px); }
-.hamburger:focus-visible{ outline:none; box-shadow:var(--focus); }
-
-.hamburger-bar{
-  position:absolute; left:50%; transform:translateX(-50%);
-  width:22px; height:2px; background:#fff; border-radius:2px;
-  transition:transform .3s ease, opacity .3s ease;
-}
-.hamburger-bar:nth-child(1){ top:12px; } .hamburger-bar:nth-child(2){ top:18px; } .hamburger-bar:nth-child(3){ top:24px; }
-
-/* X-animation */
-.hamburger.active .hamburger-bar:nth-child(1){ transform:translateX(-50%) translateY(6px) rotate(45deg); }
-.hamburger.active .hamburger-bar:nth-child(2){ opacity:0; }
-.hamburger.active .hamburger-bar:nth-child(3){ transform:translateX(-50%) translateY(-6px) rotate(-45deg); }
-
-/* Login: sorte streger (bevar glaslook, ingen ::before) */
-.toppanel--login .hamburger{ border:none; box-shadow:none; }
-
-/* Index: placering venstre */
-.toppanel:not(.toppanel--login){ min-height:56px; position:fixed; left:0; right:0; top:0; z-index:5000; }
-.toppanel:not(.toppanel--login) .top-left{
-  position:absolute; left:12px; top:50%; transform:translateY(-50%);
-  display:flex; align-items:center; gap:10px; z-index:6000;
-}
-.toppanel:not(.toppanel--login) .top-left .hamburger{ border:none; box-shadow:none; }
-
-/* Dropdown under barerne */
-.topmenu{
-  position:absolute; left:12px; top:56px; display:none; flex-direction:column; gap:8px;
-  min-width:220px; padding:10px; background:rgba(255,255,255,.95); color:#111;
-  border-radius:10px; border:1px solid rgba(0,0,0,.12); box-shadow:0 10px 30px rgba(0,0,0,.25); z-index:6500;
-}
-.topmenu.show{ display:flex; }
-.topmenu .toppanel-knap{ width:100%; justify-content:center; background:rgba(255,255,255,.7); color:#000; }
-.topmenu .toppanel-knap:hover{ background:rgba(255,255,255,.9); color:#000; }
-
-/* Login: højre menu */
-.toppanel--login{ min-height:68px; }
-.toppanel--login .login-menu{
-  position:absolute; right:12px; top:68px; display:none; flex-direction:column; gap:8px;
-  min-width:220px; padding:10px; background:rgba(255,255,255,.95); color:#111;
-  border-radius:10px; border:1px solid rgba(0,0,0,.12); box-shadow:0 10px 30px rgba(0,0,0,.25); z-index:6500;
-}
-.login-menu.show{ display:flex; }
-.login-menu .toppanel-knap{ width:100%; justify-content:center; background:rgba(255,255,255,.6); color:#000; }
-.login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.85); color:#000; }
-
-/* Responsiv sikring */
-@media (max-width:768px){
-  .topmenu{ left:12px; right:auto; top:56px; }
-  .toppanel--login .login-menu{ right:12px; left:auto; top:68px; }
-}
-
-/* --- FIX 1: Sørg for ABSOLUTE bars på login --- */
-.toppanel--login .hamburger-bar,
-.toppanel--login .hamburger .hamburger-bar{
-  position: absolute !important;
-  margin: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-}
-
-/* --- FIX 2: Korrekt placering + X-animation på login --- */
-.toppanel--login .hamburger{
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.toppanel--login .hamburger .hamburger-bar{
-  width: 22px !important;
-  height: 3px !important;
-  background: #000 !important;    /* sorte streger på login */
-  border-radius: 3px !important;
-  opacity: 1 !important;
-  transition: transform .3s ease, opacity .3s ease !important;
-}
-
-/* De TRE streger – faste top-placeringer */
-.toppanel--login .hamburger .hamburger-bar:nth-child(1){ top: 12px !important; }
-.toppanel--login .hamburger .hamburger-bar:nth-child(2){ top: 20px !important; }
-.toppanel--login .hamburger .hamburger-bar:nth-child(3){ top: 28px !important; }
-
-/* X-animation (matcher din globale .hamburger.active...) */
-.toppanel--login .hamburger.active .hamburger-bar:nth-child(1){
-  transform: translateX(-50%) translateY(8px) rotate(45deg) !important;
-}
-.toppanel--login .hamburger.active .hamburger-bar:nth-child(2){
-  opacity: 0 !important;
-}
-.toppanel--login .hamburger.active .hamburger-bar:nth-child(3){
-  transform: translateX(-50%) translateY(-8px) rotate(-45deg) !important;
-}
-
-/* ================= INDEX FIX ================ */
-
-/* 1) Gør bars ABSOLUTE på index, så X-animationen virker */
-.toppanel:not(.toppanel--login) .top-left .hamburger .hamburger-bar,
-.toppanel:not(.toppanel--login) .hamburger .hamburger-bar{
-  position: absolute !important;
-  margin: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 22px !important;
-  height: 2px !important;
-  background: #fff !important;   /* hvide streger på index */
-  border-radius: 2px !important;
-  transition: transform .3s ease, opacity .3s ease !important;
-}
-
-/* Tre streger med faste top-placeringer */
-.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(1){ top: 12px !important; }
-.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(2){ top: 18px !important; }
-.toppanel:not(.toppanel--login) .hamburger .hamburger-bar:nth-child(3){ top: 24px !important; }
-
-/* X-animation (samme logik som global) */
-.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(1){
-  transform: translateX(-50%) translateY(6px) rotate(45deg) !important;
-}
-.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(2){
-  opacity: 0 !important;
-}
-.toppanel:not(.toppanel--login) .hamburger.active .hamburger-bar:nth-child(3){
-  transform: translateX(-50%) translateY(-6px) rotate(-45deg) !important;
-}
-
-/* 2) Sørg for at week-switch kan klikkes (status i midten skal ikke fange klik) */
-.toppanel .status.status-center{
-  pointer-events: none !important;   /* klik “går igennem” til knapperne */
-  z-index: 0 !important;             /* under week-switch */
-}
-.week-switch{
-  position: relative !important;
-  z-index: 6001 !important;
 }
