@@ -1,58 +1,35 @@
-/* Vasketider – fælles hamburger/drawer logik
-   Brug:
-     window.VasketiderMenu.attach({ button:'#btn', drawer:'#menu' })
-*/
+// Enkel, robust menu-controller til hamburgery
+// Brug: window.VasketiderMenu.attach({ button:'#id', drawer:'#id' })
+window.VasketiderMenu = {
+  attach({ button, drawer, closeOnRouteChange = true } = {}) {
+    const btn  = document.querySelector(button);
+    const menu = document.querySelector(drawer);
+    if (!btn || !menu) return;
 
-(function(){
-  if (window.VasketiderMenu) return; // safe-guard mod dobbel indlæsning
-
-  function attach(opts){
-    const btnSel = opts?.button;
-    const drawerSel = opts?.drawer;
-    const closeOnRouteChange = !!opts?.closeOnRouteChange;
-
-    const btn = typeof btnSel === 'string' ? document.querySelector(btnSel) : btnSel;
-    const drawer = typeof drawerSel === 'string' ? document.querySelector(drawerSel) : drawerSel;
-
-    if (!btn || !drawer) return;
-
-    let open = false;
-    const setOpen = (v)=>{
-      open = !!v;
-      drawer.classList.toggle('show', open);    // din CSS bruger .login-menu.show
-      btn.classList.toggle('active', open);     // animation i style.css
-      btn.setAttribute('aria-expanded', String(open));
+    const close = () => {
+      menu.classList.remove('show');
+      btn.classList.remove('active');
+      btn.setAttribute('aria-expanded', 'false');
     };
 
-    // Toggle ved klik
-    const onClickBtn = (e)=>{ e.stopPropagation(); setOpen(!open); };
-    btn.addEventListener('click', onClickBtn, { passive: true });
+    const toggle = () => {
+      const open = !menu.classList.contains('show');
+      menu.classList.toggle('show', open);
+      btn.classList.toggle('active', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
 
     // Luk ved klik udenfor
-    const onDocClick = (e)=>{
-      if (!open) return;
-      if (drawer.contains(e.target) || btn.contains(e.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('click', onDocClick);
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && !btn.contains(e.target)) close();
+    });
 
-    // Luk på Escape
-    const onKey = (e)=>{
-      if (e.key === 'Escape' && open) setOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-
-    // Valgfrit: Luk når man navigerer (fx klik på link i menu)
-    if (closeOnRouteChange){
-      drawer.addEventListener('click', (ev)=>{
-        const a = ev.target.closest('a[href]');
-        if (a) setOpen(false);
-      });
+    // Luk ved "navigationsskift" (fx tilbage/forfra)
+    if (closeOnRouteChange) {
+      window.addEventListener('pageshow', close);
+      window.addEventListener('popstate', close);
     }
-
-    // Eksponér lille API
-    return { open: ()=>setOpen(true), close: ()=>setOpen(false), toggle: ()=>setOpen(!open) };
   }
-
-  window.VasketiderMenu = { attach };
-})();
+};

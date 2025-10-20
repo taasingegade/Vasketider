@@ -15,9 +15,10 @@
 </head>
 <body>
 
-  <header class="toppanel" role="banner">
+<header class="toppanel" role="banner">
     <div class="top-left">
-      <button class="hamburger" id="indexHamburger" type="button" aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
+      <button class="hamburger" id="indexHamburger" type="button"
+              aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
@@ -193,25 +194,7 @@
       </ul>
     </div>
   </main>
-
   <script>
-    const burger = document.getElementById('hamburger');
-    const drawer = document.getElementById('navDrawer');
-    const scrim  = document.getElementById('navScrim');
-    if (burger && drawer && scrim){
-      const toggle = () => {
-        const open = !drawer.classList.contains('open');
-        drawer.classList.toggle('open', open);
-        scrim.classList.toggle('show', open);
-        scrim.hidden = !open;
-        burger.classList.toggle('is-open', open);
-        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
-      };
-      burger.addEventListener('click', toggle);
-      scrim.addEventListener('click', toggle);
-    }
-
     function hentBookinger() {
       fetch('/bookinger_json')
         .then(res => { if (!res.ok) throw new Error("Netværksfejl: " + res.status); return res.json(); })
@@ -267,43 +250,15 @@
       setInterval(tickETA, 60000);
     };
   </script>
-<script>
-  document.addEventListener('click', (e)=>{
-    const menu = document.querySelector('.topmenu');
-    const btn  = document.querySelector('.hamburger');
-    if (!menu || !btn) return;
-    if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.remove('show');
-  });
-</script>
 <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
-<script>
-  window.VasketiderMenu?.attach({
-    button:  '#indexHamburger',
-    drawer:  '#indexTopMenu',
-    closeOnRouteChange: true
-  });
-</script>
-<script>
-  function toggleTopMenu(btn){
-    const menu = document.getElementById('topMenu');
-    if (!menu || !btn) return;
-    const open = menu.classList.toggle('show');
-    btn.classList.toggle('active', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  // Luk ved klik udenfor
-  document.addEventListener('click', (e)=>{
-    const menu = document.querySelector('.topmenu');
-    const btn  = document.querySelector('.toppanel .hamburger');
-    if (!menu || !btn) return;
-    if (!menu.contains(e.target) && !btn.contains(e.target)){
-      menu.classList.remove('show');
-      btn.classList.remove('active');
-      btn.setAttribute('aria-expanded','false');
-    }
-  }, true);
-</script>
+  <script>
+    // ÉN ren initialisering – ingen andre “hamburger”-scripts
+    window.VasketiderMenu.attach({
+      button: '#indexHamburger',
+      drawer: '#indexTopMenu',
+      closeOnRouteChange: true
+    });
+  </script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>

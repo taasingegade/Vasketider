@@ -19,43 +19,43 @@
       const p = document.getElementById('kode');
       const chk = document.getElementById('huskMig');
 
-      if (form){
-        form.addEventListener('keydown', (ev)=>{
-          if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
-        });
+      if (!form) return;
 
-        const su = localStorage.getItem('vasketid_user');
-        const sp = localStorage.getItem('vasketid_pass');
-        if (su) {
-          u.value = su;
-          if (su.toLowerCase() !== 'admin' && sp) {
-            p.value = sp;
-            chk.checked = true;
-          }
+      form.addEventListener('keydown', (ev)=>{
+        if (ev.key === 'Enter') { ev.preventDefault(); form.submit(); }
+      });
+
+      const su = localStorage.getItem('vasketid_user');
+      const sp = localStorage.getItem('vasketid_pass');
+      if (su) {
+        u.value = su;
+        if (su.toLowerCase() !== 'admin' && sp) {
+          p.value = sp;
+          chk.checked = true;
         }
-
-        form.addEventListener('submit', ()=>{
-          const userLower = (u.value || '').toLowerCase();
-          if (chk.checked) {
-            localStorage.setItem('vasketid_user', u.value);
-            if (userLower !== 'admin') {
-              localStorage.setItem('vasketid_pass', p.value);
-            } else {
-              localStorage.removeItem('vasketid_pass');
-            }
-          } else {
-            localStorage.removeItem('vasketid_user');
-            localStorage.removeItem('vasketid_pass');
-          }
-        });
-
-        u.addEventListener('input', ()=>{
-          if ((u.value || '').toLowerCase() === 'admin') {
-            chk.checked = false;
-            localStorage.removeItem('vasketid_pass');
-          }
-        });
       }
+
+      form.addEventListener('submit', ()=>{
+        const userLower = (u.value || '').toLowerCase();
+        if (chk.checked) {
+          localStorage.setItem('vasketid_user', u.value);
+          if (userLower !== 'admin') {
+            localStorage.setItem('vasketid_pass', p.value);
+          } else {
+            localStorage.removeItem('vasketid_pass');
+          }
+        } else {
+          localStorage.removeItem('vasketid_user');
+          localStorage.removeItem('vasketid_pass');
+        }
+      });
+
+      u.addEventListener('input', ()=>{
+        if ((u.value || '').toLowerCase() === 'admin') {
+          chk.checked = false;
+          localStorage.removeItem('vasketid_pass');
+        }
+      });
     });
   </script>
 </head>
@@ -136,32 +136,12 @@
   </footer>
   <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
   <script>
-    window.VasketiderMenu?.attach({
+    // ÉN ren initialisering – ingen andre toggle-scripts
+    window.VasketiderMenu.attach({
       button: '#loginHamburger',
-      drawer:  '#loginMenu',
+      drawer: '#loginMenu',
       closeOnRouteChange: true
     });
   </script>
-  <script>
-  function toggleLoginMenu(btn){
-    const menu = document.getElementById('loginMenu');
-    if (!menu || !btn) return;
-    const open = menu.classList.toggle('show');
-    btn.classList.toggle('active', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  // Luk ved klik udenfor
-  document.addEventListener('click', (e)=>{
-    const menu = document.getElementById('loginMenu');
-    const btn  = document.querySelector('.toppanel--login .hamburger');
-    if (!menu || !btn) return;
-    if (!menu.contains(e.target) && !btn.contains(e.target)){
-      menu.classList.remove('show');
-      btn.classList.remove('active');
-      btn.setAttribute('aria-expanded','false');
-    }
-  }, true);
-</script>
 </body>
 </html>
