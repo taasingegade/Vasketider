@@ -199,15 +199,12 @@
   <script>
 (function () {
   function attach(opts) {
-    const sel = typeof opts === 'object' ? opts : {};
-    const buttonSel = sel.button || '#hamburger';
-    const drawerSel = sel.drawer || '#topMenu';
-    const activeClass = sel.activeClass || 'active';
-    const showClass   = sel.showClass   || 'show';
+    const btn  = document.querySelector(opts.button);
+    const menu = document.querySelector(opts.drawer);
+    if (!btn || !menu) return false;
 
-    const btn   = document.querySelector(buttonSel);
-    const menu  = document.querySelector(drawerSel);
-    if (!btn || !menu) return;
+    const activeClass = opts.activeClass || 'active';
+    const showClass   = opts.showClass   || 'show';
 
     const setOpen = (open) => {
       btn.classList.toggle(activeClass, open);
@@ -220,32 +217,32 @@
       setOpen(!menu.classList.contains(showClass));
     });
 
-    // Luk ved klik udenfor
     document.addEventListener('click', (e) => {
       if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
     }, true);
 
-    // Luk med Escape
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') setOpen(false);
-    });
-
-    // Eksponér setOpen hvis du vil styre det andre steder
-    return { setOpen };
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+    return true;
   }
 
-  window.VasketiderMenu = { attach };
+  // INITIALISÉR når DOM er klar – og prøv igen hvis scriptet lå øverst
+  function boot() {
+    attach({ button:'#indexHamburger', drawer:'#indexTopMenu' });
+    attach({ button:'#loginHamburger', drawer:'#loginMenu' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+    // sikkerhedsnet: prøv igen efter et kort øjeblik hvis markuppen kommer senere
+    setTimeout(boot, 50);
+  }
+
+  // Eksponér hvis du vil kalde manuelt: window.VasketiderMenuAttach?.()
+  window.VasketiderMenuAttach = boot;
 })();
 </script>
-
-  <!-- Brug det fælles attach-kald -->
-  <script>
-    window.VasketiderMenu?.attach({
-      button: '#indexHamburger',
-      drawer: '#indexTopMenu'
-    });
-  </script>
-
   <!-- Øvrig side-JS (uændret funktionelt) -->
   <script>
     function hentBookinger() {
@@ -266,32 +263,6 @@
         .catch(error => { console.error("Fejl ved hentning af bookinger:", error); });
     }
 
-    function renderETA() {
-      const box = document.getElementById('miele-status');
-      const etaSpan = document.getElementById('status-eta');
-      if (!box || !etaSpan) return;
-
-      let mins = parseInt(box.dataset.remaining || '0', 10);
-      if (!Number.isFinite(mins) || mins <= 0) {
-        etaSpan.style.display = 'none';
-        return;
-      }
-      const end = new Date(Date.now() + mins * 60000);
-      const hh = String(end.getHours()).padStart(2, '0');
-      const mm = String(end.getMinutes()).padStart(2, '0');
-      etaSpan.textContent = `⏱ ~${mins} min (færdig ca. kl. ${hh}:${mm})`;
-      etaSpan.style.display = '';
-    }
-    function tickETA() {
-      const box = document.getElementById('miele-status');
-      if (!box) return;
-      let mins = parseInt(box.dataset.remaining || '0', 10);
-      if (!Number.isFinite(mins) || mins <= 0) return;
-      mins = Math.max(0, mins - 1);
-      box.dataset.remaining = String(mins);
-      renderETA();
-    }
-
     setInterval(hentBookinger, 10000);
     window.onload = function() {
       hentBookinger();
@@ -303,63 +274,6 @@
       setInterval(tickETA, 60000);
     };
   </script>
-<script>
-(function(){
-  const btn  = document.getElementById('indexHamburger');
-  const menu = document.getElementById('indexTopMenu');
-  if (!btn || !menu) return;
-
-  function setOpen(open){
-    btn.classList.toggle('active', open);
-    menu.classList.toggle('show', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-  btn.addEventListener('click', (e)=>{ e.stopPropagation(); setOpen(!menu.classList.contains('show')); });
-  document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false); }, true);
-  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setOpen(false); });
-})();
-</script>
-<script>
-(function(){
-  const btn  = document.getElementById('indexHamburger');
-  const menu = document.getElementById('indexTopMenu');
-  if (!btn || !menu) return;
-
-  // Nulstil evt. gamle handlers
-  btn.onclick = null;
-
-  function setOpen(open){
-    btn.classList.toggle('active', open);
-    menu.classList.toggle('show', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  // Toggle
-  btn.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    setOpen(!menu.classList.contains('show'));
-  });
-
-  // Luk ved klik udenfor
-  document.addEventListener('click', (e)=>{
-    if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
-  }, true);
-
-  // Luk ved Escape
-  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setOpen(false); });
-
-  // Sikr at ugeknapper sender formen (nogle globale lyttere kan stoppe det)
-  document.querySelectorAll('.week-switch button[type="submit"]').forEach(b=>{
-    b.addEventListener('click', (ev)=>{
-      ev.stopPropagation(); // så klik-udenfor-lytteren ikke lukker noget ned
-      // Lad default form-submit ske (IKKE preventDefault)
-    });
-  });
-})();
-</script>
-<script>
-  VasketiderMenu.attach({ button:'#indexHamburger', drawer:'#indexTopMenu' });
-</script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>

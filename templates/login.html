@@ -93,70 +93,50 @@
   <!-- FÆLLES menu-script -->
 <script>
 (function () {
-  function attachOne(btn, menu, activeClass = 'active', showClass = 'show') {
-    if (!btn || !menu) return;
-    if (btn.dataset.bound === '1') return;     // undgå dobbelte handlers
-    btn.dataset.bound = '1';
+  function attach(opts) {
+    const btn  = document.querySelector(opts.button);
+    const menu = document.querySelector(opts.drawer);
+    if (!btn || !menu) return false;
+
+    const activeClass = opts.activeClass || 'active';
+    const showClass   = opts.showClass   || 'show';
 
     const setOpen = (open) => {
       btn.classList.toggle(activeClass, open);
       menu.classList.toggle(showClass, open);
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      menu.setAttribute('aria-hidden', open ? 'false' : 'true');
     };
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       setOpen(!menu.classList.contains(showClass));
-    }, { passive: true });
+    });
 
-    // klik udenfor => luk
     document.addEventListener('click', (e) => {
       if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
-    });
+    }, true);
 
-    // Esc => luk
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') setOpen(false);
-    });
-
-    // initial ARIA
-    btn.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+    return true;
   }
 
-  // Offentlig API (hvis du vil binde specifikt)
-  function attach(opts = {}) {
-    const buttonSel = opts.button || '#hamburger';
-    const drawerSel = opts.drawer || '#topMenu';
-    const active    = opts.activeClass || 'active';
-    const show      = opts.showClass   || 'show';
-    const btn  = document.querySelector(buttonSel);
-    const menu = document.querySelector(drawerSel);
-    attachOne(btn, menu, active, show);
-    return { setOpen: (open) => attachOne(btn, menu, active, show) };
-  }
-
-  // Auto-bind ALLE hamburgere på siden, når DOM er klar
-  function autoBindAll() {
-    document.querySelectorAll('.hamburger[aria-controls]').forEach((btn) => {
-      const id = btn.getAttribute('aria-controls');
-      const menu = document.getElementById(id);
-      attachOne(btn, menu);
-    });
+  // INITIALISÉR når DOM er klar – og prøv igen hvis scriptet lå øverst
+  function boot() {
+    attach({ button:'#indexHamburger', drawer:'#indexTopMenu' });
+    attach({ button:'#loginHamburger', drawer:'#loginMenu' });
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoBindAll);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    autoBindAll();
+    boot();
+    // sikkerhedsnet: prøv igen efter et kort øjeblik hvis markuppen kommer senere
+    setTimeout(boot, 50);
   }
 
-  window.VasketiderMenu = { attach };
+  // Eksponér hvis du vil kalde manuelt: window.VasketiderMenuAttach?.()
+  window.VasketiderMenuAttach = boot;
 })();
-</script>
-<script>
-  VasketiderMenu.attach({ button:'#loginHamburger', drawer:'#loginMenu' });
 </script>
 </body>
 </html>
