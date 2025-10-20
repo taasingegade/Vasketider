@@ -18,7 +18,7 @@
 <body>
 
   <!-- TOP -->
-  <header class="toppanel" role="banner">
+<header class="toppanel" role="banner">
   <div class="top-left">
     <button class="hamburger" id="indexHamburger" type="button"
             aria-controls="indexTopMenu" aria-expanded="false">
@@ -27,7 +27,7 @@
       <span class="hamburger-bar"></span>
     </button>
 
-    <!-- Kun ét indexTopMenu pr. side -->
+    <!-- Dropdown menu -->
     <nav id="indexTopMenu" class="topmenu" aria-hidden="true" role="menu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit">Kommentar</button></form>
       <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit">Dokumenter</button></form>
@@ -35,11 +35,11 @@
       <form method="get" action="/regler"><button class="toppanel-knap" type="submit">Regler</button></form>
       <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
     </nav>
-        <div class="brand"><a href="/index">Vasketider</a></div>
-    </div>
-  </header>
 
-  <!-- Status + uge-vælger udenfor header (klikbar) -->
+    <div class="brand"><a href="/index">Vasketider</a></div>
+  </div>
+
+  <!-- STATUS: bliver stående i midten -->
   <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
     <span class="status-label">🧺 Status:</span>
     <span class="status-value">{{ (miele_status or 'ukendt')|capitalize }}</span>
@@ -47,11 +47,15 @@
     <span class="status-eta" id="status-eta" style="display:none;"></span>
   </div>
 
-  <form method="get" action="/index" class="week-switch" aria-label="Ugevælger" style="margin-left:auto; display:flex; gap:10px;">
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀ Forrige</button>
-    <span class="week-label">Uge {{ valgt_uge }}</span>
-    <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">Næste ▶</button>
-  </form>
+  <!-- UGE-VISNING: oppe i højre side -->
+  <div class="top-right">
+    <form method="get" action="/index" class="week-switch" aria-label="Ugevælger">
+      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
+      <span class="week-label">Uge {{ valgt_uge }}</span>
+      <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
+    </form>
+  </div>
+</header>
 
   <!-- INDHOLD -->
   <main class="wrapper" role="main">

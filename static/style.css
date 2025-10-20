@@ -74,7 +74,7 @@ a{ color:inherit; }
   color:var(--frost-txt);
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
-  z-index:5000;
+  z-index:5001;
   min-height:56px;
 }
 .toppanel .brand{ margin-right:12px; order:0; }
@@ -89,19 +89,28 @@ a{ color:inherit; }
   position:absolute; left:50%; transform:translateX(-50%);
   background:rgba(5,5,5,0.95); color:#fff;
   pointer-events:none; /* klik går igennem til uge-skifter */
-  z-index:6500;
+  z-index:5000;
 }
 
-/* Højre: uge-skifteren */
+/* ---- UGEVÆLGER I HØJRE SIDE AF TOPPANELET ---- */
 .top-right{
-  position:absolute; right:12px; top:50%; transform:translateY(-50%);
-  display:flex; align-items:center; gap:10px; z-index:6001; /* over evt. midtelementer */
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  position:relative;
+  z-index:6001;
 }
-.top-right .toppanel-knap{ padding:6px 10px; }
-.top-right .week-label{ font-weight:600; }
 
-/* Hvis du allerede har en .week-switch, genbrug stilen */
-.week-switch{ margin:0; z-index: 6501; }
+.week-switch{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0;
+}
+.week-switch .week-label{ font-weight:700; }
+.week-switch button{ pointer-events:auto; z-index:6002; }
 .toppanel-select{
   height:38px; padding:6px 12px; border-radius:10px;
   border:1px solid rgba(255,255,255,0.35);
