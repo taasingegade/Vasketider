@@ -362,7 +362,7 @@ button.hamburger{
 .top-left .topmenu{ left: 0 !important; right: auto !important; }
 
 /* Venstre side (LOGIN): menu starter ved højre kant */
-.top-right .login-menu{ left: 0 !important; right: auto !important; }
+.top-left .login-menu{ left: 0 !important; right: auto !important; }
 
 .topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.9); }
 
