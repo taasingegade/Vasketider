@@ -546,3 +546,27 @@ button, input, select, textarea {
   .socials { justify-content: flex-end; }
   .footer-left { display: none; }
 }
+/* === Responsiv tilpasning af login-boks på mobile enheder === */
+@media (max-width: 600px) {
+  .auth-box {
+    max-width: 320px;           /* reducer bredde */
+    padding: 24px 26px;         /* mindre indre afstand */
+    border-radius: 18px;        /* lettere afrunding */
+  }
+
+  .auth-box h2 {
+    font-size: 1.3rem;          /* lidt mindre overskrift */
+    margin-bottom: 12px;
+  }
+
+  .auth-form input[type="text"],
+  .auth-form input[type="password"] {
+    padding: 10px 12px;
+    font-size: 15px;            /* lettere mindre tekst */
+  }
+
+  .glass-btn {
+    padding: 9px 16px;
+    font-size: 15px;
+  }
+}
