@@ -2,34 +2,74 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <meta charset="UTF-8">
-    <title>Skift adgangskode</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <title>Skift adgangskode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <!-- Topmenu som på login og index -->
-    <div class="toppanel">
-        <form method="get" action="/login">
-            <button class="toppanel-knap">Tilbage til log ind</button>
-        </form>
-    </div>
+  <!-- Topmenu -->
+  <div class="toppanel">
+    <form method="get" action="/login">
+      <button class="toppanel-knap">Tilbage til log ind</button>
+    </form>
+  </div>
 
-    <!-- Midterfelt med formular -->
-    <div class="form-box">
-        <h2 style="text-align: center;">Skift adgangskode</h2>
-        {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
-        <form method="post" action="/skiftkode">
-            <div style="display: flex; flex-direction: column; align-items: center;">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-            <input type="password" name="gammel_kode" placeholder="Nuværende kode" required>
-            <input type="password" name="ny_kode1" placeholder="Ny kode" required>
-            <input type="password" name="ny_kode2" placeholder="Gentag ny kode" required>
-            <button type="submit" class="sidepanel-knap">Skift kode</button>
-        </form>
-</div>
-    </div>
+  <!-- Glasboks -->
+  <main class="auth-wrap">
+    <section class="auth-box">
+      <h2>Skift adgangskode</h2>
 
-<footer>© Hornsberg Group</footer>
+      {% if fejl %}<p class="msg msg-error" role="alert">{{ fejl }}</p>{% endif %}
+      {% if besked %}<p class="msg msg-ok">{{ besked }}</p>{% endif %}
+
+      <form method="post" action="/skiftkode" class="auth-form" onsubmit="validateSkift(event)" novalidate>
+        <label class="sr-only" for="brugernavn">Brugernavn</label>
+        <input id="brugernavn" type="text" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
+
+        <div class="input-with-toggle">
+          <label class="sr-only" for="gammel_kode">Nuværende kode</label>
+          <input id="gammel_kode" type="password" name="gammel_kode" placeholder="Nuværende kode" required autocomplete="current-password">
+          <button type="button" class="toggle-btn" aria-label="Vis/skjul nuværende kode" onclick="togglePwd(this,'gammel_kode')">Vis</button>
+        </div>
+
+        <div class="input-with-toggle">
+          <label class="sr-only" for="ny_kode1">Ny kode</label>
+          <input id="ny_kode1" type="password" name="ny_kode1" placeholder="Ny kode" required autocomplete="new-password">
+          <button type="button" class="toggle-btn" aria-label="Vis/skjul ny kode" onclick="togglePwd(this,'ny_kode1')">Vis</button>
+        </div>
+
+        <div class="input-with-toggle">
+          <label class="sr-only" for="ny_kode2">Gentag ny kode</label>
+          <input id="ny_kode2" type="password" name="ny_kode2" placeholder="Gentag ny kode" required autocomplete="new-password">
+          <button type="button" class="toggle-btn" aria-label="Vis/skjul gentag ny kode" onclick="togglePwd(this,'ny_kode2')">Vis</button>
+        </div>
+
+        <button type="submit" class="glass-btn">Skift kode</button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">© Hornsberg Group</footer>
+
+  <script>
+    function togglePwd(btn, id){
+      const el = document.getElementById(id); if(!el) return;
+      const show = el.type === 'password';
+      el.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Skjul' : 'Vis';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+    }
+    function validateSkift(e){
+      const p1 = document.getElementById('ny_kode1');
+      const p2 = document.getElementById('ny_kode2');
+      if(p1 && p2 && p1.value !== p2.value){
+        e.preventDefault();
+        alert('De nye adgangskoder er ikke ens.');
+        p2.focus();
+      }
+    }
+  </script>
 </body>
 </html>

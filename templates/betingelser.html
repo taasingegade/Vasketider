@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
+    /* --- Kun side-specifik styling (resten kommer fra style.css) --- */
     .terms-wrap{
       width:100%; max-width:1100px;
       margin: 90px auto 32px; padding: 22px;
@@ -48,6 +49,7 @@
 </head>
 <body>
 
+  <!-- Topbar (samme struktur som index) -->
   <header class="toppanel" role="banner" aria-label="Topnavigation">
     <div class="top-right">
       <button class="hamburger" id="indexHamburger" type="button"
@@ -56,9 +58,10 @@
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
       </button>
-    </div>
       <div class="brand"><a href="/index">Vasketider</a></div>
-    
+    </div>
+
+    <!-- Dropdown-menu -->
     <nav id="indexTopMenu" class="topmenu" aria-hidden="true" role="menu" aria-label="Hovedmenu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit" role="menuitem">Kommentar</button></form>
       <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit" role="menuitem">Dokumenter</button></form>
@@ -67,7 +70,8 @@
       <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit" role="menuitem">Log ud</button></form>
     </nav>
   </header>
-  
+
+  <!-- Indhold -->
   <main class="terms-wrap" role="main">
     <div class="terms-head">
       <h1>Betingelser for brug af Vasketidssystemet</h1>
@@ -131,7 +135,10 @@
       </div>
     </section>
   </main>
+
   <footer class="footer">© Hornsberg Group</footer>
+
+  <!-- Lille, konfliktsikker toggler (samme som på index) -->
   <script>
   (function () {
     function attach(buttonSel, drawerSel) {
@@ -159,5 +166,3 @@
   </script>
 </body>
 </html>
-
-

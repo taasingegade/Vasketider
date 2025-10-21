@@ -2,53 +2,135 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <meta charset="UTF-8">
-    <title>Opret ny bruger</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8" />
+  <title>Opret ny bruger</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    /* Kun denne side – små finpudsninger oven på din style.css */
+    .auth-wrap { min-height: calc(100dvh - 80px); display:grid; place-items:center; padding: 24px 16px; }
+    .auth-box { max-width: 460px; width: 100%; }
+    .auth-box h2 { margin: 0 0 12px; }
+    .auth-form input[type="text"],
+    .auth-form input[type="password"],
+    .auth-form input[type="email"]{
+      width:100%; margin:8px 0; padding:12px 14px; color:#fff;
+      border:1px solid rgba(255,255,255,.25); border-radius:14px;
+      background: rgba(255,255,255,.10);
+    }
+    .auth-form .row { display:flex; gap:10px; }
+    .auth-form .row > * { flex:1; }
+    .remember-line { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
+    .remember-text { font-size:.95rem; }
+    .actions { margin-top: 12px; display:flex; gap:10px; justify-content:center; }
+    .glass-btn { padding: 10px 16px; border-radius: 14px; }
+    @media (max-width:480px){
+      .auth-box{ max-width:360px; padding:20px; }
+    }
+  </style>
+
+  <script>
+    // Vis/skjul password (ingen afhængigheder)
+    function togglePwd(btn, id){
+      const inp = document.getElementById(id);
+      if(!inp) return;
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      btn.textContent = show ? 'Skjul' : 'Vis';
+    }
+    // Let normalisering af dansk mobilnr, hvis bruger taster 8 cifre
+    function normalizeSMS(el){
+      if(!el) return;
+      let v = (el.value || '').trim();
+      if(v && !v.startsWith('+') && /^\d{8}$/.test(v)){ el.value = '+45' + v; }
+    }
+  </script>
 </head>
 <body>
-    <div class="toppanel">
-        <form method="get" action="/login">
-            <button class="toppanel-knap">Tilbage til log ind</button>
-        </form>
-    </div>
 
-    <div class="form-box">
-        <h2>Opret ny bruger</h2>
-        <form method="post" action="/opret">
-             <div style="display: flex; flex-direction: column; align-items: center;">
-            <input type="text" name="brugernavn" placeholder="Brugernavn" required>
-            <input type="password" name="adgangskode" placeholder="Adgangskode" required>
-            <input type="text" name="email" placeholder="Email (valgfrit)">
-            <input type="text" name="sms" placeholder="SMS (valgfrit)">
-            <div class="checkbox-container" style="margin-top:10px;">
-                <span class="notif-label">Ønsker notifikationer</span>
-                <label class="switch">
-                    <input type="checkbox" name="notifikation" value="ja">
-                    <span class="slider round"></span>
-                </label>
-            </div>
-            <button type="submit" class="btn-login">Opret bruger</button>
-        </form>
-    </div>
+  <!-- Topbar -->
+  <header class="toppanel" role="banner">
+    <form method="get" action="/login">
+      <button class="toppanel-knap">Tilbage til log ind</button>
+    </form>
+  </header>
 
-  {% if fejl %}<p style="color:red;">{{ fejl }}</p>{% endif %}
-        {% if besked %}<p style="color:lightgreen;">{{ besked }}</p>{% endif %}
+  <!-- Indhold -->
+  <main class="auth-wrap" role="main">
+    <section class="auth-box">
+      <h2>Opret ny bruger</h2>
 
-<form method="post">
- {% if profil_visning %}
-    <input type="email" name="email" placeholder="E-mail" value="{{ email }}">
-    <input type="text" name="sms" placeholder="SMS nummer" value="{{ sms }}">
-    <label>
-        <input type="checkbox" name="notifikation" {% if notifikation == 'ja' %}checked{% endif %}>
-        Modtag notifikationer
-    </label>
-    <button type="submit" class="btn-login">Gem ændringer</button>
- {% endif %}
-</form>
-</div>
+      {% if fejl %}<p class="msg msg-error" role="alert">{{ fejl }}</p>{% endif %}
+      {% if besked %}<p class="msg msg-ok">{{ besked }}</p>{% endif %}
 
-    <footer class="footer">© Hornsberg Group</footer>
+      {# Standard oprettelse #}
+      {% if not profil_visning %}
+      <form method="post" action="/opret" class="auth-form" novalidate>
+        <label class="sr-only" for="brugernavn">Brugernavn</label>
+        <input id="brugernavn" type="text" name="brugernavn" placeholder="Brugernavn" required autocomplete="username" />
+
+        <div class="row">
+          <div style="position:relative;">
+            <label class="sr-only" for="adgangskode">Adgangskode</label>
+            <input id="adgangskode" type="password" name="adgangskode" placeholder="Adgangskode" required autocomplete="new-password" />
+            <button type="button" class="glass-btn" aria-label="Vis/skjul adgangskode"
+                    onclick="togglePwd(this,'adgangskode')"
+                    style="position:absolute; right:8px; top:50%; transform:translateY(-50%); padding:6px 10px;">
+              Vis
+            </button>
+          </div>
+        </div>
+
+        <label class="sr-only" for="email">Email (valgfrit)</label>
+        <input id="email" type="email" name="email" placeholder="Email (valgfrit)" value="{{ email or '' }}" autocomplete="email" />
+
+        <label class="sr-only" for="sms">SMS (valgfrit)</label>
+        <input id="sms" type="text" name="sms" placeholder="SMS (valgfrit)" value="{{ sms or '' }}" onblur="normalizeSMS(this)" inputmode="tel" />
+
+        <div class="remember-line">
+          <label class="switch" title="Modtag beskeder om dine bookinger">
+            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% endif %}>
+            <span class="slider round"></span>
+          </label>
+          <span class="remember-text">Ønsker notifikationer</span>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="glass-btn">Opret bruger</button>
+        </div>
+      </form>
+      {% endif %}
+
+      {# Profilvisning/genbrug – hvis app.py sætter profil_visning=True #}
+      {% if profil_visning %}
+      <form method="post" action="/opret" class="auth-form" novalidate>
+        <label class="sr-only" for="email2">Email</label>
+        <input id="email2" type="email" name="email" placeholder="Email" value="{{ email or '' }}" autocomplete="email" />
+
+        <label class="sr-only" for="sms2">SMS</label>
+        <input id="sms2" type="text" name="sms" placeholder="SMS (+45…)" value="{{ sms or '' }}" onblur="normalizeSMS(this)" inputmode="tel" />
+
+        <div class="remember-line">
+          <label class="switch" title="Modtag beskeder om dine bookinger">
+            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' or notifikation is sameas true %}checked{% endif %}>
+            <span class="slider round"></span>
+          </label>
+          <span class="remember-text">Jeg ønsker notifikationer</span>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="glass-btn">Gem ændringer</button>
+        </div>
+      </form>
+      {% endif %}
+    </section>
+  </main>
+
+  <!-- Diskret footer -->
+  <footer class="footer">© Hornsberg Group</footer>
+
 </body>
 </html>

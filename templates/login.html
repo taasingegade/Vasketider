@@ -17,6 +17,7 @@
 </head>
 <body>
 
+  <!-- TOP -->
   <header class="toppanel toppanel--login" role="banner">
     <div class="top-left">
       <button class="hamburger" id="loginHamburger" type="button"
@@ -26,16 +27,19 @@
       <span class="hamburger-bar"></span>
     </button>
   
+
+    <!-- Kun ét loginMenu pr. side -->
     <nav id="loginMenu" class="login-menu" aria-hidden="true" role="menu">
       <a href="/opret"     class="toppanel-knap">Opret ny bruger</a>
       <a href="/skiftkode" class="toppanel-knap">Skift adgangskode</a>
       <a href="/regler"    class="toppanel-knap">Regler</a>
-      <a href="/betingelser"   class="toppanel-knap">Brugervilkår</a>
+      <a href="/vilkaar"   class="toppanel-knap">Brugervilkår</a>
     </nav>
     </div>
       <div class="brand"><a href="/">Vasketider</a></div>
   </header>
 
+  <!-- INDHOLD -->
   <main class="auth-wrap" role="main">
     <div class="auth-box">
       <h2>Log ind</h2>
@@ -60,25 +64,26 @@
     </div>
   </main>
 
+  <!-- FOOTER -->
   <footer class="footer">
     <span class="footer-left">Powered by © Hornsberg Group</span>
     <ul class="socials">
       <li>
-        <a href="https://linkedin.com" target="_blank" rel="noopener" aria-label="LinkedIn">
+        <a href="https://linkedin.com" target="_blank"  rel="noopener" aria-label="LinkedIn">
           <span class="icon-wrap">
             <img src="{{ url_for('static', filename='icons/linkedin.svg') }}" alt="LinkedIn">
           </span>
         </a>
       </li>
       <li>
-        <a href="https://facebook.com" target="_blank" rel="noopener" aria-label="Facebook">
+        <a href="https://facebook.com" target="_blank"  rel="noopener" aria-label="Facebook">
           <span class="icon-wrap">
             <img src="{{ url_for('static', filename='icons/facebook.svg') }}" alt="Facebook">
           </span>
         </a>
       </li>
       <li>
-        <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram">
+        <a href="https://instagram.com" target="_blank"  rel="noopener" aria-label="Instagram">
           <span class="icon-wrap">
             <img src="{{ url_for('static', filename='icons/instagram.svg') }}" alt="Instagram">
           </span>
@@ -86,6 +91,8 @@
       </li>
     </ul>
   </footer>
+
+  <!-- FÆLLES menu-script: kun én attach -->
   <script>
   (function () {
     function attach(buttonSel, drawerSel) {
@@ -100,7 +107,7 @@
         menu.setAttribute('aria-hidden', open ? 'false' : 'true');
       };
 
-      if (btn.dataset.bound === '1') return;
+      if (btn.dataset.bound === '1') return; // undgå dobbelt-binding
       btn.dataset.bound = '1';
 
       btn.addEventListener('click', (e) => {
