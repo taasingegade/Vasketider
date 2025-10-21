@@ -1,4 +1,14 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <title>Betingelser – Vasketider</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
   <style>
+    /* --- Kun side-specifik styling (resten kommer fra style.css) --- */
     .terms-wrap{
       width:100%; max-width:1100px;
       margin: 90px auto 32px; padding: 22px;
@@ -29,6 +39,7 @@
       background: rgba(255,255,255,0.12);
       border:1px solid rgba(255,255,255,0.35);
     }
+    /* mobil-læsbarhed */
     @media (max-width: 768px){
       .terms-wrap{ margin:86px 10px 22px; padding:16px; }
       .terms-head h1{ font-size:1.35rem; }
@@ -38,6 +49,7 @@
 </head>
 <body>
 
+  <!-- Topbar (samme struktur som index) -->
   <header class="toppanel" role="banner" aria-label="Topnavigation">
     <div class="top-left">
       <button class="hamburger" id="indexHamburger" type="button"
@@ -49,6 +61,7 @@
       <div class="brand"><a href="/index">Vasketider</a></div>
     </div>
 
+    <!-- Dropdown-menu -->
     <nav id="indexTopMenu" class="topmenu" aria-hidden="true" role="menu" aria-label="Hovedmenu">
       <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit" role="menuitem">Kommentar</button></form>
       <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit" role="menuitem">Dokumenter</button></form>
@@ -58,6 +71,7 @@
     </nav>
   </header>
 
+  <!-- Indhold -->
   <main class="terms-wrap" role="main">
     <div class="terms-head">
       <h1>Betingelser for brug af Vasketidssystemet</h1>
@@ -114,7 +128,7 @@
          Al databehandling sker i overensstemmelse med gældende GDPR-principper om dataminimering, integritet, sikkerhed og legitim behandling.</p>
 
       <h2 id="t11">11. Ikrafttrædelse</h2>
-      <p>Ved fortsat brug af systemet accepterer du/I samtlige ovenstående betingelser for brug af databehandling.</p>
+      <p>Ved fortsat brug af systemet accepterer du samtlige ovenstående betingelser for brug og databehandling.</p>
 
       <div class="backline">
         <a href="/index" class="toppanel-knap" aria-label="Tilbage til kalender">← Tilbage til kalender</a>
@@ -124,6 +138,7 @@
 
   <footer class="footer">© Hornsberg Group</footer>
 
+  <!-- Lille, konfliktsikker toggler (samme som på index) -->
   <script>
   (function () {
     function attach(buttonSel, drawerSel) {
@@ -151,3 +166,4 @@
   </script>
 </body>
 </html>
+
