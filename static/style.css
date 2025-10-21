@@ -402,6 +402,64 @@ footer,
   pointer-events: none !important;
 }
 
+/* --- LOGIN-AKTIVITET: layout & line-wrap --- */
+.login-window{ max-width:100%; }
+.login-scroll{ padding-right:10px; }
+
+.login-item{
+  overflow:hidden;                    /* intet "spild" udenfor boksen */
+  word-wrap:break-word;
+  overflow-wrap:anywhere;
+  hyphens:auto;
+}
+
+.login-item .row{
+  display:grid;
+  grid-template-columns: 140px 1fr;   /* key | value */
+  gap:6px 14px;
+  align-items:start;
+}
+
+.login-item .k{ white-space:nowrap; opacity:.9; }
+.login-item .v{
+  min-width:0;                        /* så grid må bryde linjen */
+  word-break:break-word;
+}
+
+.login-item code,
+.login-item pre,
+.login-item .ua-line{
+  display:block;
+  white-space:pre-wrap;               /* lange UA/IP-strenge brydes */
+  word-break:break-word;
+  line-height:1.25;
+}
+
+/* --- DANGER ZONE: lodret liste + luft --- */
+.window.danger form{ width:100%; }
+.window.danger .grid-2{ display:block; }           /* neutralisér hor. layout */
+
+.window.danger .danger-options,
+.window.danger form > .options,
+.window.danger form{                               
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.window.danger label{
+  display:flex; align-items:center; gap:10px;
+  width:100%;
+}
+
+.window.danger input[type="checkbox"]{ flex:0 0 auto; }
+.window.danger .date-row{
+  display:flex; flex-wrap:wrap; gap:12px; margin-top:10px;
+}
+
+.window.danger .dz-submit{ margin-top:14px; }
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
