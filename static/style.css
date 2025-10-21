@@ -583,6 +583,60 @@ button, input, select, textarea{
     padding:10px 12px; font-size:15px;
   }
   .glass-btn{ padding:9px 16px; font-size:15px; width:100%; }
+  .status-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .status-bar span,
+  .status-bar select,
+  .status-bar button {
+    font-size: 0.9rem;
+  }
+
+  /* Gør uge-navigationsknapper mindre */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .week-nav button {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  /* Gør booking-kortene smallere, så flere dage kan ses */
+  .booking-day {
+    flex: 1 1 45%;
+    margin: 4px;
+    padding: 6px;
+  }
+
+  .booking-day h3 {
+    font-size: 1rem;
+  }
+
+  .time-slot button {
+    padding: 8px 0;
+    font-size: 0.9rem;
+    width: 90%;
+  }
+
+  /* Hvis du bruger grid, så tving 2 kolonner på mobil */
+  .booking-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Fjern evt. zoom fra baggrundsbilledet */
+  .hero-image {
+    background-size: cover;
+    background-position: center;
+  }
 }
 /* ===== ØJE-IKON I INPUTS (opret + skiftkode) ===== */
 .input-eye{ position: relative; }
