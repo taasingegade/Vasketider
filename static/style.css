@@ -579,4 +579,8 @@ button, input, select, textarea{
     border-radius:18px;
   }
   .auth-box h2{ font-size:1.2rem; margin-bottom:12px; }
-  .auth-form input[type="text"], .auth-form input[type="password"], .auth-form input[type="email"
+  .auth-form input[type="text"], .auth-form input[type="password"], .auth-form input[type="email"]{
+    padding:10px 12px; font-size:15px;
+  }
+  .glass-btn{ padding:9px 16px; font-size:15px; width:100%; }
+}
