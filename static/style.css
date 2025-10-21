@@ -380,22 +380,81 @@ button.hamburger{
 /* =========================================================
    RESPONSIVE
    ========================================================= */
+html{
+  font-size: clamp(14px, 1.9vw, 16px);  /* 14–16px afh. af viewport */
+}
+
+/* H1/H2/H3 og basistekst skalerer pænt */
+h1{ font-size: clamp(1.6rem, 3.8vw, 2.2rem); }
+h2{ font-size: clamp(1.3rem, 3.2vw, 1.8rem); }
+h3{ font-size: clamp(1.1rem, 2.8vw, 1.4rem); }
+body{ line-height: 1.25; }
+
+/* Knapper og inputs følger også med */
+button, input, select, textarea {
+  font-size: 1rem;                  /* 1rem = html font-size */
+  padding: clamp(8px, 1.2vw, 12px) clamp(10px, 2vw, 14px);
+  border-radius: clamp(8px, 1.2vw, 14px);
+}
+
+/* Slot-højde følger rodfont (giver “hele siden bliver mindre”) */
+:root{
+  --slot-h: clamp(36px, 5.2vw, 48px);  /* 36–48px */
+}
 @media (max-width:768px){
   .calendar{ grid-template-columns:100px repeat(7, minmax(140px,1fr)); gap:20px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .wrapper{ margin:86px 8px 18px; padding:16px; }
-  .auth-wrap{ padding: 86px 12px 24px; min-height: calc(100vh - 86px); }
+  .auth-wrap{ padding: 84px 12px 24px; }  /* fri af fast topbar */
   .login-menu{ right:12px; }
+    .auth-box{
+    max-width: min(92vw, 420px);
+    padding: clamp(18px, 3.5vw, 28px) clamp(16px, 4vw, 24px);
+    border-radius: clamp(14px, 2.5vw, 22px);
+  }
+  .auth-box h2{ margin-bottom: clamp(10px, 2.5vw, 16px); }
+  .auth-form{ gap: clamp(8px, 2.5vw, 12px); }
+  .remember-line{ gap: clamp(6px, 2vw, 10px); }
+  .glass-btn{ width: 100%; }
+  .switch{ width: clamp(38px, 7vw, 46px); height: clamp(22px, 4vw, 26px); }
+  .slider:before{ width: clamp(16px, 3.4vw, 20px); height: clamp(16px, 3.4vw, 20px); }
+
 }
-@media (max-width:640px){
-  .login-menu{ left:8px; right:8px; width:auto; }
-  .login-menu .toppanel-knap{ width:100%; }
-  .toppanel-select{ max-width:60vw; }
+@media (max-width: 768px){
+  .toppanel{ padding: max(10px, env(safe-area-inset-top, 0)) 12px; }
+  .status.status-center{
+    font-size: 0.9rem;
+    padding: 4px 8px;
+    border-radius: 8px;
+    max-width: 70vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .week-switch{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    display:flex; gap:8px; align-items:center;
+  }
+  .week-switch button{ padding: 4px 8px; font-size: .9rem; border-radius: 8px; }
+  .week-switch .week-label{ font-size:.9rem; font-weight:700; }
+  .wrapper{ margin-top: calc(70px + env(safe-area-inset-top, 0)); }
 }
-@media (max-width:480px){
+@media (max-width: 768px){
+  .calendar{
+    grid-template-columns: 80px repeat(7, minmax(120px,1fr));
+    column-gap: 14px;   /* vandret mellemrum */
+    row-gap: 10px;      /* LODRET mellemrum mellem rækker (din efterspørgsel) */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar .slot-btn,
+  .calendar .split-details > summary{
+    font-size: .95rem; /* følger globalt men en anelse ned på mobil */
+  }
+}
+@media (max-width:420px){
   .auth-box { max-width: 360px; padding: 28px 24px; }
-}
-@media (max-width:820px){
-  .mobile-block { display: none !important; }
-  .container    { display: block !important; }
-  body          { overflow: auto !important; }
+  .week-switch .week-label{ display:none; } /* vis kun ◀ ▶ */
+  .calendar{
+    grid-template-columns: 74px repeat(7, 150px);
+    column-gap: 12px; row-gap: 8px;
+  }
+  :root{ --slot-h: clamp(34px, 6vw, 42px); }
 }
