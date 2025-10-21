@@ -527,12 +527,14 @@ button, input, select, textarea{
 }
 .auth-box{
   width:100%; max-width:460px;
-  background: rgba(255,255,255,0.08);
+  background: linear-gradient(135deg, 255,255,255,0.08);
   border:1px solid rgba(255,255,255,0.25);
   border-radius:18px;
   padding:22px;
   backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%);
   box-shadow:0 14px 40px rgba(0,0,0,.35);
+  -webkit-auth-box-reflect: below 10px linear-gradient
+  (transparent, rgba(0, 0, 0, 0.3));
 }
 .auth-box h2{ margin:0 0 12px; font-size:1.35rem; text-align:center; }
 
