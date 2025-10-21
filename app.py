@@ -3525,8 +3525,8 @@ def opdater_bruger():
             if not dtype:
                 return
             set_parts.append(f"{col} = %s")
-            # hvis kolonnen er boolean, skriv bool; ellers skriv "ja"/"nej"
-            if dtype == "boolean":
+            # Hvis kolonnen er boolean (uanset hvordan Postgres navngiver den)
+            if dtype and "bool" in dtype.lower():
                 values.append(val_bool)
             else:
                 values.append(val_text)
