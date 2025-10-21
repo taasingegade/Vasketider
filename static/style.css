@@ -628,3 +628,17 @@ button, input, select, textarea {
     font-size: 15px;
   }
 }
+/* --- ENABLE SoMe CLICKS ON LOGIN ONLY --- */
+.toppanel--login ~ footer,
+.toppanel--login ~ .footer {
+  pointer-events: auto !important;   /* slå klik til igen */
+  z-index: 1000 !important;          /* foran baggrunden, men bag modaler */
+}
+
+/* sikr at selve links får events (ikke strengt nødvendigt, men fint) */
+.toppanel--login ~ footer .socials a,
+.toppanel--login ~ .footer .socials a,
+.toppanel--login ~ footer .icon-wrap,
+.toppanel--login ~ .footer .icon-wrap {
+  pointer-events: auto !important;
+}
