@@ -541,3 +541,8 @@ button, input, select, textarea {
   }
   :root{ --slot-h: clamp(34px, 6vw, 42px); }
 }
+@media (max-width: 820px) {
+  .footer { justify-content: flex-end; padding-right: 18px; }
+  .socials { justify-content: flex-end; }
+  .footer-left { display: none; }
+}
