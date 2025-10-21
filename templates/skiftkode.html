@@ -28,22 +28,40 @@
         <label class="sr-only" for="brugernavn">Brugernavn</label>
         <input id="brugernavn" type="text" name="brugernavn" placeholder="Brugernavn" required autocomplete="username">
 
-        <div class="input-with-toggle">
+        <div class="input-eye">
           <label class="sr-only" for="gammel_kode">Nuværende kode</label>
           <input id="gammel_kode" type="password" name="gammel_kode" placeholder="Nuværende kode" required autocomplete="current-password">
-          <button type="button" class="toggle-btn" aria-label="Vis/skjul nuværende kode" onclick="togglePwd(this,'gammel_kode')">Vis</button>
+          <button type="button" class="eye-toggle" aria-label="Vis nuværende kode" aria-pressed="false" onclick="toggleEye(this,'gammel_kode')">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <title>Vis adgangskode</title>
+              <path d="M12 5c5.5 0 9.5 5.2 9.9 5.8a1 1 0 0 1 0 1.3C21.5 12.8 17.5 18 12 18S2.5 12.8 2.1 12.2a1 1 0 0 1 0-1.3C2.5 10.2 6.5 5 12 5zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+              <path class="slash" d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </button>
         </div>
 
-        <div class="input-with-toggle">
+        <div class="input-eye">
           <label class="sr-only" for="ny_kode1">Ny kode</label>
           <input id="ny_kode1" type="password" name="ny_kode1" placeholder="Ny kode" required autocomplete="new-password">
-          <button type="button" class="toggle-btn" aria-label="Vis/skjul ny kode" onclick="togglePwd(this,'ny_kode1')">Vis</button>
+          <button type="button" class="eye-toggle" aria-label="Vis ny kode" aria-pressed="false" onclick="toggleEye(this,'ny_kode1')">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <title>Vis adgangskode</title>
+              <path d="M12 5c5.5 0 9.5 5.2 9.9 5.8a1 1 0 0 1 0 1.3C21.5 12.8 17.5 18 12 18S2.5 12.8 2.1 12.2a1 1 0 0 1 0-1.3C2.5 10.2 6.5 5 12 5zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+              <path class="slash" d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </button>
         </div>
 
-        <div class="input-with-toggle">
+        <div class="input-eye">
           <label class="sr-only" for="ny_kode2">Gentag ny kode</label>
           <input id="ny_kode2" type="password" name="ny_kode2" placeholder="Gentag ny kode" required autocomplete="new-password">
-          <button type="button" class="toggle-btn" aria-label="Vis/skjul gentag ny kode" onclick="togglePwd(this,'ny_kode2')">Vis</button>
+          <button type="button" class="eye-toggle" aria-label="Vis gentag ny kode" aria-pressed="false" onclick="toggleEye(this,'ny_kode2')">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <title>Vis adgangskode</title>
+              <path d="M12 5c5.5 0 9.5 5.2 9.9 5.8a1 1 0 0 1 0 1.3C21.5 12.8 17.5 18 12 18S2.5 12.8 2.1 12.2a1 1 0 0 1 0-1.3C2.5 10.2 6.5 5 12 5zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+              <path class="slash" d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </button>
         </div>
 
         <button type="submit" class="glass-btn">Skift kode</button>
@@ -54,12 +72,14 @@
   <footer class="footer">© Hornsberg Group</footer>
 
   <script>
-    function togglePwd(btn, id){
-      const el = document.getElementById(id); if(!el) return;
-      const show = el.type === 'password';
-      el.type = show ? 'text' : 'password';
-      btn.textContent = show ? 'Skjul' : 'Vis';
+    function toggleEye(btn, id){
+      const inp = document.getElementById(id); if(!inp) return;
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.classList.toggle('on', !show);
       btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      const t = btn.querySelector('title');
+      if(t) t.textContent = show ? 'Skjul adgangskode' : 'Vis adgangskode';
     }
     function validateSkift(e){
       const p1 = document.getElementById('ny_kode1');
