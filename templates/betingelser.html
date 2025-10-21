@@ -1,88 +1,153 @@
-<!DOCTYPE html>
-<html lang="da">
-<head>
-  <meta charset="UTF-8">
-  <title>Betingelser for brug af Vasketider</title>
-  <link rel="manifest" href="/static/manifest.json">
-  <link rel="stylesheet" href="/static/style.css">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/service-worker.js');
+  <style>
+    .terms-wrap{
+      width:100%; max-width:1100px;
+      margin: 90px auto 32px; padding: 22px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 16px;
+      backdrop-filter: blur(14px) saturate(120%);
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      color:#fff;
     }
-  </script>
+    .terms-head{
+      display:flex; align-items:center; gap:10px; margin:0 0 12px;
+    }
+    .terms-head h1{
+      font-size:1.6rem; margin:0;
+    }
+    .terms-meta{
+      font-size:12px; opacity:.85; margin:4px 0 18px;
+    }
+    .terms h2{ font-size:1.15rem; margin:18px 0 8px; }
+    .terms p{ margin: 0 0 10px; line-height:1.6; }
+    .terms ul{ margin: 6px 0 14px 18px; }
+    .terms li{ margin: 4px 0; }
+    .backline{
+      display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;
+    }
+    .backline .toppanel-knap{
+      background: rgba(255,255,255,0.12);
+      border:1px solid rgba(255,255,255,0.35);
+    }
+    @media (max-width: 768px){
+      .terms-wrap{ margin:86px 10px 22px; padding:16px; }
+      .terms-head h1{ font-size:1.35rem; }
+      .terms p, .terms li{ font-size:15px; }
+    }
+  </style>
 </head>
 <body>
-  <div class="toppanel">
-    <form method="get" action="{{ next_url }}">
-      <button class="toppanel-knap">Tilbage</button>
-    </form>
-  </div>
 
-  <div class="wrapper">
-    <div class="main glassbox">
-      <h2 style="margin-top:0;">Betingelser</h2>
+  <header class="toppanel" role="banner" aria-label="Topnavigation">
+    <div class="top-left">
+      <button class="hamburger" id="indexHamburger" type="button"
+              aria-label="Åbn menu" aria-controls="indexTopMenu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+      <div class="brand"><a href="/index">Vasketider</a></div>
+    </div>
 
-<ol>
-<li><strong>Betingelser for brug af Vasketidssystemet</strong><br><br>
+    <nav id="indexTopMenu" class="topmenu" aria-hidden="true" role="menu" aria-label="Hovedmenu">
+      <form method="get" action="/kommentar"><button class="toppanel-knap" type="submit" role="menuitem">Kommentar</button></form>
+      <form method="get" action="/dokumenter"><button class="toppanel-knap" type="submit" role="menuitem">Dokumenter</button></form>
+      <form method="get" action="/profil"><button class="toppanel-knap" type="submit" role="menuitem">Min profil</button></form>
+      <form method="get" action="/regler"><button class="toppanel-knap" type="submit" role="menuitem" aria-current="page">Regler</button></form>
+      <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit" role="menuitem">Log ud</button></form>
+    </nav>
+  </header>
 
-<strong>1. Formål og anvendelse</strong><br>
-Vasketidssystemet er et digitalt administrations- og bookingsystem udviklet af <strong>Hornsberg Group</strong> til håndtering af fælles vaskefaciliteter. Systemet anvendes til at reservere, aktivere og overvåge vaskemaskiner og tilknyttede IoT-enheder, således at brugen sker retfærdigt, struktureret og med dokumenteret logning af aktivitet.<br><br>
+  <main class="terms-wrap" role="main">
+    <div class="terms-head">
+      <h1>Betingelser for brug af Vasketidssystemet</h1>
+    </div>
+    <div class="terms-meta">© Hornsberg Group — Senest opdateret: Oktober 2025</div>
 
-<strong>2. Accept af betingelser</strong><br>
-Ved at oprette en bruger, logge ind eller på anden måde anvende systemet accepterer du automatisk disse betingelser. Brug af systemet forudsætter accept af databehandlingen, som beskrevet herunder. Hvis du ikke ønsker at acceptere betingelserne, kan systemet og tilknyttede funktioner ikke benyttes.<br><br>
+    <section class="terms" aria-labelledby="t1">
+      <h2 id="t1">1. Formål og anvendelse</h2>
+      <p>Vasketidssystemet er et digitalt administrations- og bookingsystem udviklet af <strong>Hornsberg Group</strong> til håndtering af fælles vaskefaciliteter. Systemet muliggør reservation, aktivering og overvågning af vaskemaskiner og relaterede IoT-enheder på en retfærdig, struktureret og dokumenteret måde. Alle aktiviteter logges automatisk med henblik på driftssikkerhed, misbrugsforebyggelse og statistik.</p>
 
-<strong>3. Dataindsamling og behandling</strong><br>
-Systemet registrerer og gemmer tekniske og driftsrelaterede oplysninger, herunder:
-<ul>
-  <li>Brugernavn og loginaktivitet</li>
-  <li>IP-adresse, browser, enhedstype og tidspunkt for adgang</li>
-  <li>Bookinger, aflysninger og brug af vaskemaskiner</li>
-  <li>Fejlmeldinger, serviceblokeringer og automatiske systemhændelser</li>
-</ul>
+      <h2 id="t2">2. Accept af betingelser</h2>
+      <p>Ved at oprette en bruger, logge ind eller på anden måde anvende systemet, accepterer du disse betingelser. Brug af systemet forudsætter samtidig accept af den beskrevne databehandling. Hvis du ikke ønsker at acceptere betingelserne, kan systemet og de tilknyttede funktioner ikke benyttes.</p>
 
-Formålet er at sikre drift, forebygge misbrug, udføre fejlfinding, generere statistik og forbedre brugeroplevelsen.  
-Data opbevares sikkert og krypteret på servere.  
-Oplysninger videregives <strong>aldrig til tredjepart</strong>, kommercielle aktører eller eksterne systemer, medmindre dette er påkrævet ved lov.  
-Logdata bevares så længe de har driftsmæssig relevans – typisk op til 3 måneder – hvorefter de slettes automatisk eller anonymiseres.<br><br>
+      <h2 id="t3">3. Dataindsamling og behandling</h2>
+      <p>Systemet registrerer og gemmer nødvendige tekniske og driftsrelaterede oplysninger for at sikre korrekt funktion. Dette omfatter bl.a.:</p>
+      <ul>
+        <li>Brugernavn og loginaktivitet</li>
+        <li>IP-adresse, enhedstype, browser og tidspunkt for adgang</li>
+        <li>Bookinger, aflysninger og brug af vaskemaskiner</li>
+        <li>Fejlmeldinger, serviceblokeringer og systemhændelser</li>
+      </ul>
+      <p>Formålet er at sikre stabil drift, forebygge misbrug, udføre fejlfinding, generere statistik og forbedre brugeroplevelsen.</p>
+      <p>Data opbevares sikkert og krypteret på betroede servere. Oplysninger videregives <strong>aldrig</strong> til tredjepart eller kommercielle aktører, medmindre dette kræves ved lov. Logdata bevares kun, så længe de har driftsmæssig relevans (typisk op til 3 måneder), hvorefter de automatisk slettes eller anonymiseres.</p>
 
-<strong>4. Ret til indsigt og sletning</strong><br>
-Du har til enhver tid ret til at få indsigt i, hvilke oplysninger systemet har registreret om dig. Du kan også anmode om at få din bruger og tilhørende data slettet.  
-Ved sletning fjernes alle oplysninger permanent fra systemet, herunder login, bookinghistorik og adgang til IoT-styrede enheder.  
-Bemærk, at sletning af data medfører, at du ikke længere kan anvende systemet, booke tider eller benytte de tilknyttede maskiner.<br><br>
+      <h2 id="t4">4. Ret til indsigt og sletning</h2>
+      <p>Som bruger har du ret til at få indsigt i de oplysninger, systemet har registreret om dig. Du kan til enhver tid anmode om at få din brugerprofil og tilhørende data slettet.</p>
+      <p>Ved sletning fjernes alle personrelaterede oplysninger permanent, herunder loginoplysninger, bookinghistorik og adgang til IoT-styrede enheder. Bemærk, at sletning medfører, at du ikke længere kan anvende systemet eller booke tider.</p>
 
-<strong>5. Brugerens ansvar</strong><br>
-Som registreret bruger forpligter du dig til at:
-<ul>
-  <li>Bruge systemet i overensstemmelse med gældende regler</li>
-  <li>Ikke manipulere, omgå eller misbruge systemets funktioner</li>
-  <li>Ikke aktivere vaskemaskiner uden gyldig booking</li>
-  <li>Ikke dele loginoplysninger med andre eller booke for fremmede lejemål</li>
-</ul>
-Misbrug, forsøg på hacking eller uretmæssig adgang kan medføre spærring af bruger og anmeldelse til administrator.<br><br>
+      <h2 id="t5">5. Brugerens ansvar</h2>
+      <p>Som registreret bruger forpligter du dig til at:</p>
+      <ul>
+        <li>Bruge systemet i overensstemmelse med gældende regler og husorden</li>
+        <li>Undlade at manipulere, omgå eller misbruge systemets funktioner</li>
+        <li>Kun aktivere maskiner ved gyldig booking</li>
+        <li>Ikke dele loginoplysninger eller booke på vegne af fremmede lejemål</li>
+      </ul>
+      <p>Misbrug, uautoriseret adgang eller manipulation kan medføre spærring af brugeren og eventuel anmeldelse til administrator.</p>
 
-<strong>6. Drift og ændringer</strong><br>
-Systemet leveres “som det er” og kan midlertidigt være utilgængeligt under opdatering, vedligeholdelse eller tekniske fejl.  
-Hornsberg Group forbeholder sig retten til uden varsel at foretage ændringer, udvidelser, begrænsninger eller midlertidig lukning af systemet, når dette er nødvendigt for sikkerhed eller drift.<br><br>
+      <h2 id="t6">6. Drift og ændringer</h2>
+      <p>Systemet stilles til rådighed “som det er”. Der kan forekomme perioder med midlertidig utilgængelighed i forbindelse med opdatering, vedligeholdelse eller tekniske problemer. Hornsberg Group kan uden varsel foretage nødvendige ændringer, udvidelser, begrænsninger eller midlertidig lukning for at opretholde drift og sikkerhed.</p>
 
-<strong>7. Ansvarsfraskrivelse</strong><br>
-Hornsberg Group påtager sig intet ansvar for tab, skader, fejl eller ulemper som følge af systemnedbrud, strømafbrydelser, hardwarefejl, serverproblemer, forkert anvendelse eller andre forhold uden for virksomhedens kontrol.  
-Brugeren er selv ansvarlig for korrekt anvendelse af systemet og for at overholde de gældende regler for vaskeriet.<br><br>
+      <h2 id="t7">7. Ansvarsfraskrivelse</h2>
+      <p>Hornsberg Group er ikke ansvarlig for tab, skader, fejl eller ulemper som følge af systemnedbrud, strømafbrydelser, netværks-/hardwarefejl, serverproblemer, forkert anvendelse eller forhold uden for virksomhedens kontrol. Brugeren er selv ansvarlig for korrekt anvendelse og overholdelse af gældende retningslinjer.</p>
 
-<strong>8. Ændringer i betingelserne</strong><br>
-Betingelserne kan løbende blive opdateret for at afspejle tekniske, juridiske eller organisatoriske ændringer.  
-Eventuelle ændringer offentliggøres under menupunktet “Regler” i systemet. Fortsat brug af systemet efter ændringer betragtes som accept af de nye betingelser.<br><br>
+      <h2 id="t8">8. Ændringer i betingelserne</h2>
+      <p>Betingelserne kan opdateres for at afspejle tekniske, juridiske eller organisatoriske ændringer. Ændringer offentliggøres under menupunktet <strong>“Regler”</strong> i systemet. Fortsat brug betragtes som accept.</p>
 
-<strong>9. Kontakt og forespørgsler</strong><br>
-For spørgsmål, indsigt i data eller anmodning om sletning kan du kontakte systemadministratoren<br><br>
+      <h2 id="t9">9. Kontakt og forespørgsler</h2>
+      <p>Henvendelser vedrørende spørgsmål, indsigt i data eller anmodning om sletning rettes til systemadministratoren via kontaktoplysningerne angivet i systemet.</p>
 
-<strong>10. Teknisk integration og sikkerhed</strong><br>
-Systemet kommunikerer med tilknyttede vaskemaskiner og udstyr via sikre <strong>Home Assistant</strong>-integrationer.  
-Al kommunikation foregår internt over krypterede forbindelser og anvendes udelukkende til drift, statusopdatering og fejlfinding.  
-Systemet overholder gældende GDPR-principper for dataminimering, sikkerhed og legitim behandling.<br><br>
+      <h2 id="t10">10. Teknisk integration og sikkerhed</h2>
+      <p>Alle tilknyttede systemer kommunikerer med relevante enheder og tjenester via sikre, krypterede forbindelser. 
+         Integrationer mellem systemerne er designet til at understøtte stabil drift, statusopdateringer, fejlfinding og automatiserede processer. 
+         Al databehandling sker i overensstemmelse med gældende GDPR-principper om dataminimering, integritet, sikkerhed og legitim behandling.</p>
 
-<em>Ved fortsat brug af systemet erklærer du dig indforstået med og accepterer samtlige ovenstående betingelser for brug og databehandling.</em><br><br>
+      <h2 id="t11">11. Ikrafttrædelse</h2>
+      <p>Ved fortsat brug af systemet accepterer du/I samtlige ovenstående betingelser for brug af databehandling.</p>
 
-© Hornsberg Group – Senest opdateret: Oktober 2025
-</li>
-</ol>
+      <div class="backline">
+        <a href="/index" class="toppanel-knap" aria-label="Tilbage til kalender">← Tilbage til kalender</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">© Hornsberg Group</footer>
+
+  <script>
+  (function () {
+    function attach(buttonSel, drawerSel) {
+      const btn  = document.querySelector(buttonSel);
+      const menu = document.querySelector(drawerSel);
+      if (!btn || !menu) return;
+      const setOpen = (open) => {
+        btn.classList.toggle('active', open);
+        menu.classList.toggle('show', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+      };
+      if (btn.dataset.bound === '1') return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(!menu.classList.contains('show')); }, {passive:true});
+      document.addEventListener('click', (e) => {
+        if (!btn.contains(e.target) && !menu.contains(e.target)) setOpen(false);
+      });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      setOpen(false);
+    }
+    function boot(){ attach('#indexHamburger', '#indexTopMenu'); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else { boot(); setTimeout(boot, 50); }
+  })();
+  </script>
+</body>
+</html>
