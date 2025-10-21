@@ -259,7 +259,7 @@ input:checked + .slider:before{ transform:translateX(20px); }
 }
 
 /* ---------- LISTS / FOOTER ---------- */
-footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; z-index:1000; background:transparent; }
+footer{ position:fixed; bottom:10px; left:0; right:0; height:50px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; z-index:1; background:transparent; }
 .footer{ display:flex; align-items:center; justify-content:center; gap:12px; }
 .footer-left{ position:absolute; left:22px; bottom:14px; color:#fff; font-size:12px; }
 
@@ -374,8 +374,6 @@ button.hamburger{
 .top-left .login-menu{ left: 0 !important; right: auto !important; }
 
 .topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.9); }
-
-
 
 /* =========================================================
    RESPONSIVE
