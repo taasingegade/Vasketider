@@ -375,6 +375,33 @@ button.hamburger{
 
 .topmenu .toppanel-knap:hover, .login-menu .toppanel-knap:hover{ background:rgba(255,255,255,.9); }
 
+/* ===== FOOTER FIX – baggrund og uden klikblokering ===== */
+footer,
+.footer {
+  position: fixed;              /* forbliver nederst på skærmen */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  background: transparent;      /* ingen baggrundsfarve */
+  z-index: 1 !important;        /* helt bag alt andet */
+  pointer-events: none !important; /* fjerner klikflade */
+}
+
+.footer-left {
+  position: absolute;
+  left: 22px;
+  bottom: 14px;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none !important;
+}
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
