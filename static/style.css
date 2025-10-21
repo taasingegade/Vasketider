@@ -584,3 +584,33 @@ button, input, select, textarea{
   }
   .glass-btn{ padding:9px 16px; font-size:15px; width:100%; }
 }
+/* ===== ØJE-IKON I INPUTS (opret + skiftkode) ===== */
+.input-eye{ position: relative; }
+.input-eye > input{
+  padding-right: 44px;                      /* plads til ikonet */
+}
+
+/* Selve knappen (ikonet) */
+.eye-toggle{
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  cursor: pointer;
+}
+
+/* Ikonets udseende */
+.eye-toggle svg{ width: 18px; height: 18px; }
+.eye-toggle .slash{ display: none; }        /* “åben øje” som default */
+.eye-toggle.on .slash{ display: block; }    /* når vist = skru slash på */
+.eye-toggle:focus{ outline: 2px solid rgba(255,255,255,.35); outline-offset: 2px; }
+
+/* Mindre på små mobiler */
+@media (max-width: 420px){
+  .eye-toggle{ width: 30px; height: 30px; right: 6px; }
+  .input-eye > input{ padding-right: 40px; }
+}
