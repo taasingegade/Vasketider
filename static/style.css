@@ -460,6 +460,64 @@ footer,
 
 .window.danger .dz-submit{ margin-top:14px; }
 
+/* ===== Kun login-siden: footer & SoMe-ikoner klikbare og placeret rigtigt ===== */
+.login-page footer{
+  position: fixed;
+  left: 0; right: 0; bottom: 10px;
+  height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px;
+  background: transparent;
+  z-index: 7000;                 /* over overlays, så klik går igennem */
+  pointer-events: auto;
+}
+
+.login-page .footer{ display:flex; align-items:center; justify-content:center; gap:12px; }
+
+.login-page .footer-left{
+  position: absolute; left: 22px; bottom: 14px;
+  color:#fff; font-size:12px;
+  pointer-events: auto;
+}
+
+.login-page .socials{
+  list-style: none;
+  display: flex; gap: 14px; padding: 0; margin: 0;
+  align-items: center; justify-content: center;
+}
+.login-page .socials li{ pointer-events: auto; }
+.login-page .socials a{
+  display: inline-flex; text-decoration: none; outline: none;
+  pointer-events: auto;
+}
+.login-page .icon-wrap{
+  --social-size: 36px;
+  width: var(--social-size); height: var(--social-size);
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 4px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
+  backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.login-page .icon-wrap img{
+  width: 14px; height: 14px;
+  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.35));
+  pointer-events: none;   /* billedet “stjæler” ikke klikket */
+}
+.login-page .socials a:hover .icon-wrap{
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.10) 100%);
+  box-shadow: 0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* Mobil: ikonerne helt til højre, og evt. skjul teksten */
+@media (max-width: 600px){
+  .login-page footer{ justify-content: flex-end; padding-right: 14px; }
+  .login-page .footer-left{ display: none; }
+}
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
