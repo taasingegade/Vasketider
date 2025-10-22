@@ -7,6 +7,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .section-title { margin: 12px 0 6px; font-weight: 600; opacity:.95; }
+    .remember-line { display:flex; align-items:center; gap:10px; margin:10px 0; }
+    .remember-text { opacity:.9; }
+    .input-eye { position: relative; }
+    .eye-toggle {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border-radius: 9px;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25);
+      cursor: pointer;
+    }
+    .eye-toggle svg { width:18px; height:18px; }
+  </style>
 </head>
 <body>
   <!-- Topmenu -->
@@ -55,28 +69,32 @@
         <label class="sr-only" for="sms">SMS (valgfrit)</label>
         <input id="sms" type="text" name="sms" placeholder="SMS (valgfrit)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
 
+        <!-- Samlet on/off med hidden fallback -->
         <div class="remember-line" title="Slå alle notifikationer til/fra">
+          <input type="hidden" name="notifikation" value="nej">
           <label class="switch">
-            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% endif %}>
+            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% else %}checked{% endif %}>
             <span class="slider round"></span>
           </label>
           <span class="remember-text">Ønsker notifikationer</span>
         </div>
 
-        <!-- NYT: forhåndspåmindelse + vask færdig -->
+        <!-- Forhåndspåmindelse -->
         <label for="notify_lead_minutes">Påmindelse før start</label>
+        {% set lead = (notify_lead_minutes or 60)|int %}
         <select id="notify_lead_minutes" name="notify_lead_minutes">
-          {% set lead = notify_lead_minutes or 60 %}
-          <option value="0"  {% if lead|int == 0 %}selected{% endif %}>0 min (ingen påmindelse)</option>
-          <option value="15" {% if lead|int == 15 %}selected{% endif %}>15 min</option>
-          <option value="30" {% if lead|int == 30 %}selected{% endif %}>30 min</option>
-          <option value="45" {% if lead|int == 45 %}selected{% endif %}>45 min</option>
-          <option value="60" {% if lead|int == 60 %}selected{% endif %}>60 min</option>
+          <option value="0"  {% if lead == 0 %}selected{% endif %}>0 min (ingen påmindelse)</option>
+          <option value="15" {% if lead == 15 %}selected{% endif %}>15 min</option>
+          <option value="30" {% if lead == 30 %}selected{% endif %}>30 min</option>
+          <option value="45" {% if lead == 45 %}selected{% endif %}>45 min</option>
+          <option value="60" {% if lead == 60 %}selected{% endif %}>60 min</option>
         </select>
 
+        <!-- Vask færdig toggle med hidden fallback -->
         <div class="remember-line" title="Få besked når vasken er færdig">
+          <input type="hidden" name="notify_finish" value="0">
           <label class="switch">
-            <input type="checkbox" name="notify_finish" value="1" {% if notify_finish %}checked{% endif %}>
+            <input type="checkbox" name="notify_finish" value="1" {% if notify_finish %}checked{% else %}checked{% endif %}>
             <span class="slider round"></span>
           </label>
           <span class="remember-text">Besked når vask er færdig</span>
@@ -95,7 +113,9 @@
         <label class="sr-only" for="sms2">SMS</label>
         <input id="sms2" type="text" name="sms" placeholder="SMS (+45…)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
 
+        <!-- Samlet on/off med hidden fallback -->
         <div class="remember-line" title="Slå alle notifikationer til/fra">
+          <input type="hidden" name="notifikation" value="nej">
           <label class="switch">
             <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' or notifikation is sameas true %}checked{% endif %}>
             <span class="slider round"></span>
@@ -103,18 +123,20 @@
           <span class="remember-text">Jeg ønsker notifikationer</span>
         </div>
 
-        <!-- NYT: forhåndspåmindelse + vask færdig -->
+        <!-- Forhåndspåmindelse -->
         <label for="notify_lead_minutes2">Påmindelse før start</label>
+        {% set lead2 = (notify_lead_minutes or 60)|int %}
         <select id="notify_lead_minutes2" name="notify_lead_minutes">
-          {% set lead2 = notify_lead_minutes or 60 %}
-          <option value="0"  {% if leadval == 0 %}selected{% endif %}>0 min (ingen)</option>
-          <option value="15" {% if lead2|int == 15 %}selected{% endif %}>15 min</option>
-          <option value="30" {% if lead2|int == 30 %}selected{% endif %}>30 min</option>
-          <option value="45" {% if lead2|int == 45 %}selected{% endif %}>45 min</option>
-          <option value="60" {% if lead2|int == 60 %}selected{% endif %}>60 min</option>
+          <option value="0"  {% if lead2 == 0 %}selected{% endif %}>0 min (ingen påmindelse)</option>
+          <option value="15" {% if lead2 == 15 %}selected{% endif %}>15 min</option>
+          <option value="30" {% if lead2 == 30 %}selected{% endif %}>30 min</option>
+          <option value="45" {% if lead2 == 45 %}selected{% endif %}>45 min</option>
+          <option value="60" {% if lead2 == 60 %}selected{% endif %}>60 min</option>
         </select>
 
+        <!-- Vask færdig toggle med hidden fallback -->
         <div class="remember-line" title="Få besked når vasken er færdig">
+          <input type="hidden" name="notify_finish" value="0">
           <label class="switch">
             <input type="checkbox" name="notify_finish" value="1" {% if notify_finish %}checked{% endif %}>
             <span class="slider round"></span>

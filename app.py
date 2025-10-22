@@ -3507,11 +3507,12 @@ def profil():
     me = session["brugernavn"]
 
     if request.method == "GET":
-        # hent værdier til template
+        # Hent aktuelle værdier til visning
         conn = get_db_connection(); cur = conn.cursor()
         cur.execute("""
             SELECT email, sms,
                    COALESCE(notifikation,'ja') AS notifikation,
+                   -- lead som tekst (håndterer manglende kolonne)
                    COALESCE(
                      (CASE WHEN EXISTS (
                        SELECT 1 FROM information_schema.columns
@@ -3531,41 +3532,55 @@ def profil():
         row = cur.fetchone()
         cur.close(); conn.close()
 
+        try:
+            lead_val = int(row[3]) if row else 60
+        except:
+            lead_val = 60
+
         ctx = {
             "profil_visning": True,
             "email": row[0] if row else None,
             "sms": row[1] if row else None,
             "notifikation": row[2] if row else 'ja',
-            "notify_lead_minutes": int(row[3]) if row and str(row[3]).isdigit() else 60,
+            "notify_lead_minutes": lead_val,
             "notify_finish": bool(row[4]) if row is not None else True
         }
-        return render_template("opret.html", **ctx)  # bruger samme template som “opret”
+        # NB: brug den fil du har — hvis din fil hedder "opret bruger.html", så brug det navn her:
+        return render_template("opret bruger.html", **ctx)
 
-    # --- POST: gem mine ændringer ---
-    # Normalisér input
+    # -------- POST: Gem profilændringer --------
+    # Hjælpere til korrekt checkbox-håndtering (hidden + checkbox)
+    def truthy(v) -> bool:
+        if isinstance(v, bool): return v
+        if v is None: return False
+        return str(v).strip().lower() in {"1","true","on","ja","y","yes"}
+
+    def ja_nej_from_form(name: str) -> str:
+        vals = request.form.getlist(name)
+        if not vals:
+            one = request.form.get(name)
+            vals = [one] if one is not None else []
+        return "ja" if any(truthy(v) for v in vals) else "nej"
+
     email = (request.form.get("email") or "").strip() or None
     sms   = (request.form.get("sms") or "").strip() or None
     if sms and not sms.startswith("+"): sms = "+45" + sms
 
-    # samlet on/off
-    notifikation = "ja" if str(request.form.get("notifikation","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
+    notifikation = ja_nej_from_form("notifikation")
 
-    # pr-kanal (bevar samme navne som vis_brugere)
-    notif_email = "ja" if str(request.form.get("notif_email","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
-    notif_sms   = "ja" if str(request.form.get("notif_sms","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
-
-    # lead minutes
+    # lead minutes (tillad 0/15/30/45/60)
     try:
         lead = int(request.form.get("notify_lead_minutes") or 60)
     except: lead = 60
-    if lead not in (15,30,45,60): lead = 60
+    if lead not in (0,15,30,45,60): lead = 60
 
-    # finish
-    notify_finish = str(request.form.get("notify_finish","0")).strip() in {"1","true","on","ja","yes"}
+    # finish (hidden 0 + checkbox 1)
+    notify_finish = any(truthy(v) for v in request.form.getlist("notify_finish")) \
+                    or truthy(request.form.get("notify_finish"))
 
     conn = get_db_connection(); cur = conn.cursor()
     try:
-        # slå op hvilke kolonner der findes
+        # Hent kolonneliste for robusthed
         cur.execute("""
             SELECT column_name, data_type
             FROM information_schema.columns
@@ -3573,36 +3588,36 @@ def profil():
         """)
         cols = {n: t for (n,t) in cur.fetchall()}
 
-        sets = []; vals = []
+        set_parts, values = [], []
 
         def set_text(col, val):
             if col in cols:
-                sets.append(f"{col}=%s"); vals.append(val)
+                set_parts.append(f"{col}=%s"); values.append(val)
 
-        def set_bool_or_text(col, bval, tval):
+        def set_bool_or_text(col, bval):
             if col in cols:
                 if "bool" in cols[col].lower():
-                    sets.append(f"{col}=%s"); vals.append(bool(bval))
+                    set_parts.append(f"{col}=%s"); values.append(bool(bval))
                 else:
-                    sets.append(f"{col}=%s"); vals.append("ja" if bval else "nej")
+                    set_parts.append(f"{col}=%s"); values.append("ja" if bval else "nej")
 
+        # Sæt KUN de felter brugeren kan ændre i profil
         set_text("email", email)
         set_text("sms", sms)
-        set_bool_or_text("notifikation", notifikation=="ja", notifikation)
-        set_bool_or_text("notif_email",  notif_email=="ja",  notif_email)
-        set_bool_or_text("notif_sms",    notif_sms=="ja",    notif_sms)
-        if "notify_lead_minutes" in cols:
-            sets.append("notify_lead_minutes=%s"); vals.append(lead)
-        if "notify_finish" in cols:
-            sets.append("notify_finish=%s"); vals.append(notify_finish)
+        set_bool_or_text("notifikation", notifikation == "ja")
 
-        if not sets:
+        if "notify_lead_minutes" in cols:
+            set_parts.append("notify_lead_minutes=%s"); values.append(lead)
+        if "notify_finish" in cols:
+            set_parts.append("notify_finish=%s"); values.append(bool(notify_finish))
+
+        if not set_parts:
             cur.close(); conn.close()
             return redirect("/profil?fejl=Intet+at+opdatere")
 
-        sql = f"UPDATE brugere SET {', '.join(sets)} WHERE LOWER(brugernavn)=LOWER(%s)"
-        vals.append(me)
-        cur.execute(sql, vals)
+        sql = f"UPDATE brugere SET {', '.join(set_parts)} WHERE LOWER(brugernavn)=LOWER(%s)"
+        values.append(me)
+        cur.execute(sql, values)
         conn.commit()
         cur.close(); conn.close()
         return redirect("/profil?besked=Profil+opdateret")
