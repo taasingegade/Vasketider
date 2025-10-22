@@ -1588,7 +1588,7 @@ def get_user_prefs(cur, brugernavn: str) -> dict:
     master, ne, ns, lead_txt, finish_txt, email, sms = r
     try: lead = int(lead_txt)
     except: lead = 60
-    if lead not in (15,30,45,60): lead = 60
+    if lead not in (0,15,30,45,60): lead = 60
     return {
         "master": str(master).lower()=="ja",
         "notif_email": str(ne).lower()=="ja",
@@ -3500,58 +3500,118 @@ def api_booking_allowed_now():
 # Bruger
 # ==============
 
-@app.route("/profil", methods=["GET","POST"])
+@app.route("/profil", methods=["GET", "POST"])
 def profil():
-    if 'brugernavn' not in session:
-        return redirect('/login')
-    brugernavn = session['brugernavn']
+    if "brugernavn" not in session:
+        return redirect("/login")
+    me = session["brugernavn"]
+
+    if request.method == "GET":
+        # hent værdier til template
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT email, sms,
+                   COALESCE(notifikation,'ja') AS notifikation,
+                   COALESCE(
+                     (CASE WHEN EXISTS (
+                       SELECT 1 FROM information_schema.columns
+                       WHERE table_name='brugere' AND column_name='notify_lead_minutes'
+                     )
+                     THEN notify_lead_minutes::text ELSE '60' END),'60'
+                   ) AS lead_txt,
+                   (CASE WHEN EXISTS (
+                       SELECT 1 FROM information_schema.columns
+                       WHERE table_name='brugere' AND column_name='notify_finish'
+                     )
+                     THEN notify_finish ELSE TRUE END) AS notify_finish
+            FROM brugere
+            WHERE LOWER(brugernavn)=LOWER(%s)
+            LIMIT 1
+        """, (me,))
+        row = cur.fetchone()
+        cur.close(); conn.close()
+
+        ctx = {
+            "profil_visning": True,
+            "email": row[0] if row else None,
+            "sms": row[1] if row else None,
+            "notifikation": row[2] if row else 'ja',
+            "notify_lead_minutes": int(row[3]) if row and str(row[3]).isdigit() else 60,
+            "notify_finish": bool(row[4]) if row is not None else True
+        }
+        return render_template("opret.html", **ctx)  # bruger samme template som “opret”
+
+    # --- POST: gem mine ændringer ---
+    # Normalisér input
+    email = (request.form.get("email") or "").strip() or None
+    sms   = (request.form.get("sms") or "").strip() or None
+    if sms and not sms.startswith("+"): sms = "+45" + sms
+
+    # samlet on/off
+    notifikation = "ja" if str(request.form.get("notifikation","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
+
+    # pr-kanal (bevar samme navne som vis_brugere)
+    notif_email = "ja" if str(request.form.get("notif_email","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
+    notif_sms   = "ja" if str(request.form.get("notif_sms","")).strip().lower() in {"1","ja","true","on","y","yes"} else "nej"
+
+    # lead minutes
+    try:
+        lead = int(request.form.get("notify_lead_minutes") or 60)
+    except: lead = 60
+    if lead not in (15,30,45,60): lead = 60
+
+    # finish
+    notify_finish = str(request.form.get("notify_finish","0")).strip() in {"1","true","on","ja","yes"}
 
     conn = get_db_connection(); cur = conn.cursor()
-    fejl = besked = ""
     try:
-        ensure_user_columns(cur)
-
-        if request.method == "POST":
-            email = (request.form.get("email") or "").strip() or None
-            sms   = (request.form.get("sms")   or "").strip() or None
-            if sms and not sms.startswith("+"):
-                sms = "+45" + sms
-            notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
-
-            try:
-                lead = int(request.form.get("notify_lead_minutes", "60"))
-            except ValueError:
-                lead = 60
-            if lead not in (0,15,30,45,60):
-                lead = 60
-            notify_finish = _truthy(request.form.get("notify_finish"))
-
-            cur.execute("""
-                UPDATE brugere
-                   SET email = %s, sms = %s, notifikation = %s,
-                       notify_lead_minutes = %s, notify_finish = %s
-                 WHERE brugernavn = %s
-            """, (email, sms, notifikation, lead, notify_finish, brugernavn))
-            conn.commit()
-            besked = "Oplysninger opdateret"
-
+        # slå op hvilke kolonner der findes
         cur.execute("""
-            SELECT COALESCE(email,''), COALESCE(sms,''), COALESCE(notifikation,'ja'),
-                   COALESCE(notify_lead_minutes,60), COALESCE(notify_finish,TRUE)
-            FROM brugere WHERE brugernavn = %s
-        """, (brugernavn,))
-        row = cur.fetchone() or ("","","ja",60,True)
-        email, sms, notifikation, notify_lead_minutes, notify_finish = row
-    finally:
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name='brugere'
+        """)
+        cols = {n: t for (n,t) in cur.fetchall()}
+
+        sets = []; vals = []
+
+        def set_text(col, val):
+            if col in cols:
+                sets.append(f"{col}=%s"); vals.append(val)
+
+        def set_bool_or_text(col, bval, tval):
+            if col in cols:
+                if "bool" in cols[col].lower():
+                    sets.append(f"{col}=%s"); vals.append(bool(bval))
+                else:
+                    sets.append(f"{col}=%s"); vals.append("ja" if bval else "nej")
+
+        set_text("email", email)
+        set_text("sms", sms)
+        set_bool_or_text("notifikation", notifikation=="ja", notifikation)
+        set_bool_or_text("notif_email",  notif_email=="ja",  notif_email)
+        set_bool_or_text("notif_sms",    notif_sms=="ja",    notif_sms)
+        if "notify_lead_minutes" in cols:
+            sets.append("notify_lead_minutes=%s"); vals.append(lead)
+        if "notify_finish" in cols:
+            sets.append("notify_finish=%s"); vals.append(notify_finish)
+
+        if not sets:
+            cur.close(); conn.close()
+            return redirect("/profil?fejl=Intet+at+opdatere")
+
+        sql = f"UPDATE brugere SET {', '.join(sets)} WHERE LOWER(brugernavn)=LOWER(%s)"
+        vals.append(me)
+        cur.execute(sql, vals)
+        conn.commit()
+        cur.close(); conn.close()
+        return redirect("/profil?besked=Profil+opdateret")
+    except Exception as e:
+        try: conn.rollback()
+        except: pass
         try: cur.close(); conn.close()
         except: pass
-
-    return render_template(
-        "opret bruger.html",
-        email=email, sms=sms, notifikation=notifikation,
-        notify_lead_minutes=notify_lead_minutes, notify_finish=notify_finish,
-        fejl=fejl, besked=besked, profil_visning=True
-    )
+        return redirect("/profil?fejl=Opdatering+fejlede:+{}".format(type(e).__name__))
 
 @app.route('/opret', methods=['GET', 'POST'])
 def opret():
@@ -3709,64 +3769,42 @@ def opdater_bruger():
 
     brugernavn  = (request.form.get("brugernavn") or "").strip()
     adgangskode = (request.form.get("adgangskode") or "").strip()
-    email       = (request.form.get("email") or "").strip()
-    sms         = (request.form.get("sms") or "").strip()
-
-    # NYT: brugerpræferencer fra form
-    raw_lead    = (request.form.get("notify_lead_minutes") or "").strip()
-    # notify_finish kan komme som hidden 0 + checkbox 1 → derfor getlist
-    notify_finish_vals = request.form.getlist("notify_finish")
+    email       = (request.form.get("email") or "").strip() or None
+    sms         = (request.form.get("sms") or "").strip() or None
+    if sms and not sms.startswith("+"): sms = "+45" + sms
 
     if not brugernavn:
         return redirect("/admin/brugere?fejl=Mangler+brugernavn")
 
-    # Normalisér tomme felter til None
-    email = email or None
-    sms   = sms or None
-    if sms and not sms.startswith("+"):
-        sms = "+45" + sms
-
-    # --- VIGTIGT: Brug getlist så hidden "nej" + checkbox "ja" virker korrekt ---
-    def truthy(v) -> bool:
-        if isinstance(v, bool):
-            return v
-        if v is None:
-            return False
-        return str(v).strip().lower() in {"1", "true", "on", "ja", "y", "yes"}
+    def truthy(v)->bool:
+        if isinstance(v, bool): return v
+        if v is None: return False
+        return str(v).strip().lower() in {"1","true","on","ja","y","yes"}
 
     def ja_nej_from_form(name: str) -> str:
         vals = request.form.getlist(name)
         if not vals:
-            # fallback til .get hvis kun én værdi findes
             one = request.form.get(name)
             vals = [one] if one is not None else []
-        # hvis nogen af værdierne er "sand", bliver det 'ja', ellers 'nej'
         return "ja" if any(truthy(v) for v in vals) else "nej"
 
     notifikation = ja_nej_from_form("notifikation")
-    notif_email  = ja_nej_from_form("notif_email")  # vis_brugere.html bruger dette navn
+    notif_email  = ja_nej_from_form("notif_email")
     notif_sms    = ja_nej_from_form("notif_sms")
 
-    # Checkbox 'godkendt' (kan komme som hidden 0 + ev. 1)
+    # NYT: lead og finish
+    try:
+        lead = int(request.form.get("notify_lead_minutes") or 60)
+    except: lead = 60
+    if lead not in (0,15,30,45,60): lead = 60
+    notify_finish = truthy(request.form.get("notify_finish"))
+
+    # godkendt
     godkendt_vals = request.form.getlist("godkendt")
     godkendt = any(truthy(v) for v in godkendt_vals) if godkendt_vals else truthy(request.form.get("godkendt"))
 
-    # NYT: normalisering af lead-minutter
+    conn = get_db_connection(); cur = conn.cursor()
     try:
-        lead = int(raw_lead) if raw_lead else 60
-    except ValueError:
-        lead = 60
-    if lead not in (0,15, 30, 45, 60):
-        lead = 60
-
-    # NYT: notify_finish boolean fra kombi hidden/checkbox
-    notify_finish_bool = any(truthy(v) for v in notify_finish_vals) if notify_finish_vals else truthy(request.form.get("notify_finish"))
-    notify_finish_text = "ja" if notify_finish_bool else "nej"
-
-    conn = get_db_connection()
-    cur  = conn.cursor()
-    try:
-        # Find hvilke kolonner der findes og deres typer
         cur.execute("""
             SELECT column_name, data_type
             FROM information_schema.columns
@@ -3774,89 +3812,51 @@ def opdater_bruger():
         """)
         cols = {name: dtype for (name, dtype) in cur.fetchall()}
 
-        set_parts = []
-        values    = []
+        sets = []; vals = []
 
-        # Hjælpere
-        def set_text_col(col: str, val):
+        def set_text(col, val):
             if col in cols:
-                set_parts.append(f"{col} = %s")
-                values.append(val)
+                sets.append(f"{col}=%s"); vals.append(val)
 
-        def set_bool_or_text(col: str, val_bool: bool, val_text: str):
-            dtype = cols.get(col)
-            if not dtype:
-                return
-            set_parts.append(f"{col} = %s")
-            # Hvis kolonnen er boolean (uanset hvordan Postgres navngiver den)
-            if dtype and "bool" in dtype.lower():
-                values.append(val_bool)
-            else:
-                values.append(val_text)
+        def set_bool_or_text(col, bval, tval):
+            if col in cols:
+                if "bool" in cols[col].lower():
+                    sets.append(f"{col}=%s"); vals.append(bool(bval))
+                else:
+                    sets.append(f"{col}=%s"); vals.append("ja" if bval else "nej")
 
-        def set_int_or_text(col: str, val_int: int, val_text: str):
-            dtype = cols.get(col)
-            if not dtype:
-                return
-            set_parts.append(f"{col} = %s")
-            # integer/number → skriv heltal; ellers skriv tekst
-            if any(k in dtype.lower() for k in ("int", "numeric", "decimal")):
-                values.append(val_int)
-            else:
-                values.append(val_text)
-
-        # kode – kun hvis udfyldt, ellers bevar eksisterende
         if adgangskode:
-            set_text_col("kode", adgangskode)
+            set_text("kode", adgangskode)
 
-        # email/sms
-        set_text_col("email", email)
-        set_text_col("sms", sms)
+        set_text("email", email)
+        set_text("sms", sms)
 
-        # godkendt
         set_bool_or_text("godkendt", bool(godkendt), "ja" if godkendt else "nej")
+        set_bool_or_text("notifikation", notifikation=="ja", notifikation)
+        set_bool_or_text("notif_email",  notif_email=="ja",  notif_email)
+        set_bool_or_text("notif_mail",   notif_email=="ja",  notif_email)  # ældre skema
+        set_bool_or_text("notif_sms",    notif_sms=="ja",    notif_sms)
 
-        # master on/off
-        set_bool_or_text("notifikation", notifikation == "ja", notifikation)
+        if "notify_lead_minutes" in cols:
+            sets.append("notify_lead_minutes=%s"); vals.append(lead)
+        if "notify_finish" in cols:
+            sets.append("notify_finish=%s"); vals.append(bool(notify_finish))
 
-        # kanaler – understøt både notif_email og notif_mail hvis de findes
-        set_bool_or_text("notif_email", notif_email == "ja", notif_email)
-        set_bool_or_text("notif_mail",  notif_email == "ja", notif_email)  # ældre skema
-        set_bool_or_text("notif_sms",   notif_sms   == "ja", notif_sms)
-
-        # NYT: notify_lead_minutes (int eller tekst fallback)
-        set_int_or_text("notify_lead_minutes", lead, str(lead))
-
-        # NYT: notify_finish (bool eller tekst fallback)
-        set_bool_or_text("notify_finish", notify_finish_bool, notify_finish_text)
-
-        if not set_parts:
-            try:
-                cur.close(); conn.close()
-            finally:
-                pass
+        if not sets:
+            cur.close(); conn.close()
             return redirect("/admin/brugere?fejl=Ingen+felter+at+opdatere")
 
-        sql = f"UPDATE brugere SET {', '.join(set_parts)} WHERE LOWER(brugernavn)=LOWER(%s)"
-        values.append(brugernavn)
-
-        cur.execute(sql, values)
+        sql = f"UPDATE brugere SET {', '.join(sets)} WHERE LOWER(brugernavn)=LOWER(%s)"
+        vals.append(brugernavn)
+        cur.execute(sql, vals)
         conn.commit()
-        try:
-            cur.close(); conn.close()
-        finally:
-            pass
+        cur.close(); conn.close()
         return redirect("/admin/brugere?besked=Bruger+opdateret")
     except Exception as e:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        try:
-            cur.close(); conn.close()
-        except Exception:
-            pass
-        # valgfrit: log exception
+        try: conn.rollback()
+        except: pass
+        try: cur.close(); conn.close()
+        except: pass
         return redirect("/admin/brugere?fejl=Opdatering+fejlede:+{}".format(type(e).__name__))
 
 @app.route("/godkend/<brugernavn>")

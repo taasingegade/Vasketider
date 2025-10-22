@@ -29,7 +29,6 @@
     .toppanel { position: fixed; top:0; left:0; right:0; display:flex; gap:10px; padding:10px 16px; background: rgba(0,0,0,.55); border-bottom:1px solid rgba(255,255,255,.2); backdrop-filter: blur(6px); z-index: 1000; }
     .toppanel form { margin:0; }
     .toppanel-knap { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.10); color:#fff; cursor:pointer; }
-    /* password eye */
     .password-wrap { position: relative; }
     .toggle-eye {
       position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
@@ -37,7 +36,7 @@
       background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.25); cursor: pointer;
     }
     .toggle-eye svg { width: 16px; height: 16px; }
-    .notifline { display:flex; gap:18px; justify-content:flex-end; align-items:center; }
+    .notifline { display:flex; gap:18px; justify-content:flex-start; align-items:center; flex-wrap:wrap; }
     .notifline label { font-size: 12px; opacity: .95; display:flex; align-items:center; gap:6px; }
   </style>
   <script>
@@ -86,7 +85,7 @@
           {% if brugere and brugere|length > 0 %}
             {% for u in brugere %}
               <div class="card">
-                <!-- Brugernavn + adgangskode (VIS/SKJUL) -->
+                <!-- Brugernavn + adgangskode -->
                 <div class="row">
                   <div class="field">
                     <label>Brugernavn</label>
@@ -117,7 +116,7 @@
                   </div>
                 </div>
 
-                <!-- Notifikationer (samlet + kanaler) -->
+                <!-- Godkendt + Notifikationer -->
                 <div class="row" style="margin-top:8px;">
                   <div class="field" style="display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" id="godk_{{ u.brugernavn }}" name="godkendt" value="1" form="f_{{ u.brugernavn }}" {% if u.godkendt %}checked{% endif %}>
@@ -125,42 +124,42 @@
                     <input type="hidden" name="godkendt" value="0" form="f_{{ u.brugernavn }}">
                   </div>
 
-                  <div class="notifline">
-                    <label title="Samlet notifikation (ja/nej)">
-                      <input type="hidden" name="notifikation" value="nej" form="f_{{ u.brugernavn }}">
-                      <input type="checkbox" name="notifikation" value="ja" form="f_{{ u.brugernavn }}" {% if u.notifikation == 'ja' %}checked{% endif %}> Notifikation (samlet)
-                    </label>
-                    <label>
-                      <input type="hidden" name="notif_email" value="nej" form="f_{{ u.brugernavn }}">
-                      <input type="checkbox" name="notif_email" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_email == 'ja' or u.notif_email is sameas true %}checked{% endif %}> Mail
-                    </label>
-                    <label>
-                      <input type="hidden" name="notif_sms" value="nej" form="f_{{ u.brugernavn }}">
-                      <input type="checkbox" name="notif_sms" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_sms == 'ja' or u.notif_sms is sameas true %}checked{% endif %}> SMS
-                    </label>
+                  <div class="field">
+                    <label>Påmindelse før start</label>
+                    {% set leadval = (u.notify_lead_minutes or 60)|int %}
+                    <select name="notify_lead_minutes" form="f_{{ u.brugernavn }}">
+                      <option value="0"  {% if leadval == 0 %}selected{% endif %}>0 min (ingen)</option>
+                      <option value="15" {% if leadval == 15 %}selected{% endif %}>15 min</option>
+                      <option value="30" {% if leadval == 30 %}selected{% endif %}>30 min</option>
+                      <option value="45" {% if leadval == 45 %}selected{% endif %}>45 min</option>
+                      <option value="60" {% if leadval == 60 %}selected{% endif %}>60 min</option>
+                    </select>
                   </div>
                 </div>
 
-                <!-- NYT: Indstillinger for påmindelse & “vask færdig” -->
                 <div class="row" style="margin-top:8px;">
                   <div class="field">
-                    <label>Påmindelse før start</label>
-                    <select name="notify_lead_minutes" form="f_{{ u.brugernavn }}">
-                      {% set lead = u.notify_lead_minutes or 60 %}
-                      <option value="0" {% if lead == 0 %}selected{% endif %}>0 minutter</option>
-                      <option value="15" {% if lead == 15 %}selected{% endif %}>15 minutter</option>
-                      <option value="30" {% if lead == 30 %}selected{% endif %}>30 minutter</option>
-                      <option value="45" {% if lead == 45 %}selected{% endif %}>45 minutter</option>
-                      <option value="60" {% if lead == 60 %}selected{% endif %}>60 minutter</option>
-                    </select>
-                  </div>
-                  <div class="field" style="display:flex; align-items:center; gap:8px;">
-                    <input type="hidden" name="notify_finish" value="0" form="f_{{ u.brugernavn }}">
-                    <input type="checkbox" id="nf_{{ u.brugernavn }}" name="notify_finish" value="1" form="f_{{ u.brugernavn }}" {% if u.notify_finish %}checked{% endif %}>
-                    <label for="nf_{{ u.brugernavn }}">Send “vask færdig”-besked</label>
+                    <label>Notifikationer</label>
+                    <div class="notifline">
+                      <label title="Samlet notifikation (ja/nej)">
+                        <input type="hidden" name="notifikation" value="nej" form="f_{{ u.brugernavn }}">
+                        <input type="checkbox" name="notifikation" value="ja" form="f_{{ u.brugernavn }}" {% if u.notifikation == 'ja' or u.notifikation is sameas true %}checked{% endif %}> Samlet
+                      </label>
+                      <label>
+                        <input type="hidden" name="notif_email" value="nej" form="f_{{ u.brugernavn }}">
+                        <input type="checkbox" name="notif_email" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_email == 'ja' or u.notif_email is sameas true %}checked{% endif %}> Mail
+                      </label>
+                      <label>
+                        <input type="hidden" name="notif_sms" value="nej" form="f_{{ u.brugernavn }}">
+                        <input type="checkbox" name="notif_sms" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_sms == 'ja' or u.notif_sms is sameas true %}checked{% endif %}> SMS
+                      </label>
+                      <label title="Besked når vask er færdig">
+                        <input type="hidden" name="notify_finish" value="0" form="f_{{ u.brugernavn }}">
+                        <input type="checkbox" name="notify_finish" value="1" form="f_{{ u.brugernavn }}" {% if u.notify_finish %}checked{% endif %}> Vask færdig
+                      </label>
+                    </div>
                   </div>
                 </div>
-                <!-- /NYT -->
 
                 <!-- Knapper -->
                 <div class="btnbar">
@@ -187,11 +186,10 @@
         </div>
       </div>
 
-      <!-- ================ VINDUE 2: OPRET NY ================ -->
+      <!-- VINDUE 2/3 uændret (kan beholdes som hos dig) -->
       <div class="window">
         <h3>Opret ny bruger</h3>
         <div class="hr"></div>
-
         <form method="post" action="/opret_bruger" id="opretForm">
           <div class="field">
             <label>Brugernavn</label>
@@ -223,41 +221,41 @@
               <label for="opret_godk">Godkendt fra start</label>
               <input type="hidden" name="godkendt" value="0">
             </div>
-            <div class="notifline">
-              <label>
-                <input type="hidden" name="notifikation" value="nej">
-                <input type="checkbox" name="notifikation" value="ja" checked> Notifikation (samlet)
-              </label>
-              <label>
-                <input type="hidden" name="notif_email" value="nej">
-                <input type="checkbox" name="notif_email" value="ja" checked> Mail
-              </label>
-              <label>
-                <input type="hidden" name="notif_sms" value="nej">
-                <input type="checkbox" name="notif_sms" value="ja"> SMS
-              </label>
-            </div>
-          </div>
-
-          <!-- NYT: Standard-indstillinger ved oprettelse -->
-          <div class="row" style="margin-top:8px;">
             <div class="field">
               <label>Påmindelse før start</label>
               <select name="notify_lead_minutes">
-                <option value="0">0 minutter</option>
-                <option value="15">15 minutter</option>
-                <option value="30">30 minutter</option>
-                <option value="45">45 minutter</option>
-                <option value="60" selected>60 minutter</option>
+                <option value="0">0 min</option>
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
+                <option value="60" selected>60 min</option>
               </select>
             </div>
-            <div class="field" style="display:flex; align-items:center; gap:8px;">
-              <input type="hidden" name="notify_finish" value="0">
-              <input type="checkbox" id="opret_nf" name="notify_finish" value="1" checked>
-              <label for="opret_nf">Send “vask færdig”-besked</label>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <div class="field">
+              <label>Notifikationer</label>
+              <div class="notifline">
+                <label>
+                  <input type="hidden" name="notifikation" value="nej">
+                  <input type="checkbox" name="notifikation" value="ja" checked> Samlet
+                </label>
+                <label>
+                  <input type="hidden" name="notif_email" value="nej">
+                  <input type="checkbox" name="notif_email" value="ja" checked> Mail
+                </label>
+                <label>
+                  <input type="hidden" name="notif_sms" value="nej">
+                  <input type="checkbox" name="notif_sms" value="ja"> SMS
+                </label>
+                <label>
+                  <input type="hidden" name="notify_finish" value="0">
+                  <input type="checkbox" name="notify_finish" value="1" checked> Vask færdig
+                </label>
+              </div>
             </div>
           </div>
-          <!-- /NYT -->
 
           <div class="btnbar" style="margin-top:10px;">
             <button class="btn save" type="submit">Opret</button>
@@ -266,11 +264,10 @@
         </form>
       </div>
 
-      <!-- ================ VINDUE 3: ADMIN BOOKER FOR BRUGER ================ -->
       <div class="window">
         <h3>Book i brugers navn</h3>
         <div class="hr"></div>
-
+        <!-- … uændret som din … -->
         <form method="post" action="/admin/brugere/book" id="bookForUser">
           <div class="field">
             <label>Bruger</label>
