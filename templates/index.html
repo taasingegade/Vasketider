@@ -36,7 +36,6 @@
       <form method="post" action="/logout"><button class="toppanel-knap danger" type="submit">Log ud</button></form>
     </nav>
  </div>
-    <div class="brand"><a href="/index">Vasketider</a></div>
  
   <!-- STATUS: bliver stående i midten -->
   <div class="status status-center" id="miele-status" data-remaining="{{ miele_remaining or 0 }}">
@@ -50,7 +49,7 @@
   <div class="top-right">
     <form method="get" action="/index" class="week-switch" aria-label="Ugevælger">
       <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge - 1 }}">◀</button>
-      <span class="week-label">Uge {{ valgt_uge }}</span>
+      <span class="week-label">{{valgt_uge}}</span>
       <button class="toppanel-knap" type="submit" name="uge" value="{{ valgt_uge + 1 }}">▶</button>
     </form>
   </div>
