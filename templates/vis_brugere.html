@@ -147,6 +147,7 @@
                     <label>Påmindelse før start</label>
                     <select name="notify_lead_minutes" form="f_{{ u.brugernavn }}">
                       {% set lead = u.notify_lead_minutes or 60 %}
+                      <option value="0" {% if lead == 0 %}selected{% endif %}>0 minutter</option>
                       <option value="15" {% if lead == 15 %}selected{% endif %}>15 minutter</option>
                       <option value="30" {% if lead == 30 %}selected{% endif %}>30 minutter</option>
                       <option value="45" {% if lead == 45 %}selected{% endif %}>45 minutter</option>
@@ -243,6 +244,7 @@
             <div class="field">
               <label>Påmindelse før start</label>
               <select name="notify_lead_minutes">
+                <option value="0">0 minutter</option>
                 <option value="15">15 minutter</option>
                 <option value="30">30 minutter</option>
                 <option value="45">45 minutter</option>
