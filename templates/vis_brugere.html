@@ -61,16 +61,18 @@
     <form method="get" action="/statistik"><button class="toppanel-knap">Statistik</button></form>
     <div style="margin-left:auto;"></div>
   </div>
+
   {% if request.args.get('besked') %}
-  <div class="badge">{{ request.args.get('besked') }}</div>
-{% endif %}
-{% if request.args.get('fejl') %}
-  <div class="badge" style="background: rgba(220,53,69,.2); border-color: rgba(220,53,69,.5);">
-    {{ request.args.get('fejl') }}
-  </div>
-{% endif %}
-{% if besked %}<div class="alert-ok">✅ {{ besked }}</div>{% endif %}
-{% if fejl %}<div class="alert-err">⚠️ {{ fejl }}</div>{% endif %}
+    <div class="badge">{{ request.args.get('besked') }}</div>
+  {% endif %}
+  {% if request.args.get('fejl') %}
+    <div class="badge" style="background: rgba(220,53,69,.2); border-color: rgba(220,53,69,.5);">
+      {{ request.args.get('fejl') }}
+    </div>
+  {% endif %}
+  {% if besked %}<div class="alert-ok">✅ {{ besked }}</div>{% endif %}
+  {% if fejl %}<div class="alert-err">⚠️ {{ fejl }}</div>{% endif %}
+
   <div class="wrap">
     <h2>Brugeradministration</h2>
 
@@ -115,31 +117,49 @@
                   </div>
                 </div>
 
-                <!-- Godkendt + Notifikationer -->
+                <!-- Notifikationer (samlet + kanaler) -->
                 <div class="row" style="margin-top:8px;">
                   <div class="field" style="display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" id="godk_{{ u.brugernavn }}" name="godkendt" value="1" form="f_{{ u.brugernavn }}" {% if u.godkendt %}checked{% endif %}>
                     <label for="godk_{{ u.brugernavn }}">Godkendt</label>
                     <input type="hidden" name="godkendt" value="0" form="f_{{ u.brugernavn }}">
                   </div>
+
                   <div class="notifline">
-                    <!-- Samlet notifikation (bevarer din kolonne) -->
                     <label title="Samlet notifikation (ja/nej)">
                       <input type="hidden" name="notifikation" value="nej" form="f_{{ u.brugernavn }}">
                       <input type="checkbox" name="notifikation" value="ja" form="f_{{ u.brugernavn }}" {% if u.notifikation == 'ja' %}checked{% endif %}> Notifikation (samlet)
                     </label>
-                    <!-- Kanal: MAIL -->
                     <label>
                       <input type="hidden" name="notif_email" value="nej" form="f_{{ u.brugernavn }}">
                       <input type="checkbox" name="notif_email" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_email == 'ja' or u.notif_email is sameas true %}checked{% endif %}> Mail
                     </label>
-                    <!-- Kanal: SMS -->
                     <label>
                       <input type="hidden" name="notif_sms" value="nej" form="f_{{ u.brugernavn }}">
                       <input type="checkbox" name="notif_sms" value="ja" form="f_{{ u.brugernavn }}" {% if u.notif_sms == 'ja' or u.notif_sms is sameas true %}checked{% endif %}> SMS
                     </label>
                   </div>
                 </div>
+
+                <!-- NYT: Indstillinger for påmindelse & “vask færdig” -->
+                <div class="row" style="margin-top:8px;">
+                  <div class="field">
+                    <label>Påmindelse før start</label>
+                    <select name="notify_lead_minutes" form="f_{{ u.brugernavn }}">
+                      {% set lead = u.notify_lead_minutes or 60 %}
+                      <option value="15" {% if lead == 15 %}selected{% endif %}>15 minutter</option>
+                      <option value="30" {% if lead == 30 %}selected{% endif %}>30 minutter</option>
+                      <option value="45" {% if lead == 45 %}selected{% endif %}>45 minutter</option>
+                      <option value="60" {% if lead == 60 %}selected{% endif %}>60 minutter</option>
+                    </select>
+                  </div>
+                  <div class="field" style="display:flex; align-items:center; gap:8px;">
+                    <input type="hidden" name="notify_finish" value="0" form="f_{{ u.brugernavn }}">
+                    <input type="checkbox" id="nf_{{ u.brugernavn }}" name="notify_finish" value="1" form="f_{{ u.brugernavn }}" {% if u.notify_finish %}checked{% endif %}>
+                    <label for="nf_{{ u.brugernavn }}">Send “vask færdig”-besked</label>
+                  </div>
+                </div>
+                <!-- /NYT -->
 
                 <!-- Knapper -->
                 <div class="btnbar">
@@ -218,6 +238,25 @@
             </div>
           </div>
 
+          <!-- NYT: Standard-indstillinger ved oprettelse -->
+          <div class="row" style="margin-top:8px;">
+            <div class="field">
+              <label>Påmindelse før start</label>
+              <select name="notify_lead_minutes">
+                <option value="15">15 minutter</option>
+                <option value="30">30 minutter</option>
+                <option value="45">45 minutter</option>
+                <option value="60" selected>60 minutter</option>
+              </select>
+            </div>
+            <div class="field" style="display:flex; align-items:center; gap:8px;">
+              <input type="hidden" name="notify_finish" value="0">
+              <input type="checkbox" id="opret_nf" name="notify_finish" value="1" checked>
+              <label for="opret_nf">Send “vask færdig”-besked</label>
+            </div>
+          </div>
+          <!-- /NYT -->
+
           <div class="btnbar" style="margin-top:10px;">
             <button class="btn save" type="submit">Opret</button>
             <button class="btn" type="reset">Nulstil</button>
@@ -286,10 +325,10 @@
   <footer>© Hornsberg Group</footer>
 
   <script>
-setTimeout(()=>{
-  document.querySelector('.alert-ok')?.remove();
-  document.querySelector('.alert-err')?.remove();
-}, 3000);
-</script>
+    setTimeout(()=>{
+      document.querySelector('.alert-ok')?.remove();
+      document.querySelector('.alert-err')?.remove();
+    }, 3000);
+  </script>
 </body>
 </html>

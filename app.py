@@ -1223,29 +1223,38 @@ def ensure_stat_support_tables(cur):
     """)
 
 def ensure_user_columns(cur):
-    # Safe at køre – opretter manglende felter i brugere
+    # eksisterende felter fra dit setup bibeholdes
     cur.execute("""
     DO $$
     BEGIN
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='email') THEN
-        ALTER TABLE brugere ADD COLUMN email TEXT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='sms') THEN
-        ALTER TABLE brugere ADD COLUMN sms TEXT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='godkendt') THEN
-        ALTER TABLE brugere ADD COLUMN godkendt BOOLEAN DEFAULT TRUE;
-      END IF;
-      -- bevar dit gamle 'notifikation' samlet felt
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notifikation') THEN
-        ALTER TABLE brugere ADD COLUMN notifikation TEXT DEFAULT 'ja';
-      END IF;
-      -- kanal flags lagres som 'ja'/'nej' (bagudskompatibelt)
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notif_email') THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='brugere' AND column_name='notif_email'
+      ) THEN
         ALTER TABLE brugere ADD COLUMN notif_email TEXT DEFAULT 'ja';
       END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brugere' AND column_name='notif_sms') THEN
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='brugere' AND column_name='notif_sms'
+      ) THEN
         ALTER TABLE brugere ADD COLUMN notif_sms TEXT DEFAULT 'nej';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='brugere' AND column_name='notify_lead_minutes'
+      ) THEN
+        ALTER TABLE brugere
+          ADD COLUMN notify_lead_minutes INTEGER NOT NULL DEFAULT 60,
+          ADD CONSTRAINT chk_notify_lead_minutes CHECK (notify_lead_minutes IN (15,30,45,60));
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='brugere' AND column_name='notify_finish'
+      ) THEN
+        ALTER TABLE brugere ADD COLUMN notify_finish BOOLEAN NOT NULL DEFAULT TRUE;
       END IF;
     END$$;
     """)
@@ -1552,6 +1561,100 @@ def hent_slot_status_for_dag(cur, dato):
 def hash_kode(plain: str) -> str:
     return hashlib.sha256(plain.encode('utf-8')).hexdigest()  # brug samme hash som resten af systemet
 
+def get_user_prefs(cur, brugernavn: str) -> dict:
+    cur.execute("""
+        SELECT
+          COALESCE(notifikation,'ja') AS master,
+          COALESCE(notif_email,'ja')  AS notif_email,
+          COALESCE(notif_sms,'nej')   AS notif_sms,
+          COALESCE(
+            (CASE WHEN EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name='brugere' AND column_name='notify_lead_minutes'
+            ) THEN notify_lead_minutes::text ELSE '60' END),'60'
+          ) AS lead_txt,
+          COALESCE(
+            (CASE WHEN EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name='brugere' AND column_name='notify_finish'
+            ) THEN CASE WHEN notify_finish THEN 'ja' ELSE 'nej' END ELSE 'ja' END),'ja'
+          ) AS finish_txt,
+          COALESCE(email,''), COALESCE(sms,'')
+        FROM brugere WHERE LOWER(brugernavn)=LOWER(%s) LIMIT 1
+    """, (brugernavn,))
+    r = cur.fetchone()
+    if not r:
+        return {"master":True,"notif_email":True,"notif_sms":False,"lead":60,"finish":True,"email":"","sms":""}
+    master, ne, ns, lead_txt, finish_txt, email, sms = r
+    try: lead = int(lead_txt)
+    except: lead = 60
+    if lead not in (15,30,45,60): lead = 60
+    return {
+        "master": str(master).lower()=="ja",
+        "notif_email": str(ne).lower()=="ja",
+        "notif_sms":   str(ns).lower()=="ja",
+        "lead": lead,
+        "finish": str(finish_txt).lower()=="ja",
+        "email": email, "sms": sms
+    }
+
+def _booking_key(dato, slot_index, sub_slot):
+    d = dato.strftime("%Y-%m-%d") if hasattr(dato,"strftime") else str(dato)
+    return f"{d}|{int(slot_index)}|{sub_slot or 'full'}"
+
+def check_prestart_due(conn, now_utc: datetime):
+    """
+    Kaldes fra ha_webhook på hvert ping.
+    Finder bookinger der starter om ~lead min (±2 min) og sender én gang.
+    """
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT brugernavn, dato_rigtig, slot_index, sub_slot, start_ts
+            FROM bookinger
+            WHERE status='aktiv'
+              AND start_ts > NOW()
+              AND start_ts < NOW() + interval '2 hours'
+        """)
+        rows = cur.fetchall() or []
+
+        for brugernavn, dato, slot_index, sub_slot, start_ts in rows:
+            prefs = get_user_prefs(cur, brugernavn)
+            if not prefs["master"]:
+                continue
+
+            delta = start_ts - now_utc
+            if abs(delta - timedelta(minutes=prefs["lead"])) > timedelta(minutes=2):
+                continue  # ikke i vinduet
+
+            key = _booking_key(dato, slot_index, sub_slot)
+            # deduplikér hvis notification_log findes
+            try:
+                cur.execute("""
+                    INSERT INTO notification_log (brugernavn, booking_key, type, lead_minutes)
+                    VALUES (%s,%s,'prestart',%s)
+                    ON CONFLICT DO NOTHING
+                """, (brugernavn, key, prefs["lead"]))
+                if cur.rowcount == 0:
+                    continue  # allerede sendt tidligere
+            except Exception:
+                pass  # hvis tabellen ikke findes, sender vi alligevel
+
+            # Tekster
+            try:
+                s_start, s_end = slot_start_end(dato, int(slot_index))
+                slot_txt = f"{s_start.strftime('%H')}-{s_end.strftime('%H')}"
+            except Exception:
+                slot_txt = f"Slot {slot_index}"
+            ddk = dato.strftime("%d-%m-%Y") if hasattr(dato,"strftime") else str(dato)
+            del_txt = " (tidlig)" if sub_slot=="early" else " (sen)" if sub_slot=="late" else ""
+
+            emne = "Vasketid begynder snart"
+            mail_tekst = f"Din vasketid ({ddk} {slot_txt}{del_txt}) starter om {prefs['lead']} minutter."
+            sms_tekst  = f"Vasketid starter om {prefs['lead']} min ({ddk} {slot_txt})."
+
+            # Brug din eksisterende afsender (respekterer master/kanaler via get_kontaktinfo)
+            send_notifikation(brugernavn, emne, mail_tekst, sms_tekst)
+
 def ryd_gamle_bookinger_job():
     from pytz import timezone
     TZ = timezone("Europe/Copenhagen")
@@ -1835,6 +1938,78 @@ def ha_webhook():
             slot_idx = current_slot_index_from_local(opdateret_dk)
             dato_i_dag = opdateret_dk.date()
 
+            # === NYT: pre-start påmindelser (ingen cron, køres her) ===========
+            # Finder bookinger i nær fremtid og udsender hvis vi rammer brugerens lead.
+            try:
+                with get_db_connection() as conn_ps:
+                    with conn_ps.cursor() as cur_ps:
+                        cur_ps.execute("""
+                            SELECT b.brugernavn, b.dato_rigtig, b.slot_index, b.sub_slot, b.start_ts
+                            FROM bookinger b
+                            WHERE b.status='aktiv'
+                              AND b.start_ts > NOW()
+                              AND b.start_ts < NOW() + interval '2 hours'
+                        """)
+                        rows_ps = cur_ps.fetchall() or []
+
+                        now_utc = datetime.now(timezone.utc)
+                        for brugernavn, dato_ps, slot_ps, sub_ps, start_ts in rows_ps:
+                            # Hent brugerpræferencer
+                            prefs = get_user_prefs(cur_ps, brugernavn)  # <-- kræver helperen i app.py
+                            if not prefs["master"]:
+                                continue
+                            # Match indenfor ±2 min af lead
+                            if abs((start_ts - now_utc) - timedelta(minutes=prefs["lead"])) > timedelta(minutes=2):
+                                continue
+
+                            # Deduplikér hvis notification_log findes (valgfrit)
+                            skip_already = False
+                            try:
+                                key = _booking_key(dato_ps, slot_ps, sub_ps)
+                                cur_ps.execute("""
+                                    CREATE TABLE IF NOT EXISTS notification_log (
+                                        id BIGSERIAL PRIMARY KEY,
+                                        brugernavn TEXT NOT NULL,
+                                        booking_key TEXT NOT NULL,
+                                        type TEXT NOT NULL,
+                                        lead_minutes INT,
+                                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                        UNIQUE (brugernavn, booking_key, type, COALESCE(lead_minutes,0))
+                                    )
+                                """)
+                                cur_ps.execute("""
+                                    INSERT INTO notification_log (brugernavn, booking_key, type, lead_minutes)
+                                    VALUES (%s,%s,'prestart',%s)
+                                    ON CONFLICT DO NOTHING
+                                """, (brugernavn, key, prefs["lead"]))
+                                skip_already = (cur_ps.rowcount == 0)
+                            except Exception:
+                                # Hvis tabellen ikke findes/kan laves, sender vi bare (kan i værste fald give 2x besked)
+                                pass
+                            if skip_already:
+                                continue
+
+                            # Byg tekster
+                            try:
+                                s_start, s_end = slot_start_end(dato_ps, int(slot_ps))
+                                slot_txt = f"{s_start.strftime('%H')}-{s_end.strftime('%H')}"
+                            except Exception:
+                                slot_txt = f"Slot {slot_ps}"
+                            ddk = dato_ps.strftime("%d-%m-%Y") if hasattr(dato_ps, "strftime") else str(dato_ps)
+                            del_txt = " (tidlig)" if sub_ps == "early" else " (sen)" if sub_ps == "late" else ""
+
+                            emne = "Vasketid begynder snart"
+                            mail_tekst = f"Din vasketid ({ddk} {slot_txt}{del_txt}) starter om {prefs['lead']} minutter."
+                            sms_tekst  = f"Vasketid starter om {prefs['lead']} min ({ddk} {slot_txt})."
+
+                            # Brug din centrale afsender
+                            send_notifikation(brugernavn, emne, mail_tekst, sms_tekst)
+
+                        conn_ps.commit()
+            except Exception as e_pre:
+                print(f"⚠️ pre-start udsendelsesfejl: {e_pre}", flush=True)
+            # === /NYT ===========================================================
+
             if slot_idx is not None:
                 with get_db_connection() as conn3:
                     with conn3.cursor() as cur3:
@@ -1858,7 +2033,6 @@ def ha_webhook():
                             booked_now = False
                             offender = None
                             try:
-                                # Disse helpers kan internt have SQL med INTERVAL – hvis de fejler, må det ikke give 500
                                 booked_now = has_active_or_booked_in_slot(cur3, dato_i_dag, slot_idx)
                             except Exception as e_chk:
                                 print(f"⚠️ has_active_or_booked_in_slot fejl: {e_chk}", flush=True)
@@ -1866,7 +2040,6 @@ def ha_webhook():
                             try:
                                 offender = recently_deleted_same_slot(cur3, dato_i_dag, slot_idx, within_minutes=60)
                             except Exception as e_del:
-                                # TYPISK FEJL HER: 'INTERVAL $3' → ret i helper til: NOW() - (%s::int * interval '1 minute')
                                 print(f"⚠️ recently_deleted_same_slot fejl: {e_del}", flush=True)
 
                             if (not booked_now) or offender:
@@ -1874,7 +2047,6 @@ def ha_webhook():
                                     reason = "Ingen aktiv booking" if not booked_now else "Booking annulleret for nylig"
                                     event  = "running_without_booking" if not booked_now else "deleted_then_used"
                                     note   = f"status='{norm_status}', opdateret={opdateret_dk.isoformat()}"
-                                    # Må ikke crashe:
                                     log_enforcement(cur3, event, slot_idx, slot_txt, offender, reason, note)
                                 except Exception as e_log:
                                     print(f"⚠️ log_enforcement fejl: {e_log}", flush=True)
@@ -1894,10 +2066,41 @@ def ha_webhook():
                             if cur3.rowcount:
                                 print(f"✅ ha_webhook: markerede {cur3.rowcount} som completed", flush=True)
 
-                            # Notifikationer – må ikke crashe
+                            # Notifikationer – respekter brugerens valg (NYT)
                             if rows:
                                 for (navn,) in rows:
                                     try:
+                                        # Hent prefs
+                                        prefs = get_user_prefs(cur3, navn)  # <-- kræver helperen i app.py
+                                        if not (prefs["master"] and prefs["finish"]):
+                                            continue
+
+                                        # Dedupe finish-besked (valgfrit)
+                                        skip_already = False
+                                        try:
+                                            key = _booking_key(dato_i_dag, slot_idx, None)  # sub_slot ukendt her → None
+                                            cur3.execute("""
+                                                CREATE TABLE IF NOT EXISTS notification_log (
+                                                    id BIGSERIAL PRIMARY KEY,
+                                                    brugernavn TEXT NOT NULL,
+                                                    booking_key TEXT NOT NULL,
+                                                    type TEXT NOT NULL,
+                                                    lead_minutes INT,
+                                                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                                    UNIQUE (brugernavn, booking_key, type, COALESCE(lead_minutes,0))
+                                                )
+                                            """)
+                                            cur3.execute("""
+                                                INSERT INTO notification_log (brugernavn, booking_key, type)
+                                                VALUES (%s,%s,'finish')
+                                                ON CONFLICT DO NOTHING
+                                            """, (navn, key))
+                                            skip_already = (cur3.rowcount == 0)
+                                        except Exception:
+                                            pass
+                                        if skip_already:
+                                            continue
+
                                         subject = "Din vask er færdig"
                                         text    = (f"Hej {navn}, din vask er færdig kl. "
                                                    f"{opdateret_dk.strftime('%H:%M')}.\n"
@@ -3297,62 +3500,94 @@ def api_booking_allowed_now():
 # Bruger
 # ==============
 
-@app.route("/profil", methods=["GET", "POST"])
+@app.route("/profil", methods=["GET","POST"])
 def profil():
     if 'brugernavn' not in session:
         return redirect('/login')
-
-    fejl = ""
-    besked = ""
     brugernavn = session['brugernavn']
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = get_db_connection(); cur = conn.cursor()
+    fejl = besked = ""
+    try:
+        ensure_user_columns(cur)
 
-    if request.method == "POST":
-        email = request.form.get("email", "")
-        sms = request.form.get("sms", "")
-        if sms and not sms.startswith("+"):
-            sms = "+45" + sms.strip()
-        notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip() or None
+            sms   = (request.form.get("sms")   or "").strip() or None
+            if sms and not sms.startswith("+"):
+                sms = "+45" + sms
+            notifikation = 'ja' if _truthy(request.form.get("notifikation")) else 'nej'
+
+            try:
+                lead = int(request.form.get("notify_lead_minutes", "60"))
+            except ValueError:
+                lead = 60
+            if lead not in (15,30,45,60):
+                lead = 60
+            notify_finish = _truthy(request.form.get("notify_finish"))
+
+            cur.execute("""
+                UPDATE brugere
+                   SET email = %s, sms = %s, notifikation = %s,
+                       notify_lead_minutes = %s, notify_finish = %s
+                 WHERE brugernavn = %s
+            """, (email, sms, notifikation, lead, notify_finish, brugernavn))
+            conn.commit()
+            besked = "Oplysninger opdateret"
 
         cur.execute("""
-            UPDATE brugere
-            SET email = %s, sms = %s, notifikation = %s
-            WHERE brugernavn = %s
-        """, (email, sms, notifikation, brugernavn))
-        conn.commit()
-        besked = "Oplysninger opdateret"
+            SELECT COALESCE(email,''), COALESCE(sms,''), COALESCE(notifikation,'ja'),
+                   COALESCE(notify_lead_minutes,60), COALESCE(notify_finish,TRUE)
+            FROM brugere WHERE brugernavn = %s
+        """, (brugernavn,))
+        row = cur.fetchone() or ("","","ja",60,True)
+        email, sms, notifikation, notify_lead_minutes, notify_finish = row
+    finally:
+        try: cur.close(); conn.close()
+        except: pass
 
-    cur.execute("SELECT email, sms, notifikation FROM brugere WHERE brugernavn = %s", (brugernavn,))
-    result = cur.fetchone()
-    email, sms, notifikation = result if result else ("", "", "nej")
-    conn.close()
-
-    return render_template("opret bruger.html", email=email, sms=sms, notifikation=notifikation, fejl=fejl, besked=besked, profil_visning=True)
+    return render_template(
+        "opret bruger.html",
+        email=email, sms=sms, notifikation=notifikation,
+        notify_lead_minutes=notify_lead_minutes, notify_finish=notify_finish,
+        fejl=fejl, besked=besked, profil_visning=True
+    )
 
 @app.route('/opret', methods=['GET', 'POST'])
 def opret():
     if request.method == 'POST':
-        brugernavn = request.form['brugernavn'].lower()
-        adgangskode = request.form['adgangskode']
-        email = request.form.get('email', '')
-        sms = request.form.get('sms', '')
+        brugernavn   = request.form['brugernavn'].lower().strip()
+        adgangskode  = request.form['adgangskode']
+        email        = request.form.get('email', '').strip() or None
+        sms          = request.form.get('sms', '').strip() or None
         if sms and not sms.startswith("+"):
-            sms = "+45" + sms.strip()
+            sms = "+45" + sms
+
         notifikation = 'ja' if _truthy(request.form.get('notifikation')) else 'nej'
+        try:
+            lead = int(request.form.get('notify_lead_minutes', '60'))
+        except ValueError:
+            lead = 60
+        if lead not in (15,30,45,60):
+            lead = 60
+        notify_finish = _truthy(request.form.get('notify_finish'))
+
         godkendt = False  # kræver admin-godkendelse
 
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, godkendt)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (brugernavn, adgangskode, email, sms, notifikation, godkendt))
-        conn.commit()
-        cur.close()
-        conn.close()
+        try:
+            ensure_user_columns(cur)
+            cur.execute("""
+                INSERT INTO brugere (brugernavn, kode, email, sms, notifikation, notif_email, notif_sms, godkendt, notify_lead_minutes, notify_finish)
+                VALUES (%s, %s, %s, %s, %s, 'ja', 'nej', %s, %s, %s)
+            """, (brugernavn, adgangskode, email, sms, notifikation, godkendt, lead, notify_finish))
+            conn.commit()
+        finally:
+            try: cur.close(); conn.close()
+            except: pass
 
+        # (din eksisterende mail til godkendelse)
         token = generer_token(brugernavn)
         link = f"https://vasketider.onrender.com/godkend/{brugernavn}?token={token}"
         besked = f"En ny bruger er oprettet: '{brugernavn}'\n\nKlik for at godkende:\n{link}"
@@ -3360,6 +3595,7 @@ def opret():
 
         return redirect('/login?besked=Bruger+oprettet+og+venter+godkendelse')
 
+    # GET
     return render_template("opret bruger.html")
 
 @app.route("/vis_brugere", methods=["GET"])
@@ -3370,7 +3606,6 @@ def vis_brugere():
     conn = get_db_connection(); cur = conn.cursor()
     brugere = []
     try:
-        # behold dit ensure_user_columns call
         try:
             ensure_user_columns(cur)
             conn.commit()
@@ -3379,21 +3614,23 @@ def vis_brugere():
 
         cur.execute("""
             SELECT brugernavn, kode, email, sms,
-                   COALESCE(notifikation,'ja') AS notifikation,
-                   COALESCE(notif_email,'ja')  AS notif_email,
-                   COALESCE(notif_sms,'nej')   AS notif_sms,
-                   COALESCE(godkendt, TRUE)    AS godkendt
+                   COALESCE(notifikation,'ja')           AS notifikation,
+                   COALESCE(notif_email,'ja')            AS notif_email,
+                   COALESCE(notif_sms,'nej')             AS notif_sms,
+                   COALESCE(godkendt, TRUE)              AS godkendt,
+                   COALESCE(notify_lead_minutes, 60)     AS notify_lead_minutes,
+                   COALESCE(notify_finish, TRUE)         AS notify_finish
             FROM public.brugere
             ORDER BY LOWER(brugernavn)
         """)
         rows = cur.fetchall() or []
-        cols = ['brugernavn','adgangskode','email','sms','notifikation','notif_email','notif_sms','godkendt']
+        cols = ['brugernavn','adgangskode','email','sms','notifikation',
+                'notif_email','notif_sms','godkendt','notify_lead_minutes','notify_finish']
         brugere = [dict(zip(cols, r)) for r in rows]
     finally:
         try: cur.close(); conn.close()
         except Exception: pass
 
-    # send besked/fejl videre til din HTML (du har allerede alert-ok i toppen)
     return render_template(
         "vis_brugere.html",
         brugere=brugere,
@@ -3475,6 +3712,11 @@ def opdater_bruger():
     email       = (request.form.get("email") or "").strip()
     sms         = (request.form.get("sms") or "").strip()
 
+    # NYT: brugerpræferencer fra form
+    raw_lead    = (request.form.get("notify_lead_minutes") or "").strip()
+    # notify_finish kan komme som hidden 0 + checkbox 1 → derfor getlist
+    notify_finish_vals = request.form.getlist("notify_finish")
+
     if not brugernavn:
         return redirect("/admin/brugere?fejl=Mangler+brugernavn")
 
@@ -3509,6 +3751,18 @@ def opdater_bruger():
     godkendt_vals = request.form.getlist("godkendt")
     godkendt = any(truthy(v) for v in godkendt_vals) if godkendt_vals else truthy(request.form.get("godkendt"))
 
+    # NYT: normalisering af lead-minutter
+    try:
+        lead = int(raw_lead) if raw_lead else 60
+    except ValueError:
+        lead = 60
+    if lead not in (15, 30, 45, 60):
+        lead = 60
+
+    # NYT: notify_finish boolean fra kombi hidden/checkbox
+    notify_finish_bool = any(truthy(v) for v in notify_finish_vals) if notify_finish_vals else truthy(request.form.get("notify_finish"))
+    notify_finish_text = "ja" if notify_finish_bool else "nej"
+
     conn = get_db_connection()
     cur  = conn.cursor()
     try:
@@ -3540,6 +3794,17 @@ def opdater_bruger():
             else:
                 values.append(val_text)
 
+        def set_int_or_text(col: str, val_int: int, val_text: str):
+            dtype = cols.get(col)
+            if not dtype:
+                return
+            set_parts.append(f"{col} = %s")
+            # integer/number → skriv heltal; ellers skriv tekst
+            if any(k in dtype.lower() for k in ("int", "numeric", "decimal")):
+                values.append(val_int)
+            else:
+                values.append(val_text)
+
         # kode – kun hvis udfyldt, ellers bevar eksisterende
         if adgangskode:
             set_text_col("kode", adgangskode)
@@ -3557,11 +3822,19 @@ def opdater_bruger():
         # kanaler – understøt både notif_email og notif_mail hvis de findes
         set_bool_or_text("notif_email", notif_email == "ja", notif_email)
         set_bool_or_text("notif_mail",  notif_email == "ja", notif_email)  # ældre skema
-
         set_bool_or_text("notif_sms",   notif_sms   == "ja", notif_sms)
 
+        # NYT: notify_lead_minutes (int eller tekst fallback)
+        set_int_or_text("notify_lead_minutes", lead, str(lead))
+
+        # NYT: notify_finish (bool eller tekst fallback)
+        set_bool_or_text("notify_finish", notify_finish_bool, notify_finish_text)
+
         if not set_parts:
-            cur.close(); conn.close()
+            try:
+                cur.close(); conn.close()
+            finally:
+                pass
             return redirect("/admin/brugere?fejl=Ingen+felter+at+opdatere")
 
         sql = f"UPDATE brugere SET {', '.join(set_parts)} WHERE LOWER(brugernavn)=LOWER(%s)"
@@ -3569,7 +3842,10 @@ def opdater_bruger():
 
         cur.execute(sql, values)
         conn.commit()
-        cur.close(); conn.close()
+        try:
+            cur.close(); conn.close()
+        finally:
+            pass
         return redirect("/admin/brugere?besked=Bruger+opdateret")
     except Exception as e:
         try:

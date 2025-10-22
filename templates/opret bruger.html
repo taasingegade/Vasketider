@@ -1,28 +1,51 @@
+
 <!DOCTYPE html>
 <html lang="da">
 <head>
   <meta charset="UTF-8">
-  <title>Opret ny bruger</title>
+  <title>{% if profil_visning %}Min profil{% else %}Opret ny bruger{% endif %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    /* Små forbedringer til sektionstitler og input-ikoner */
+    .section-title { margin: 12px 0 6px; font-weight: 600; opacity:.95; }
+    .input-row { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (max-width: 640px){ .input-row { grid-template-columns: 1fr; } }
+    .input-eye { position: relative; }
+    .eye-toggle {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border-radius: 9px;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25);
+      cursor: pointer;
+    }
+    .eye-toggle svg { width:18px; height:18px; }
+    .remember-line { display:flex; align-items:center; gap:10px; margin:10px 0; }
+    .remember-text { opacity:.9; }
+    .subtle { font-size:12px; opacity:.8; margin-top:4px; }
+  </style>
 </head>
 <body>
   <!-- Topmenu -->
   <div class="toppanel">
-    <form method="get" action="/login">
-      <button class="toppanel-knap">Tilbage til log ind</button>
-    </form>
+    {% if profil_visning %}
+      <form method="get" action="/index"><button class="toppanel-knap">Kalender</button></form>
+    {% else %}
+      <form method="get" action="/login"><button class="toppanel-knap">Tilbage til log ind</button></form>
+    {% endif %}
   </div>
 
   <!-- Glasboks -->
   <main class="auth-wrap">
     <section class="auth-box">
-      <h2>Opret ny bruger</h2>
+      <h2>{% if profil_visning %}Min profil{% else %}Opret ny bruger{% endif %}</h2>
 
       {% if fejl %}<p class="msg msg-error" role="alert">{{ fejl }}</p>{% endif %}
       {% if besked %}<p class="msg msg-ok">{{ besked }}</p>{% endif %}
 
+      {# ====================== OPRET-NY BRUGER ====================== #}
       {% if not profil_visning %}
       <form method="post" action="/opret" class="auth-form" novalidate>
         <label class="sr-only" for="brugernavn">Brugernavn</label>
@@ -41,38 +64,99 @@
           </button>
         </div>
 
-        <label class="sr-only" for="email">Email (valgfrit)</label>
-        <input id="email" type="email" name="email" placeholder="Email (valgfrit)" value="{{ email or '' }}" autocomplete="email">
+        <div class="input-row">
+          <div>
+            <label class="sr-only" for="email">Email (valgfrit)</label>
+            <input id="email" type="email" name="email" placeholder="Email (valgfrit)" value="{{ email or '' }}" autocomplete="email">
+          </div>
+          <div>
+            <label class="sr-only" for="sms">SMS (valgfrit)</label>
+            <input id="sms" type="text" name="sms" placeholder="SMS (valgfrit)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
+          </div>
+        </div>
 
-        <label class="sr-only" for="sms">SMS (valgfrit)</label>
-        <input id="sms" type="text" name="sms" placeholder="SMS (valgfrit)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
+        <div class="section-title">Notifikationsindstillinger</div>
 
+        <!-- Samlet on/off -->
         <div class="remember-line">
+          <!-- send 'nej' hvis unchecked -->
+          <input type="hidden" name="notifikation" value="nej">
           <label class="switch" title="Modtag beskeder om dine bookinger">
-            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% endif %}>
+            <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' %}checked{% else %}checked{% endif %}>
             <span class="slider round"></span>
           </label>
           <span class="remember-text">Ønsker notifikationer</span>
+        </div>
+
+        <!-- NYT: Påmindelse før start -->
+        <label for="lead_new">Påmindelse før start</label>
+        <select id="lead_new" name="notify_lead_minutes">
+          <option value="15">15 minutter</option>
+          <option value="30">30 minutter</option>
+          <option value="45">45 minutter</option>
+          <option value="60" selected>60 minutter</option>
+        </select>
+        <div class="subtle">Vi sender en påmindelse det valgte antal minutter før din vasketid starter.</div>
+
+        <!-- NYT: Vask færdig-besked -->
+        <div class="remember-line" style="margin-top:8px;">
+          <input type="hidden" name="notify_finish" value="0">
+          <label class="switch" title="Send besked når vasken er færdig">
+            <input type="checkbox" name="notify_finish" value="1" checked>
+            <span class="slider round"></span>
+          </label>
+          <span class="remember-text">Send “vask færdig”-besked</span>
         </div>
 
         <button type="submit" class="glass-btn">Opret bruger</button>
       </form>
       {% endif %}
 
+      {# ====================== PROFIL-VISNING (OPDATER) ====================== #}
       {% if profil_visning %}
       <form method="post" action="/opret" class="auth-form" novalidate>
-        <label class="sr-only" for="email2">Email</label>
-        <input id="email2" type="email" name="email" placeholder="Email" value="{{ email or '' }}" autocomplete="email">
+        <div class="input-row">
+          <div>
+            <label class="sr-only" for="email2">Email</label>
+            <input id="email2" type="email" name="email" placeholder="Email" value="{{ email or '' }}" autocomplete="email">
+          </div>
+          <div>
+            <label class="sr-only" for="sms2">SMS</label>
+            <input id="sms2" type="text" name="sms" placeholder="SMS (+45…)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
+          </div>
+        </div>
 
-        <label class="sr-only" for="sms2">SMS</label>
-        <input id="sms2" type="text" name="sms" placeholder="SMS (+45…)" value="{{ sms or '' }}" inputmode="tel" onblur="normalizeSMS(this)">
+        <div class="section-title">Notifikationsindstillinger</div>
 
+        <!-- Samlet on/off -->
         <div class="remember-line">
+          <input type="hidden" name="notifikation" value="nej">
           <label class="switch" title="Modtag beskeder om dine bookinger">
             <input type="checkbox" name="notifikation" value="ja" {% if notifikation == 'ja' or notifikation is sameas true %}checked{% endif %}>
             <span class="slider round"></span>
           </label>
           <span class="remember-text">Jeg ønsker notifikationer</span>
+        </div>
+
+        <!-- NYT: Påmindelse før start (brug eksisterende værdi) -->
+        {% set lead = notify_lead_minutes or 60 %}
+        <label for="lead_profile">Påmindelse før start</label>
+        <select id="lead_profile" name="notify_lead_minutes">
+          <option value="15" {% if lead==15 %}selected{% endif %}>15 minutter</option>
+          <option value="30" {% if lead==30 %}selected{% endif %}>30 minutter</option>
+          <option value="45" {% if lead==45 %}selected{% endif %}>45 minutter</option>
+          <option value="60" {% if lead==60 %}selected{% endif %}>60 minutter</option>
+        </select>
+        <div class="subtle">Vi sender en påmindelse det valgte antal minutter før din vasketid starter.</div>
+
+        <!-- NYT: Vask færdig-besked (brug eksisterende værdi) -->
+        <div class="remember-line" style="margin-top:8px;">
+          <input type="hidden" name="notify_finish" value="0">
+          <label class="switch" title="Send besked når vasken er færdig">
+            <input type="checkbox" name="notify_finish" value="1" {% if notify_finish %}checked{% endif %}>
+            <span class="slider round"></span>
+          </label>
+          <span class="remember-text">Send “vask færdig”-besked</span>
         </div>
 
         <button type="submit" class="glass-btn">Gem ændringer</button>
