@@ -279,7 +279,72 @@
       setInterval(() => tickETA && tickETA(), 60000);
     };
   </script>
+<script>
+/* === ETA i toppanelets statusbjælke ===
+   Læser data-remaining (minutter) fra #miele-status,
+   viser "Færdig ca. kl. HH:MM (NN min)" og opdaterer hvert minut.
+*/
+(function(){
+  const root = document.getElementById('miele-status');
+  if (!root) return;
 
+  const etaEl   = document.getElementById('status-eta');
+  const statEl  = root.querySelector('.status-value');
+
+  function getRemainingMin(){
+    const raw = root.getAttribute('data-remaining');
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+  }
+
+  function fmtHHMM(d){
+    try { return d.toLocaleTimeString('da-DK', {hour:'2-digit', minute:'2-digit'}); }
+    catch{ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  }
+
+  function setVisible(show){
+    if (!etaEl) return;
+    etaEl.style.display = show ? '' : 'none';
+  }
+
+  let etaAtMs = null; // absolut sluttid i ms
+
+  // Kaldt ved page load
+  window.renderETA = function(){
+    if (!etaEl) return;
+    const remMin = getRemainingMin();
+
+    // Vis kun hvis der er tid tilbage
+    if (remMin <= 0) { setVisible(false); etaAtMs = null; return; }
+
+    // Sæt absolut ETA ud fra nuværende remaining
+    etaAtMs = Date.now() + remMin * 60 * 1000;
+
+    const eta = new Date(etaAtMs);
+    etaEl.textContent = `Færdig ca. kl. ${fmtHHMM(eta)} (${remMin} min)`;
+    setVisible(true);
+  };
+
+  // Kaldt hvert minut
+  window.tickETA = function(){
+    if (!etaEl || etaAtMs === null) return;
+
+    const diffMs = etaAtMs - Date.now();
+    const remMin = Math.max(0, Math.round(diffMs / 60000));
+
+    if (remMin <= 0){
+      etaEl.textContent = 'Afslutter nu';
+      // behold synlig et øjeblik — skjul hvis du vil:
+      // setTimeout(()=>setVisible(false), 120000);
+      return;
+    }
+
+    const eta = new Date(etaAtMs);
+    etaEl.textContent = `Færdig ca. kl. ${fmtHHMM(eta)} (${remMin} min)`;
+    setVisible(true);
+  };
+})();
+</script>
   <footer>© Hornsberg Group</footer>
 </body>
 </html>
