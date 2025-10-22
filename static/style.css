@@ -515,6 +515,8 @@ button, input, select, textarea{
     grid-template-columns: 74px repeat(7, 150px);
     column-gap:12px; row-gap:8px;
   }
+  .eye-toggle{ width: 30px; height: 30px; right: 6px; }
+  .input-eye > input{ padding-right: 40px; }
 }
 
 /* =========================================================
@@ -664,9 +666,3 @@ button, input, select, textarea{
 .eye-toggle .slash{ display: none; }        /* “åben øje” som default */
 .eye-toggle.on .slash{ display: block; }    /* når vist = skru slash på */
 .eye-toggle:focus{ outline: 2px solid rgba(255,255,255,.35); outline-offset: 2px; }
-
-/* Mindre på små mobiler */
-@media (max-width: 420px){
-  .eye-toggle{ width: 30px; height: 30px; right: 6px; }
-  .input-eye > input{ padding-right: 40px; }
-}
