@@ -464,6 +464,23 @@ footer,
 .window.danger .date-row{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
 .window.danger .dz-submit{ margin-top:14px; }
 
+/* ==== ETA VISNING PÅ INDEX (maskinekort) ==== */
+.badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding: .25rem .55rem; border-radius: 999px; font-size: .8rem;
+  line-height:1; background: rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28);
+}
+.badge-busy{ background: rgba(255, 99, 71, .18); color:#ffd3cc; border-color: rgba(255, 99, 71, .35); }
+.badge-free{ background: rgba(40, 167, 69, .18); color:#d5ffd9; border-color: rgba(40, 167, 69, .35); }
+
+.eta-row{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:.35rem .5rem;
+  margin-top:.35rem; position:relative; z-index:1;
+}
+.eta-line{ display:flex; align-items:baseline; gap:.35rem; white-space:nowrap; }
+.eta-finish{ font-weight:700; }
+.eta-remaining{ opacity:.9; }
+.eta-countdown{ font-variant-numeric: tabular-nums; }
 
 /* =========================================================
    RESPONSIVE typografi + layout
@@ -577,6 +594,16 @@ button, input, select, textarea{
 
 /* Mindre glasboks på mobil (gælder alle auth-sider) */
 @media (max-width:600px){
+  .eta-line{ white-space:normal; }
+
+
+   /* Hvis noget andet (fx kortlayout) sætter display:none – afværg */
+  .eta-row[hidden]{ display:flex !important; }
+
+   /* (valgfrit) ensret farver hvis ETA’en ligger i mørke kort */
+  .machine-card .eta-line strong{ color:#fff; }
+  .machine-card .eta-finish{ color:#fff; }
+  .machine-card .eta-remaining{ color:#cfd6e4; }
   .auth-box{
     max-width:320px;
     padding:24px 26px;
