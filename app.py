@@ -1247,7 +1247,7 @@ def ensure_user_columns(cur):
       ) THEN
         ALTER TABLE brugere
           ADD COLUMN notify_lead_minutes INTEGER NOT NULL DEFAULT 60,
-          ADD CONSTRAINT chk_notify_lead_minutes CHECK (notify_lead_minutes IN (15,30,45,60));
+          ADD CONSTRAINT chk_notify_lead_minutes CHECK (notify_lead_minutes IN (0,15,30,45,60));
       END IF;
 
       IF NOT EXISTS (
@@ -3522,7 +3522,7 @@ def profil():
                 lead = int(request.form.get("notify_lead_minutes", "60"))
             except ValueError:
                 lead = 60
-            if lead not in (15,30,45,60):
+            if lead not in (0,15,30,45,60):
                 lead = 60
             notify_finish = _truthy(request.form.get("notify_finish"))
 
@@ -3568,7 +3568,7 @@ def opret():
             lead = int(request.form.get('notify_lead_minutes', '60'))
         except ValueError:
             lead = 60
-        if lead not in (15,30,45,60):
+        if lead not in (0,15,30,45,60):
             lead = 60
         notify_finish = _truthy(request.form.get('notify_finish'))
 
@@ -3756,7 +3756,7 @@ def opdater_bruger():
         lead = int(raw_lead) if raw_lead else 60
     except ValueError:
         lead = 60
-    if lead not in (15, 30, 45, 60):
+    if lead not in (0,15, 30, 45, 60):
         lead = 60
 
     # NYT: notify_finish boolean fra kombi hidden/checkbox
