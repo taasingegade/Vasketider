@@ -475,6 +475,7 @@ def has_active_or_booked_in_slot(cur, dato_date, slot_index: int) -> bool:
     return cur.fetchone() is not None
 
 def recently_deleted_same_slot(cur, dato_date, slot_index: int, within_minutes: int = 60) -> Optional[str]:
+    # Sørg for at tabellen findes (som før)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS recent_deletions(
             id SERIAL PRIMARY KEY,
@@ -484,15 +485,23 @@ def recently_deleted_same_slot(cur, dato_date, slot_index: int, within_minutes: 
             brugernavn TEXT
         )
     """)
+    # (valgfrit, men godt) index til hurtigt opslag
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_recent_del_dato_slot_ts
+        ON recent_deletions (dato, slot_index, ts DESC)
+    """)
+
+    # ✅ FIX: brug *minutter* som tal og lav intervallet i SQL
     cur.execute("""
         SELECT brugernavn
           FROM recent_deletions
          WHERE dato = %s
            AND slot_index = %s
-           AND ts >= NOW() - INTERVAL %s
+           AND ts >= NOW() - (%s * INTERVAL '1 minute')
          ORDER BY ts DESC
          LIMIT 1
-    """, (dato_date, int(slot_index), f"'{within_minutes} minutes'"))
+    """, (dato_date, int(slot_index), int(within_minutes)))
+
     row = cur.fetchone()
     return row[0] if row else None
 
